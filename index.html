@@ -9163,12 +9163,6 @@
               tab.onclick = function () { bulkTagGroupFilter = g.id; renderBulkTagsPicker(); };
               tabsContainer.appendChild(tab);
             });
-            var ungroupedTab = document.createElement("button");
-            ungroupedTab.type = "button";
-            ungroupedTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (bulkTagGroupFilter === "__ungrouped__" ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-            ungroupedTab.textContent = "Ongegroepeerd";
-            ungroupedTab.onclick = function () { bulkTagGroupFilter = "__ungrouped__"; renderBulkTagsPicker(); };
-            tabsContainer.appendChild(ungroupedTab);
           }
         }
         var container = document.getElementById("bulkExistingTagsPicker");
@@ -9392,12 +9386,6 @@
               tab.onclick = function () { modalTagGroupFilter = g.id; renderModalTags(); };
               groupTabsContainer.appendChild(tab);
             });
-            var ungroupedTab = document.createElement("button");
-            ungroupedTab.type = "button";
-            ungroupedTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (modalTagGroupFilter === "__ungrouped__" ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-            ungroupedTab.textContent = "Ongegroepeerd";
-            ungroupedTab.onclick = function () { modalTagGroupFilter = "__ungrouped__"; renderModalTags(); };
-            groupTabsContainer.appendChild(ungroupedTab);
           }
         }
 
