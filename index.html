@@ -771,6 +771,114 @@
         background: rgba(255,102,122,.08) !important;
       }
 
+      #view-analytics .tag-workspace {
+        padding: 18px !important;
+        border-radius: 8px !important;
+      }
+      #view-analytics .tag-workspace-header {
+        align-items: flex-end;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+        border-color: var(--line) !important;
+      }
+      #view-analytics .tag-workspace-header h2 {
+        color: var(--text-1) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 15px;
+        letter-spacing: .01em;
+        text-transform: none;
+      }
+      #view-analytics .tag-workspace-header h2 i {
+        color: var(--accent) !important;
+        font-size: 13px;
+      }
+      #view-analytics .tag-workspace-header p {
+        max-width: 640px;
+        margin-top: 5px;
+        color: var(--text-3) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+      }
+      #view-analytics #tagBankSummary {
+        color: var(--text-2) !important;
+        background: var(--surface-2) !important;
+        border-color: var(--line) !important;
+        border-radius: 4px !important;
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+      }
+      #view-analytics .tag-workspace-grid {
+        gap: 12px !important;
+      }
+      #view-analytics .tag-panel {
+        padding: 14px !important;
+        background: var(--surface-1) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 6px !important;
+      }
+      #view-analytics .tag-panel-heading {
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+        border-color: var(--line) !important;
+      }
+      #view-analytics .tag-panel-heading > span {
+        color: var(--text-1) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+        letter-spacing: .04em;
+      }
+      #view-analytics .tag-panel-copy {
+        margin-bottom: 12px;
+        color: var(--text-3) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+      }
+      #view-analytics #globalTagManagerList,
+      #view-analytics #tagGroupsList {
+        scrollbar-gutter: stable;
+      }
+      #view-analytics #tagGroupsList > div {
+        background: var(--surface-2) !important;
+        border-color: var(--line) !important;
+        border-radius: 5px !important;
+        padding: 10px !important;
+      }
+      #view-analytics #tagGroupsList > div:hover {
+        border-color: var(--line-strong) !important;
+      }
+      #view-analytics .tag-group-create {
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      #view-analytics .tag-group-create input {
+        min-height: 32px;
+        background: var(--surface-2) !important;
+        border-color: var(--line) !important;
+        border-radius: 4px !important;
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+      }
+      #view-analytics .tag-group-create button {
+        min-height: 32px;
+        background: var(--accent-soft) !important;
+        border-color: rgba(79,140,255,.45) !important;
+        border-radius: 4px !important;
+        color: #cfe0ff !important;
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+      }
+      #view-analytics .tag-panel-footer {
+        padding-top: 12px;
+        margin-top: 12px;
+        border-color: var(--line) !important;
+      }
+      #view-analytics .tag-panel-footer > span {
+        color: var(--text-3) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 9px;
+        letter-spacing: .06em;
+      }
+
       .calendar-cell {
         min-height: 104px;
         padding: 10px !important;
@@ -1846,6 +1954,163 @@
         overflow-y: auto;
         padding-right: 3px;
       }
+      #tradeModalDetails {
+        padding: 12px;
+        background: var(--surface-1);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      #tradeModalDetails > label {
+        color: var(--text-1) !important;
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+        letter-spacing: .02em;
+        text-transform: none;
+      }
+      #modalActiveTags {
+        min-height: 36px;
+        align-items: center;
+        padding: 7px;
+        margin-bottom: 10px !important;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      #modalActiveTags:empty::before {
+        content: "Nog geen tags geselecteerd";
+        color: var(--text-3);
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+      }
+      #tradeModalDetails .trade-tag-create {
+        display: flex;
+        gap: 7px;
+        padding-top: 10px;
+        margin-top: 2px;
+        border-top: 1px solid var(--line);
+      }
+      #tradeModalDetails .trade-tag-create input {
+        min-height: 32px;
+        background: var(--surface-2) !important;
+        border-color: var(--line) !important;
+        border-radius: 4px !important;
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+      }
+      #tradeModalDetails .trade-tag-create button {
+        min-height: 32px;
+        padding: 0 11px;
+        background: var(--accent-soft) !important;
+        border: 1px solid rgba(79,140,255,.45) !important;
+        border-radius: 4px !important;
+        color: #cfe0ff !important;
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      #tradeModalDetails .trade-tag-library {
+        padding-top: 12px;
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      #tradeModalDetails .trade-tag-library-label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+        color: var(--text-2);
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      #tradeModalDetails .trade-tag-library-label span:last-child {
+        color: var(--text-3);
+        font-size: 9px;
+        font-weight: 500;
+      }
+      #modalTagGroupTabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        min-width: 0;
+        margin-bottom: 8px;
+      }
+      .trade-tag-group-tab {
+        min-height: 24px;
+        max-width: 100%;
+        padding: 4px 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        color: var(--text-3);
+        font-family: "Inter", sans-serif;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .trade-tag-group-tab:hover,
+      .trade-tag-group-tab.active {
+        border-color: rgba(79,140,255,.65);
+        color: var(--text-1);
+      }
+      .trade-tag-group-tab.active {
+        background: var(--surface-1);
+        box-shadow: 0 0 0 1px var(--accent-soft);
+      }
+      #modalAvailableTags {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap !important;
+        gap: 8px;
+        min-width: 0;
+        max-height: 230px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 4px;
+      }
+      .trade-tag-group-section {
+        width: 100%;
+        min-width: 0;
+        flex: 0 0 auto;
+        padding: 8px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      .trade-tag-group-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-bottom: 6px;
+        margin-bottom: 7px;
+        border-bottom: 1px solid var(--line);
+        color: var(--text-2);
+        font-family: "Inter", sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+      }
+      .trade-tag-group-heading span:last-child {
+        color: var(--text-3);
+        font-weight: 500;
+      }
+      .trade-tag-group-options {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+        gap: 5px;
+      }
+      .trade-tag-option {
+        min-height: 28px;
+        justify-content: flex-start;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       #tradeModalScrollCue { display: none !important; }
       #noteModal.trade-sidebar-hidden #noteModalScrollBody {
         grid-template-columns: minmax(0, 1fr);
@@ -2836,11 +3101,788 @@
         color: #aab5c4;
         font-size: 10px;
       }
+      /* Keep chart settings calm: hierarchy comes from spacing and tabs, not nested borders. */
+      .chart-settings-window {
+        border-color: rgba(148, 163, 184, .22) !important;
+        background: #181b20 !important;
+      }
+      .chart-settings-header,
+      .chart-settings-tabs,
+      .chart-settings-body,
+      .chart-settings-footer {
+        background: #181b20;
+      }
+      .chart-settings-header {
+        min-height: 46px;
+        padding-inline: 16px;
+        border-bottom-color: rgba(148, 163, 184, .14);
+      }
+      .chart-settings-tabs {
+        min-height: 40px;
+        gap: 18px;
+        padding-inline: 16px;
+        border-bottom-color: rgba(148, 163, 184, .14);
+      }
+      .chart-settings-tab { height: 39px; color: #8e99a8; font-size: 10px; }
+      .chart-settings-tab.active { color: #e7edf5; }
+      .chart-settings-tab.active::after { height: 2px; background: #60a5fa; }
+      .chart-settings-body { padding: 16px; }
+      .chart-settings-panel { gap: 13px !important; }
+      .chart-settings-row { min-height: 34px; gap: 14px; }
+      .chart-settings-window .bt-label { color: #9da8b6 !important; font-size: 9px; }
+      .chart-settings-window .bt-input,
+      .chart-settings-window .bt-control {
+        border-color: rgba(148, 163, 184, .20) !important;
+        background: #20252c !important;
+      }
+      .journal-setting-section { border-top: 0; padding-top: 0; }
+      .journal-setting-grid { gap: 10px 12px; }
+      .journal-setting-toggle {
+        border-color: rgba(148, 163, 184, .12);
+        background: rgba(32, 37, 44, .72);
+        color: #b5bfcc;
+      }
+      .journal-setting-toggle:hover { border-color: rgba(96, 165, 250, .35); background: rgba(37, 47, 60, .86); }
+      .footprint-group-tabs {
+        gap: 3px;
+        padding: 2px;
+        border-color: rgba(148, 163, 184, .14);
+        background: #20252c;
+      }
+      .footprint-group-tab { min-height: 28px; color: #8e99a8; }
+      .footprint-group-tab.active { color: #e7edf5; background: #303944; }
+      .shared-profile-library { border-top-color: rgba(148, 163, 184, .14); }
+      .shared-profile-summary { color: #aeb9c7; }
+      .chart-settings-footer {
+        min-height: 50px;
+        padding-inline: 16px;
+        border-top-color: rgba(148, 163, 184, .14);
+      }
+      #journalChartWorkspaceSettings {
+        height: auto;
+        min-height: 360px;
+        max-height: calc(100dvh - 24px);
+      }
+      #journalChartWorkspaceSettings .chart-settings-body { min-height: 180px; }
+      #journalVwapModal > div {
+        max-width: 620px;
+        border-color: rgba(96, 165, 250, .26);
+        border-radius: 6px;
+        background: #151b23;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, .62);
+      }
+      #journalVwapModal > div > div:first-child {
+        min-height: 54px;
+        border-bottom-color: rgba(148, 163, 184, .16);
+        background: #19212b;
+      }
+      #journalVwapModal > div > div:first-child .text-zinc-100 { color: #e5edf7; font-size: 12px; }
+      #journalVwapModal > div > div:first-child .text-zinc-500 { color: #7f91a5; }
+      #journalVwapModal > div > div:nth-child(2) {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px;
+        background: #151b23;
+      }
+      #journalVwapModal > div > div:nth-child(2) > div {
+        margin: 0;
+        padding: 13px;
+        border-color: rgba(148, 163, 184, .16);
+        border-radius: 5px;
+        background: #1b232d;
+      }
+      #journalVwapModal .text-blue-300,
+      #journalVwapModal .text-purple-300 { color: #72c7f4 !important; }
+      #journalVwapModal .bt-input {
+        min-height: 30px;
+        border-color: rgba(148, 163, 184, .22) !important;
+        border-radius: 4px !important;
+        background: #202a35 !important;
+        color: #e3ebf5 !important;
+      }
+      #journalVwapModal input[type="checkbox"] { accent-color: #3b9bea; }
+      #journalVwapModal input[type="range"] { accent-color: #3b9bea; }
+      #journalVwapModal #vwapModalBandsList { display: grid; gap: 8px; }
+      #journalVwapModal #vwapModalBandsList > div {
+        margin: 0;
+        padding: 10px;
+        border-color: rgba(148, 163, 184, .14);
+        border-radius: 4px;
+        background: #161e28;
+      }
+      #journalVwapModal #vwapModalBandsList > div > div:first-child {
+        display: grid;
+        grid-template-columns: auto auto 28px minmax(76px, 1fr) 42px minmax(120px, 1fr) 28px;
+        align-items: center;
+        gap: 7px;
+      }
+      #journalVwapModal #vwapModalBandsList > div > div:nth-child(2) {
+        display: grid;
+        grid-template-columns: minmax(130px, 1fr) auto minmax(130px, 1fr);
+        align-items: center;
+        gap: 10px;
+        margin-top: 9px;
+        padding-top: 9px;
+        border-top-color: rgba(148, 163, 184, .13);
+      }
+      #journalVwapModal #vwapModalBandsList .bg-zinc-900\/80 {
+        min-height: 28px;
+        padding-inline: 7px;
+        border-color: rgba(148, 163, 184, .16);
+        background: #202a35;
+      }
+      #journalVwapModal > div > div:last-child {
+        min-height: 54px;
+        border-top-color: rgba(148, 163, 184, .16);
+        background: #19212b;
+      }
+      #journalVwapModal > div > div:last-child button:last-child {
+        border-radius: 4px;
+        background: #2f83df;
+      }
+      @media (max-width: 640px) {
+        #journalVwapModal #vwapModalBandsList > div > div:first-child,
+        #journalVwapModal #vwapModalBandsList > div > div:nth-child(2) {
+          grid-template-columns: 1fr 1fr;
+        }
+        #journalVwapModal #vwapModalBandsList > div > div:first-child > button { margin-left: auto; }
+      }
+      /* TradingView-inspired settings surface: flat graphite panels, compact tabs, blue focus states. */
+      .chart-settings-window {
+        border: 1px solid #2f343d !important;
+        border-radius: 3px !important;
+        background: #131722 !important;
+        color: #d1d4dc;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .54) !important;
+      }
+      .chart-settings-header,
+      .chart-settings-tabs,
+      .chart-settings-body,
+      .chart-settings-footer { background: #131722 !important; }
+      .chart-settings-header {
+        min-height: 48px;
+        border-bottom: 1px solid #2a2e39;
+      }
+      .chart-settings-title { color: #f0f3f8 !important; font-size: 13px !important; font-weight: 650 !important; }
+      .chart-settings-close { color: #8b919d !important; }
+      .chart-settings-close:hover { color: #f0f3f8 !important; background: #20242d !important; }
+      .chart-settings-tabs {
+        min-height: 38px;
+        gap: 20px;
+        border-bottom: 1px solid #2a2e39;
+      }
+      .chart-settings-tab {
+        height: 37px;
+        color: #8b919d;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .chart-settings-tab:hover { color: #d1d4dc; }
+      .chart-settings-tab.active { color: #f0f3f8; }
+      .chart-settings-tab.active::after { height: 2px; border-radius: 0; background: #2962ff; }
+      .chart-settings-body { padding: 14px; scrollbar-color: #434956 #131722; }
+      .chart-settings-window .bt-input,
+      .chart-settings-window .bt-control {
+        min-height: 30px;
+        border: 1px solid #363b46 !important;
+        border-radius: 2px !important;
+        background: #1e222d !important;
+        color: #d1d4dc !important;
+      }
+      .chart-settings-window .bt-input:hover,
+      .chart-settings-window .bt-control:hover { border-color: #505663 !important; }
+      .chart-settings-window .bt-input:focus,
+      .chart-settings-window .bt-control:focus {
+        border-color: #2962ff !important;
+        box-shadow: 0 0 0 1px #2962ff !important;
+        outline: none;
+      }
+      .chart-settings-window .bt-label { color: #9aa1ad !important; font-size: 9px; }
+      .chart-settings-window .bt-label {
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+      }
+      .chart-settings-window .text-zinc-200,
+      .chart-settings-window .text-zinc-300,
+      #journalVwapModal .text-zinc-200,
+      #journalVwapModal .text-zinc-300 {
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+      }
+      .chart-settings-row { min-height: 34px; gap: 12px; }
+      .journal-layout-panel-row {
+        border: 1px solid #2f343d;
+        background: #1e222d;
+        border-radius: 2px;
+      }
+      .journal-layout-panel-index {
+        border-color: #3b5ccc;
+        background: rgba(41, 98, 255, .14);
+        color: #8db0ff;
+      }
+      .journal-setting-toggle {
+        border: 1px solid #2f343d;
+        border-radius: 2px;
+        background: #1e222d;
+        color: #b8bdc8;
+      }
+      .journal-setting-toggle:hover { border-color: #3e6be8; background: #242a38; }
+      .footprint-group-tabs {
+        border: 1px solid #2f343d;
+        border-radius: 2px;
+        background: #1e222d;
+      }
+      .footprint-group-tab { color: #8b919d; }
+      .footprint-group-tab:hover { color: #d1d4dc; background: #292e39; }
+      .footprint-group-tab.active { color: #f0f3f8; background: #293b72; }
+      .shared-profile-library { border-top-color: #2a2e39; }
+      .shared-profile-summary { color: #aeb4bf; }
+      .chart-settings-footer { min-height: 52px; border-top: 1px solid #2a2e39; }
+      .chart-settings-button { border-color: #4a505c; border-radius: 2px; background: #1e222d; color: #d1d4dc; }
+      .chart-settings-button:hover { border-color: #7b8492; background: #292e39; }
+      .chart-settings-button.primary { border-color: #2962ff; background: #2962ff; color: #fff; }
+      .chart-settings-button.primary:hover { background: #3d73ff; }
+      #journalVwapModal > div {
+        border-color: #2f343d;
+        border-radius: 3px;
+        background: #131722;
+      }
+      #journalVwapModal > div > div:first-child,
+      #journalVwapModal > div > div:last-child { background: #131722; border-color: #2a2e39; }
+      #journalVwapModal > div > div:nth-child(2) { background: #131722; }
+      #journalVwapModal > div > div:nth-child(2) > div,
+      #journalVwapModal #vwapModalBandsList > div {
+        border-color: #2f343d;
+        border-radius: 2px;
+        background: #1e222d;
+      }
+      #journalVwapModal .bt-input { border-color: #363b46 !important; border-radius: 2px !important; background: #1e222d !important; }
+      #journalVwapModal .text-blue-300,
+      #journalVwapModal .text-purple-300 { color: #8db0ff !important; }
+      #journalVwapModal .tracking-wider { letter-spacing: .01em !important; }
+      #journalVwapModal > div > div:last-child button:last-child { border-radius: 2px; background: #2962ff; }
+      /* Match the reference indicator dialog: flat sections and predictable label/control rows. */
+      .chart-settings-window .chart-settings-panel {
+        background: transparent !important;
+        border: 0 !important;
+        padding: 0 !important;
+      }
+      .chart-settings-window .chart-settings-panel > .journal-setting-grid,
+      .chart-settings-window .chart-settings-panel > .chart-settings-row,
+      .chart-settings-window .chart-settings-panel > label {
+        margin-bottom: 12px;
+      }
+      .chart-settings-window .chart-settings-panel > .journal-setting-grid:last-child,
+      .chart-settings-window .chart-settings-panel > label:last-child { margin-bottom: 0; }
+      .chart-settings-window .journal-setting-grid > label:not(.journal-setting-toggle) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr);
+        align-items: center;
+        gap: 14px;
+      }
+      .chart-settings-window .journal-setting-grid > label:not(.journal-setting-toggle) .bt-label { margin: 0; }
+      .chart-settings-window .journal-setting-toggle.wide { grid-column: 1 / -1; }
+      .chart-settings-window details.shared-profile-library {
+        margin-top: 18px;
+        padding-top: 13px;
+        border-top: 1px solid #2a2e39;
+      }
+      .chart-settings-window .chart-settings-panel > div > strong,
+      .chart-settings-window .chart-settings-panel > div > .uppercase {
+        color: #9aa1ad !important;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .chart-settings-window input[type="checkbox"] { accent-color: #f0f3f8; }
+      #journalVwapModal > div > div:nth-child(2) > div {
+        border: 0;
+        border-bottom: 1px solid #2a2e39;
+        border-radius: 0;
+        background: transparent;
+      }
+      #journalVwapModal > div > div:nth-child(2) > div:last-child { border-bottom: 0; }
+      #journalVwapModal > div > div:nth-child(2) > div:first-child {
+        padding-top: 4px;
+      }
+      #journalVwapModal > div > div:nth-child(2) > div > .text-blue-300,
+      #journalVwapModal > div > div:nth-child(2) > div > .text-purple-300 {
+        display: block;
+        margin-bottom: 10px;
+        color: #9aa1ad !important;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: .04em;
+      }
+      #journalVwapModal > div > div:nth-child(2) > div:first-child > label,
+      #journalVwapModal > div > div:nth-child(2) > div:first-child > div,
+      #journalVwapModal > div > div:nth-child(2) > div:nth-child(2) .grid > div {
+        min-height: 38px;
+      }
+      #journalVwapModal #vwapModalBandsList > div {
+        border: 0;
+        border-bottom: 1px solid #2a2e39;
+        border-radius: 0;
+        background: transparent;
+      }
+      #journalVwapModal #vwapModalBandsList > div:last-child { border-bottom: 0; }
+      #journalVwapModal #vwapModalBandsList .bg-zinc-900\/80 {
+        border-color: #363b46;
+        border-radius: 2px;
+        background: #1e222d;
+      }
+      #journalVwapModal .bt-input:focus {
+        border-color: #2962ff !important;
+        box-shadow: 0 0 0 1px #2962ff !important;
+        outline: none;
+      }
+      /* TradingView-like settings dialogs: narrow, flat and row-oriented. */
+      .chart-settings-window {
+        width: min(430px, calc(100vw - 24px));
+        max-height: min(760px, calc(100dvh - 24px));
+        border-color: var(--line-strong) !important;
+        border-radius: 6px !important;
+        background: var(--surface-1) !important;
+        color: var(--text-2);
+        box-shadow: 0 20px 58px rgba(0, 0, 0, .72) !important;
+      }
+      #journalChartWorkspaceSettings { width: min(520px, calc(100vw - 24px)); }
+      .chart-settings-header,
+      .chart-settings-tabs,
+      .chart-settings-body,
+      .chart-settings-footer { background: var(--surface-1) !important; }
+      .chart-settings-header {
+        min-height: 58px;
+        padding: 0 20px;
+        border-bottom: 0;
+      }
+      .chart-settings-title {
+        color: var(--text-1) !important;
+        font-size: 17px !important;
+        font-weight: 650 !important;
+      }
+      .chart-settings-close {
+        width: 34px !important;
+        height: 34px !important;
+        color: var(--text-3) !important;
+        font-size: 16px;
+      }
+      .chart-settings-close:hover { color: var(--text-1) !important; background: var(--surface-hover) !important; }
+      .chart-settings-tabs {
+        min-height: 50px;
+        gap: 26px;
+        padding: 0 20px;
+        align-items: flex-end;
+        border-bottom: 0;
+      }
+      .chart-settings-tabs::after {
+        content: "";
+        position: absolute;
+        left: 20px;
+        right: 20px;
+        bottom: 8px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--line-strong);
+      }
+      .chart-settings-tab {
+        z-index: 1;
+        height: 49px;
+        color: var(--text-3);
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .chart-settings-tab:hover { color: var(--text-2); }
+      .chart-settings-tab.active { color: var(--text-1); }
+      .chart-settings-tab.active::after {
+        bottom: 8px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--accent);
+      }
+      .chart-settings-body { padding: 20px; }
+      .chart-settings-panel { gap: 0 !important; }
+      .chart-settings-row,
+      .chart-settings-window .journal-setting-grid > label:not(.journal-setting-toggle) {
+        min-height: 50px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+        align-items: center;
+        gap: 18px;
+        margin: 0 !important;
+      }
+      .chart-settings-window .bt-label {
+        margin: 0 !important;
+        color: var(--text-2) !important;
+        font-size: 11px !important;
+      }
+      .chart-settings-window .bt-input,
+      .chart-settings-window .bt-control {
+        min-height: 35px;
+        border-color: var(--line-strong) !important;
+        border-radius: 6px !important;
+        background: var(--surface-2) !important;
+        color: var(--text-1) !important;
+        font-size: 11px;
+      }
+      .chart-settings-window .bt-input:focus,
+      .chart-settings-window .bt-control:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px var(--accent-soft) !important;
+        outline: none;
+      }
+      .chart-settings-window input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+        accent-color: var(--accent) !important;
+      }
+      .chart-settings-window input[type="range"] { accent-color: var(--accent) !important; }
+      #journalVwapModal .vwap-tv-window input[type="checkbox"],
+      #journalVwapModal .vwap-tv-window input[type="range"] { accent-color: var(--accent) !important; }
+      .chart-settings-section-title {
+        margin: 16px 0 8px;
+        color: var(--text-3);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+      .chart-settings-section-title:first-child { margin-top: 0; }
+      .journal-setting-grid { display: block; }
+      .journal-setting-toggle {
+        min-height: 42px;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--text-2);
+        font-size: 11px;
+      }
+      .journal-setting-toggle:hover { border: 0; background: transparent; }
+      .journal-layout-panel-row {
+        min-height: 48px;
+        margin-top: 8px;
+        padding: 6px 8px;
+        border-color: var(--line);
+        border-radius: 4px;
+        background: var(--surface-2);
+      }
+      #journalChartPanelSettingsList { grid-template-columns: minmax(0, 1fr) !important; }
+      .journal-layout-panel-index {
+        border-color: var(--line-strong);
+        background: var(--surface-3);
+        color: var(--text-1);
+      }
+      .chart-settings-footer {
+        min-height: 66px;
+        padding: 12px 20px;
+        border-top-color: var(--line);
+      }
+      .chart-settings-button,
+      .chart-settings-template {
+        height: 36px;
+        border-color: var(--line-strong);
+        border-radius: 6px;
+        background: var(--surface-1);
+        color: var(--text-2);
+        font-size: 12px;
+      }
+      .chart-settings-button:hover,
+      .chart-settings-template:hover { border-color: var(--accent); background: var(--surface-hover); color: var(--text-1); }
+      .chart-settings-button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+      }
+      .chart-settings-button.primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: #fff; }
+      .vwap-tv-window {
+        width: min(410px, calc(100vw - 24px));
+        height: min(670px, calc(100dvh - 24px));
+      }
+      #journalVwapModal > .vwap-tv-window > .chart-settings-tabs {
+        position: relative;
+        display: flex;
+        flex-direction: row !important;
+        align-items: flex-end;
+        justify-content: flex-start;
+        gap: 26px;
+        min-height: 50px;
+        height: 50px;
+        padding: 0 20px;
+        overflow: visible;
+      }
+      #journalVwapModal > .vwap-tv-window > .chart-settings-body {
+        display: block;
+        padding: 20px;
+        background: var(--surface-1) !important;
+      }
+      #journalVwapModal > .vwap-tv-window > .chart-settings-footer {
+        display: flex;
+        flex-direction: row;
+        min-height: 66px;
+        padding: 12px 20px;
+        background: var(--surface-1) !important;
+      }
+      #journalVwapModal .vwap-tv-window .bt-input {
+        border-color: var(--line-strong) !important;
+        background: var(--surface-2) !important;
+        color: var(--text-1) !important;
+      }
+      #journalVwapModal .vwap-tv-window .bt-input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px var(--accent-soft) !important;
+      }
+      #journalVwapModal > .vwap-tv-window > .chart-settings-footer .chart-settings-button.primary {
+        border-color: var(--accent) !important;
+        background: var(--accent) !important;
+        color: #fff !important;
+      }
+      .chart-settings-window .footprint-group-tabs {
+        border-color: var(--line) !important;
+        background: var(--surface-0) !important;
+      }
+      .chart-settings-window .footprint-group-tab { color: var(--text-3) !important; }
+      .chart-settings-window .footprint-group-tab:hover {
+        color: var(--text-2) !important;
+        background: var(--surface-hover) !important;
+      }
+      .chart-settings-window .footprint-group-tab.active {
+        color: #fff !important;
+        background: var(--accent) !important;
+      }
+      .vwap-tv-row {
+        min-height: 48px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 150px;
+        align-items: center;
+        gap: 18px;
+        color: var(--text-2);
+      }
+      .vwap-tv-row > .bt-input { width: 150px !important; }
+      .vwap-tv-check {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-2);
+        cursor: pointer;
+      }
+      .vwap-tv-style-row {
+        min-height: 52px;
+        display: grid;
+        grid-template-columns: 18px minmax(74px, 1fr) 30px 92px 52px;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid var(--line);
+      }
+      .vwap-tv-style-row input[type="color"] {
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+      .vwap-tv-style-row .bt-input {
+        width: 100% !important;
+        min-width: 0;
+        padding-left: 7px;
+        padding-right: 7px;
+      }
+      .vwap-tv-fill-row {
+        min-height: 42px;
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) 26px 110px;
+        align-items: center;
+        gap: 9px;
+        color: var(--text-2);
+      }
+      .vwap-tv-fill-row input[type="color"] { width: 24px; height: 24px; padding: 0; border: 0; background: transparent; }
+      .vwap-tv-opacity { display: flex; align-items: center; gap: 6px; }
+      .vwap-tv-opacity input { min-width: 0; width: 72px; }
+      .vwap-tv-opacity output { width: 30px; color: var(--text-3); font-size: 9px; text-align: right; }
+      .vwap-tv-band-input {
+        min-height: 46px;
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) 78px;
+        align-items: center;
+        gap: 10px;
+      }
+      .vwap-tv-band-input .bt-input { width: 78px !important; text-align: right; }
+      .chart-indicator-panel .chart-settings-section-title { margin-bottom: 10px; }
+      .chart-indicator-list {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface-2);
+      }
+      .chart-indicator-row {
+        min-height: 76px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        transition: background 150ms ease;
+      }
+      .chart-indicator-row:last-child { border-bottom: 0; }
+      .chart-indicator-row:hover { background: var(--surface-hover); }
+      .chart-indicator-copy {
+        min-width: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .chart-indicator-marker {
+        flex: 0 0 auto;
+        width: 7px;
+        height: 7px;
+        margin-top: 4px;
+        border-radius: 2px;
+        background: var(--accent);
+        box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 45%, transparent);
+      }
+      .chart-indicator-copy strong {
+        display: block;
+        color: var(--text-1);
+        font-size: 11px;
+        font-weight: 650;
+        line-height: 1.3;
+      }
+      .chart-indicator-copy small {
+        display: block;
+        margin-top: 4px;
+        color: var(--text-3);
+        font-size: 9px;
+        font-weight: 500;
+        line-height: 1.45;
+      }
+      .chart-indicator-actions {
+        min-width: 62px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 9px;
+      }
+      .chart-indicator-toggle { display: inline-flex; align-items: center; }
+      .chart-indicator-settings {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line-strong);
+        border-radius: 5px;
+        background: var(--surface-1);
+        color: var(--text-3);
+        font-size: 11px;
+        transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+      }
+      .chart-indicator-settings:hover,
+      .chart-indicator-settings:focus-visible {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent);
+        outline: none;
+      }
+      #journalChartContextSettings .chart-settings-body {
+        min-height: 188px;
+        padding-top: 18px;
+      }
+      #journalChartContextSettings .chart-settings-tabs::after { display: none; }
+      #journalChartContextSettings .chart-settings-footer {
+        border-top: 0 !important;
+        padding-top: 8px;
+      }
+      .chart-axes-panel .chart-settings-section-title { margin-bottom: 10px; }
+      .chart-axis-list {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface-2);
+      }
+      .chart-axis-row {
+        min-height: 72px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 92px;
+        align-items: center;
+        gap: 16px;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--line);
+        transition: background 150ms ease;
+      }
+      .chart-axis-row:last-child { border-bottom: 0; }
+      .chart-axis-row:hover { background: var(--surface-hover); }
+      .chart-axis-copy { min-width: 0; }
+      .chart-axis-copy strong {
+        display: block;
+        color: var(--text-1);
+        font-size: 11px;
+        font-weight: 650;
+        line-height: 1.3;
+      }
+      .chart-axis-copy small {
+        display: block;
+        margin-top: 4px;
+        color: var(--text-3);
+        font-size: 9px;
+        font-weight: 500;
+        line-height: 1.4;
+      }
+      .chart-axis-control {
+        height: 36px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 25px;
+        align-items: center;
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--surface-1);
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+      .chart-axis-control:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-soft);
+      }
+      #journalChartContextSettings .chart-axis-control .bt-input {
+        width: 100% !important;
+        min-height: 34px;
+        padding: 0 4px 0 10px;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        text-align: right;
+      }
+      .chart-axis-control > span {
+        color: var(--text-3);
+        font-size: 10px;
+        text-align: center;
+      }
       @media (max-width: 720px) {
         .journal-setting-grid { grid-template-columns: 1fr; }
         .journal-setting-grid .wide { grid-column: auto; }
         .journal-layout-panel-row { grid-template-columns: 24px 1fr; }
         .journal-layout-panel-row select:last-child { grid-column: 2; }
+      }
+      @media (max-width: 460px) {
+        .vwap-tv-style-row {
+          grid-template-columns: 17px minmax(54px, 1fr) 25px 76px 68px;
+          gap: 6px;
+        }
+        .vwap-tv-fill-row {
+          grid-template-columns: 17px minmax(0, 1fr) 24px 92px;
+          gap: 6px;
+        }
+        .vwap-tv-opacity { gap: 4px; }
+        .vwap-tv-opacity input { width: 42px; }
+        .vwap-tv-opacity output { width: 24px; }
+        .vwap-tv-row { grid-template-columns: minmax(0, 1fr) 138px; gap: 12px; }
+        .vwap-tv-row > .bt-input { width: 138px !important; }
       }
     </style>
   </head>
@@ -3427,8 +4469,8 @@
       <!-- ANALYTICS VIEW -->
       <div id="view-analytics" class="space-y-6 hidden pb-64">
         <!-- TAGS & GROEPEN BEHEERDER -->
-        <div class="bg-terminal-card border border-terminal p-4 md:p-5 rounded-sm font-mono text-xs">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 mb-4 border-b border-terminal gap-2">
+        <div class="tag-workspace bg-terminal-card border border-terminal p-4 md:p-5 rounded-sm font-mono text-xs">
+          <div class="tag-workspace-header flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 mb-4 border-b border-terminal gap-2">
             <div>
               <h2 class="text-sm font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
                 <i class="fas fa-tags text-blue-400"></i>
@@ -3441,34 +4483,34 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="tag-workspace-grid grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- ALLE TAGS BEHEERDER -->
-            <div class="flex flex-col min-h-0 bg-zinc-950/40 border border-terminal/80 rounded-sm p-3 md:p-4">
-              <div class="flex items-center justify-between mb-1 pb-2 border-b border-terminal/60">
+            <div class="tag-panel flex flex-col min-h-0 bg-zinc-950/40 border border-terminal/80 rounded-sm p-3 md:p-4">
+              <div class="tag-panel-heading flex items-center justify-between mb-1 pb-2 border-b border-terminal/60">
                 <span class="text-xs font-mono font-bold uppercase tracking-widest text-slate-200">Alle Tags</span>
                 <button type="button" onclick="sortGlobalTagsAlphabetically()" class="text-[9px] text-zinc-400 hover:text-blue-300 border border-terminal px-2 py-0.5 rounded-sm flex items-center gap-1" title="Tags alfabetisch sorteren (A-Z)">
                   <i class="fas fa-sort-alpha-down text-[9px]"></i><span>A-Z</span>
                 </button>
               </div>
-              <p class="text-[10px] text-slate-400 mb-3 font-mono">Wijzig een naam/kleur, versleep om te herschikken, of verwijder een tag definitief.</p>
+              <p class="tag-panel-copy text-[10px] text-slate-400 mb-3 font-mono">Wijzig een naam/kleur, versleep om te herschikken, of verwijder een tag definitief.</p>
               <div id="globalTagManagerList" class="space-y-1.5 flex-1 min-h-[220px] max-h-[500px] overflow-y-auto pr-1"></div>
             </div>
 
             <!-- TAG GROEPEN BEHEERDER -->
-            <div class="flex flex-col min-h-0 bg-zinc-950/40 border border-terminal/80 rounded-sm p-3 md:p-4">
-              <div class="flex items-center justify-between mb-1 pb-2 border-b border-terminal/60">
+            <div class="tag-panel flex flex-col min-h-0 bg-zinc-950/40 border border-terminal/80 rounded-sm p-3 md:p-4">
+              <div class="tag-panel-heading flex items-center justify-between mb-1 pb-2 border-b border-terminal/60">
                 <span class="text-xs font-mono font-bold uppercase tracking-widest text-slate-200">Tag Groepen</span>
                 <button type="button" onclick="sortTagGroupsAlphabetically()" class="text-[9px] text-zinc-400 hover:text-blue-300 border border-terminal px-2 py-0.5 rounded-sm flex items-center gap-1" title="Groepen alfabetisch sorteren (A-Z)">
                   <i class="fas fa-sort-alpha-down text-[9px]"></i><span>Groepen A-Z</span>
                 </button>
               </div>
-              <p class="text-[10px] text-slate-400 mb-3 font-mono">Versleep groepen en tags om ze te herschikken of in te delen.</p>
-              <div class="flex gap-2 mb-3 shrink-0">
+              <p class="tag-panel-copy text-[10px] text-slate-400 mb-3 font-mono">Versleep groepen en tags om ze te herschikken of in te delen.</p>
+              <div class="tag-group-create flex shrink-0">
                 <input id="newTagGroupInput" type="text" placeholder="NIEUWE GROEP NAAM" maxlength="40" class="flex-1 bg-terminal-input border border-terminal rounded-sm px-2.5 py-1.5 text-zinc-200 focus:outline-none uppercase text-xs" onkeydown="if(event.key==='Enter'){event.preventDefault();createTagGroup();}" />
                 <button onclick="createTagGroup()" class="px-3 py-1.5 bg-blue-900/30 border border-blue-800 text-blue-300 rounded-sm hover:bg-blue-900/50 uppercase tracking-wider text-[11px] font-bold whitespace-nowrap">Aanmaken</button>
               </div>
               <div id="tagGroupsList" class="space-y-2.5 flex-1 min-h-[160px] max-h-[380px] overflow-y-auto pr-1"></div>
-              <div class="mt-3 pt-3 border-t border-terminal shrink-0">
+              <div class="tag-panel-footer mt-3 pt-3 border-t border-terminal shrink-0">
                 <span class="text-[10px] uppercase font-mono tracking-wider text-zinc-400 block mb-1.5">Ongegroepeerde Tags</span>
                 <div id="ungroupedTagsList" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto"></div>
               </div>
@@ -4754,32 +5796,33 @@
           <div id="tradeModalDetails" class="scroll-mt-4">
             <label
               class="block text-[10px] uppercase font-bold text-zinc-300 tracking-wider mb-1.5"
-              >Attached Structural Tags</label
+              >Tags voor deze trade</label
             >
             <div
               id="modalActiveTags"
               class="flex flex-wrap gap-1 mb-2 min-h-[22px]"
             ></div>
-            <div class="flex gap-1.5">
+            <div class="trade-tag-create">
               <input
                 type="text"
                 id="newTagInput"
-                placeholder="CREATE NEW TAG"
+                placeholder="Nieuwe tag toevoegen..."
                 class="bg-terminal-input border border-terminal rounded-sm px-2 py-1 text-zinc-200 focus:outline-none flex-1 uppercase text-xs"
               />
               <button
                 onclick="createNewTag()"
                 class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-terminal px-3 rounded-sm text-[11px]"
               >
-                APPEND
+                <i class="fas fa-plus mr-1"></i>Toevoegen
               </button>
             </div>
-            <div class="mt-3">
-              <p class="text-[9px] uppercase tracking-wider text-zinc-300 mb-1">
-                Click tag to assign:
-              </p>
-              <div id="modalTagGroupTabs" class="flex flex-wrap gap-1 mb-1.5"></div>
-              <div id="modalAvailableTags" class="flex flex-wrap gap-1"></div>
+            <div class="trade-tag-library">
+              <div class="trade-tag-library-label">
+                <span>Beschikbare tags</span>
+                <span>Kies een groep om sneller te vinden</span>
+              </div>
+              <div id="modalTagGroupTabs" aria-label="Taggroep kiezen"></div>
+              <div id="modalAvailableTags"></div>
             </div>
           </div>
 
@@ -4956,10 +5999,13 @@
                   </div>
                   <div class="chart-settings-body">
                     <section class="chart-settings-panel space-y-3" data-settings-panel="layout">
+                    <div class="chart-settings-section-title">Layout settings</div>
                     <div class="journal-setting-grid">
                       <label><span class="bt-label">Aantal grafieken</span><select id="journalChartPanelCount" class="bt-input" onchange="updateJournalChartWorkspaceSettings()"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
                     </div>
+                    <div class="chart-settings-section-title">Chart panels</div>
                     <div id="journalChartPanelSettingsList" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                    <div class="chart-settings-section-title">Synchronization</div>
                     <div class="pt-2 border-t border-zinc-800">
                       <label class="chart-settings-row cursor-pointer flex items-center justify-between p-1 rounded hover:bg-zinc-800/40 border border-zinc-800/50">
                         <span>
@@ -4976,7 +6022,7 @@
                     </details>
                     </section>
                     <section class="chart-settings-panel journal-setting-section hidden space-y-3" data-settings-panel="footprint">
-                      <div class="flex items-center justify-between"><strong class="uppercase tracking-wide text-zinc-200">Footprint</strong><span class="text-[9px] text-zinc-500">Tickdata vereist</span></div>
+                      <div class="flex items-center justify-between chart-settings-section-title"><span>Footprint settings</span><span>Tickdata vereist</span></div>
                       <div class="journal-setting-grid">
                         <label><span class="bt-label">Weergave</span><select id="journalFootprintView" class="bt-input" onchange="updateJournalChartWorkspaceSettings()"><option value="single">Single</option><option value="double">Double</option><option value="imbalance">Imbalance</option></select></label>
                         <label><span class="bt-label">Visualisatie</span><select id="journalFootprintVisualization" class="bt-input" onchange="updateJournalChartWorkspaceSettings()"><option value="cluster">Cluster</option><option value="histogram">Histogram</option></select></label>
@@ -5012,8 +6058,8 @@
                     </section>
                   </div>
                   <div class="chart-settings-footer">
-                    <span class="text-[9px] text-zinc-500">Wijzigingen worden direct toegepast</span>
-                    <button type="button" class="chart-settings-button primary" onclick="closeJournalChartWorkspaceSettings()">Gereed</button>
+                    <select class="chart-settings-template" aria-label="Layout standaardinstellingen"><option>Defaults</option></select>
+                    <span class="flex items-center gap-2"><button type="button" class="chart-settings-button" onclick="closeJournalChartWorkspaceSettings()">Cancel</button><button type="button" class="chart-settings-button primary" onclick="closeJournalChartWorkspaceSettings()">Ok</button></span>
                   </div>
                 </div>
                 <div id="journalChartContextSettings" class="chart-settings-window hidden fixed z-[435] text-[11px]" onclick="event.stopPropagation()">
@@ -5021,21 +6067,32 @@
                   <div class="chart-settings-tabs" role="tablist" aria-label="Grafiekinstellingen"><button type="button" class="chart-settings-tab active" data-settings-tab="canvas" onclick="setChartSettingsTab('journalChartContextSettings','canvas')">Canvas</button><button type="button" class="chart-settings-tab" data-settings-tab="axes" onclick="setChartSettingsTab('journalChartContextSettings','axes')">Assen</button><button type="button" class="chart-settings-tab" data-settings-tab="indicators" onclick="setChartSettingsTab('journalChartContextSettings','indicators')">Indicatoren</button></div>
                   <div class="chart-settings-body">
                     <section class="chart-settings-panel space-y-4" data-settings-panel="canvas"><div class="chart-settings-row"><span class="bt-label">Gridlijnen</span><input id="journalGridEnabled" type="checkbox" onchange="setJournalPanelChartSetting('gridEnabled',this.checked)" /></div><div class="space-y-2"><div class="flex justify-between"><span class="bt-label !mb-0">Grid-opaciteit</span><span id="journalGridOpacityValue" class="text-[9px] text-zinc-500">10%</span></div><input id="journalGridOpacity" type="range" min="0" max="30" step="1" oninput="setJournalPanelChartSetting('gridOpacity',this.value)" /></div></section>
-                    <section class="chart-settings-panel hidden space-y-4" data-settings-panel="axes"><label><span class="bt-label">Tijdas offset (% rechts)</span><input id="journalRightOffset" type="number" min="0" max="45" class="bt-input" oninput="setJournalPanelChartSetting('rightOffset',this.value)" /></label><label><span class="bt-label">Prijsas offset (% boven / onder)</span><input id="journalYOffset" type="number" min="0" max="40" class="bt-input text-center" oninput="setJournalPanelChartSetting('yOffset',this.value)" /></label></section>
-                    <section class="chart-settings-panel hidden space-y-3" data-settings-panel="indicators">
-                      <label class="chart-settings-row cursor-pointer"><span><span class="bt-label !mb-0">CVD</span><span id="journalIndicatorPanelLabel" class="block mt-1 text-[9px] text-zinc-500">Grafiek 1</span></span><input id="journalContextCvdEnabled" type="checkbox" onchange="setJournalPanelChartSetting('showCvd',this.checked)" /></label>
-                      <div class="border-t border-zinc-800 pt-3 mt-3">
-                        <div class="flex items-center justify-between">
-                          <label class="chart-settings-row cursor-pointer flex-1">
-                            <span>
-                              <span class="bt-label !mb-0">VWAP &amp; SD Banden</span>
-                              <span class="block mt-0.5 text-[9px] text-zinc-500">Tickdata Volume Weighted Average Price</span>
-                            </span>
-                            <input id="journalContextVwapEnabled" type="checkbox" onchange="toggleJournalVwapEnabled(this.checked)" />
-                          </label>
-                          <button type="button" onclick="openJournalVwapSettingsModal()" class="bt-tool !w-7 !h-7 ml-2 text-cyan-300 hover:text-cyan-200" title="VWAP Instellingen openen">
-                            <i class="fas fa-gear text-[10px]"></i>
-                          </button>
+                    <section class="chart-settings-panel chart-axes-panel hidden" data-settings-panel="axes">
+                      <div class="chart-settings-section-title">Schaalruimte</div>
+                      <div class="chart-axis-list">
+                        <label class="chart-axis-row">
+                          <span class="chart-axis-copy"><strong>Tijdas offset</strong><small>Vrije ruimte rechts van de laatste candle</small></span>
+                          <span class="chart-axis-control"><input id="journalRightOffset" type="number" min="0" max="45" class="bt-input" oninput="setJournalPanelChartSetting('rightOffset',this.value)" /><span>%</span></span>
+                        </label>
+                        <label class="chart-axis-row">
+                          <span class="chart-axis-copy"><strong>Prijsas offset</strong><small>Extra ruimte boven en onder de grafiek</small></span>
+                          <span class="chart-axis-control"><input id="journalYOffset" type="number" min="0" max="40" class="bt-input" oninput="setJournalPanelChartSetting('yOffset',this.value)" /><span>%</span></span>
+                        </label>
+                      </div>
+                    </section>
+                    <section class="chart-settings-panel chart-indicator-panel hidden" data-settings-panel="indicators">
+                      <div class="chart-settings-section-title">Paneelindicatoren</div>
+                      <div class="chart-indicator-list">
+                        <label class="chart-indicator-row cursor-pointer">
+                          <span class="chart-indicator-copy"><span class="chart-indicator-marker"></span><span><strong>CVD</strong><small><span id="journalIndicatorPanelLabel">Grafiek 1</span> · Cumulative Volume Delta</small></span></span>
+                          <span class="chart-indicator-actions"><input id="journalContextCvdEnabled" type="checkbox" onchange="setJournalPanelChartSetting('showCvd',this.checked)" /></span>
+                        </label>
+                        <div class="chart-indicator-row">
+                          <span class="chart-indicator-copy"><span class="chart-indicator-marker"></span><span><strong>VWAP &amp; SD-banden</strong><small>Volume Weighted Average Price met standaarddeviatiebanden</small></span></span>
+                          <span class="chart-indicator-actions">
+                            <label class="chart-indicator-toggle" title="VWAP in- of uitschakelen"><input id="journalContextVwapEnabled" type="checkbox" onchange="toggleJournalVwapEnabled(this.checked)" /><span class="sr-only">VWAP in- of uitschakelen</span></label>
+                            <button type="button" onclick="openJournalVwapSettingsModal()" class="chart-indicator-settings" title="VWAP-instellingen openen" aria-label="VWAP-instellingen openen"><i class="fas fa-gear"></i></button>
+                          </span>
                         </div>
                       </div>
                     </section>
@@ -5602,108 +6659,48 @@
     </div>
 
     <!-- VWAP INDICATOR & SD BANDS MODAL -->
-    <div id="journalVwapModal" class="hidden fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm items-center justify-center p-4">
-      <div class="w-full max-w-lg max-h-[85vh] overflow-hidden border border-terminal bg-[#11161d] rounded-sm shadow-2xl flex flex-col font-sans">
-        <div class="h-12 px-4 border-b border-terminal flex items-center justify-between shrink-0">
-          <div>
-            <div class="text-[11px] font-semibold text-zinc-100">VWAP &amp; Standaard Deviatie Banden</div>
-            <div class="text-[9px] text-zinc-500 mt-0.5">Volume Weighted Average Price berekend op tickdata</div>
-          </div>
-          <button type="button" onclick="closeJournalVwapSettingsModal()" class="text-zinc-400 hover:text-zinc-200"><i class="fas fa-times text-xs"></i></button>
+    <div id="journalVwapModal" class="hidden fixed inset-0 z-[300] bg-black/70 items-center justify-center p-4" onclick="if(event.target===this) closeJournalVwapSettingsModal()">
+      <div class="chart-settings-window vwap-tv-window flex flex-col font-sans text-[11px]" onclick="event.stopPropagation()">
+        <div class="chart-settings-header"><strong class="chart-settings-title">VWAP</strong><button type="button" onclick="closeJournalVwapSettingsModal()" class="chart-settings-close" title="Sluiten"><i class="fas fa-times"></i></button></div>
+        <div class="chart-settings-tabs" role="tablist" aria-label="VWAP instellingen">
+          <button type="button" class="chart-settings-tab active" data-settings-tab="inputs" onclick="setChartSettingsTab('journalVwapModal','inputs')">Inputs</button>
+          <button type="button" class="chart-settings-tab" data-settings-tab="style" onclick="setChartSettingsTab('journalVwapModal','style')">Style</button>
+          <button type="button" class="chart-settings-tab" data-settings-tab="visibility" onclick="setChartSettingsTab('journalVwapModal','visibility')">Visibility</button>
         </div>
-        <div class="p-4 overflow-y-auto space-y-4 text-[11px]">
-          <!-- Algemeen -->
-          <div class="p-3 bg-[#0e1319] border border-terminal rounded-sm space-y-3">
-            <label class="flex items-center justify-between cursor-pointer">
-              <span class="font-semibold text-zinc-200">VWAP Indicator Inschakelen</span>
-              <input id="vwapModalEnabled" type="checkbox" onchange="saveVwapModalSettings()" class="accent-blue-500 w-4 h-4" />
-            </label>
-            <div class="flex items-center justify-between pt-2 border-t border-zinc-800">
-              <span class="text-zinc-400">Reset Periode</span>
-              <select id="vwapModalResetPeriod" onchange="toggleVwapCustomTimeInput(); saveVwapModalSettings()" class="bt-input !w-52 !h-7 text-[10px]">
-                <option value="daily">Dagelijks (00:00 UTC)</option>
-                <option value="custom_time">Aangepast tijdstip (Sessie start)</option>
-                <option value="weekly">Wekelijks (Maandag 00:00 UTC)</option>
-                <option value="continuous">Continu (Volledige dataset)</option>
-              </select>
+        <div class="chart-settings-body">
+          <section class="chart-settings-panel" data-settings-panel="inputs">
+            <div class="chart-settings-section-title">VWAP settings</div>
+            <label class="vwap-tv-check"><input id="vwapModalEnabled" type="checkbox" onchange="saveVwapModalSettings()" /><span>VWAP inschakelen</span></label>
+            <label class="vwap-tv-check"><input id="vwapModalHideOnDaily" type="checkbox" onchange="saveVwapModalSettings()" /><span>Hide VWAP on 1D or above</span></label>
+            <label class="vwap-tv-row"><span>Anchor period</span><select id="vwapModalResetPeriod" onchange="toggleVwapCustomTimeInput(); saveVwapModalSettings()" class="bt-input"><option value="daily">Session</option><option value="custom_time">Custom time</option><option value="weekly">Weekly</option><option value="continuous">Continuous</option></select></label>
+            <label class="vwap-tv-row"><span>Source</span><select id="vwapModalSource" onchange="saveVwapModalSettings()" class="bt-input"><option value="hlc3">(H + L + C) / 3</option><option value="ohlc4">(O + H + L + C) / 4</option><option value="close">Close</option></select></label>
+            <label class="vwap-tv-row"><span>Offset</span><input id="vwapModalOffset" type="number" min="0" value="0" onchange="saveVwapModalSettings()" class="bt-input" /></label>
+            <label id="vwapCustomTimeWrap" class="vwap-tv-row hidden"><span>Reset time</span><input id="vwapModalResetTime" type="time" value="09:30" onchange="saveVwapModalSettings()" class="bt-input" /></label>
+            <div class="chart-settings-section-title">Bands settings</div>
+            <label class="vwap-tv-row"><span>Bands calculation mode</span><select id="vwapModalBandsMode" onchange="saveVwapModalSettings()" class="bt-input"><option value="standard">Standard</option><option value="percentage">Percentage</option></select></label>
+            <div id="vwapModalBandInputs"></div>
+            <div class="chart-settings-section-title">Session</div>
+            <label class="vwap-tv-check"><input id="vwapModalUseEndTime" type="checkbox" onchange="toggleVwapCustomTimeInput(); saveVwapModalSettings()" /><span>Use end time</span></label>
+            <div id="vwapEndTimeWrap" class="hidden">
+              <label class="vwap-tv-row"><span>End time</span><input id="vwapModalEndTime" type="time" value="16:00" onchange="saveVwapModalSettings()" class="bt-input" /></label>
+              <label class="vwap-tv-row"><span>After end time</span><select id="vwapModalEndBehavior" onchange="saveVwapModalSettings()" class="bt-input"><option value="freeze">Freeze</option><option value="hide">Hide</option></select></label>
             </div>
-            <div id="vwapCustomTimeWrap" class="hidden flex items-center justify-between pt-2 border-t border-zinc-800/80">
-              <span class="text-zinc-400">Aangepaste Reset Tijd (HH:mm)</span>
-              <input id="vwapModalResetTime" type="time" value="09:30" onchange="saveVwapModalSettings()" class="bt-input !w-28 !h-7 text-[10px] font-mono text-center" />
-            </div>
-            <!-- VWAP Eindtijd -->
-            <div class="border-t border-zinc-800 pt-2 space-y-2">
-              <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-zinc-300 font-medium">Eindtijd Inschakelen (Sessie Einde)</span>
-                <input id="vwapModalUseEndTime" type="checkbox" onchange="toggleVwapCustomTimeInput(); saveVwapModalSettings()" class="accent-blue-500 w-4 h-4" />
-              </label>
-              <div id="vwapEndTimeWrap" class="hidden space-y-2 pt-1 border-t border-zinc-800/60">
-                <div class="flex items-center justify-between">
-                  <span class="text-zinc-400">Aangepaste Eindtijd (HH:mm)</span>
-                  <input id="vwapModalEndTime" type="time" value="16:00" onchange="saveVwapModalSettings()" class="bt-input !w-28 !h-7 text-[10px] font-mono text-center" />
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-zinc-400">Gedrag na eindtijd</span>
-                  <select id="vwapModalEndBehavior" onchange="saveVwapModalSettings()" class="bt-input !w-48 !h-7 text-[10px]">
-                    <option value="freeze">Waarde vasthouden (vlakke lijn)</option>
-                    <option value="hide">VWAP verbergen na eindtijd</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Hoofd VWAP Lijn -->
-          <div class="p-3 bg-[#0e1319] border border-terminal rounded-sm space-y-3">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-blue-300">Hoofd VWAP Lijn</div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
-              <div>
-                <span class="block text-[9px] text-zinc-400 mb-1">Kleur</span>
-                <input id="vwapModalMainColor" type="color" onchange="saveVwapModalSettings()" class="w-full h-7 bg-transparent border-0 cursor-pointer rounded" />
-              </div>
-              <div>
-                <span class="block text-[9px] text-zinc-400 mb-1">Lijntype</span>
-                <select id="vwapModalMainStyle" onchange="saveVwapModalSettings()" class="bt-input !h-7 text-[10px]">
-                  <option value="solid">Vol</option>
-                  <option value="dashed">Gestreept</option>
-                  <option value="dotted">Gestippeld</option>
-                </select>
-              </div>
-              <div>
-                <span class="block text-[9px] text-zinc-400 mb-1">Dikte (px)</span>
-                <input id="vwapModalMainWidth" type="number" min="1" max="5" value="2" onchange="saveVwapModalSettings()" class="bt-input !h-7 text-center text-[10px]" />
-              </div>
-              <div>
-                <div class="flex items-center justify-between text-[9px] text-zinc-400 mb-1">
-                  <span>Opaciteit</span>
-                  <span id="vwapMainOpacityVal" class="font-mono text-zinc-300">100%</span>
-                </div>
-                <input id="vwapModalMainOpacity" type="range" min="0" max="1" step="0.05" value="1" oninput="document.getElementById('vwapMainOpacityVal').textContent = Math.round(this.value * 100) + '%'; saveVwapModalSettings()" class="w-full h-1.5 bg-zinc-700 rounded cursor-pointer accent-blue-500 mt-2" />
-              </div>
-            </div>
-          </div>
-
-          <!-- SD Banden Lijst -->
-          <div class="p-3 bg-[#0e1319] border border-terminal rounded-sm space-y-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-purple-300">Standaard Deviatie Banden (SD)</div>
-                <div class="text-[9px] text-zinc-500">Instelbare SD-lijnen, opaciteiten en achtergrondvullingen</div>
-              </div>
-              <button type="button" onclick="addVwapBand()" class="bt-tool !w-auto !px-2 !h-6 text-[9px] font-semibold text-blue-300 border border-blue-500/30 hover:bg-blue-500/20">
-                <i class="fas fa-plus text-[8px] mr-1"></i> Band toevoegen
-              </button>
-            </div>
-            <div id="vwapModalBandsList" class="space-y-1"></div>
-          </div>
+          </section>
+          <section class="chart-settings-panel hidden" data-settings-panel="style">
+            <div id="vwapModalBandsList"></div>
+            <div class="chart-settings-section-title">Output values</div>
+            <label class="vwap-tv-row"><span>Precision</span><select id="vwapModalPrecision" onchange="saveVwapModalSettings()" class="bt-input"><option value="default">Default</option><option value="2">2 decimals</option><option value="4">4 decimals</option></select></label>
+            <label class="vwap-tv-check"><input id="vwapModalLabelsPriceScale" type="checkbox" onchange="saveVwapModalSettings()" /><span>Labels on price scale</span></label>
+            <label class="vwap-tv-check"><input id="vwapModalValuesStatusLine" type="checkbox" onchange="saveVwapModalSettings()" /><span>Values in status line</span></label>
+          </section>
+          <section class="chart-settings-panel hidden" data-settings-panel="visibility">
+            <div class="chart-settings-section-title">Visibility</div>
+            <label class="vwap-tv-check"><input id="vwapModalInputsStatusLine" type="checkbox" onchange="saveVwapModalSettings()" /><span>Inputs in status line</span></label>
+            <label class="vwap-tv-check"><input id="vwapModalShowMain" type="checkbox" onchange="saveVwapModalSettings()" /><span>VWAP line</span></label>
+            <label class="vwap-tv-check"><input id="vwapModalShowBands" type="checkbox" onchange="saveVwapModalSettings()" /><span>Standard deviation bands</span></label>
+          </section>
         </div>
-        <div class="h-12 px-4 border-t border-terminal flex items-center justify-between shrink-0 bg-[#0e1319]">
-          <button type="button" onclick="resetVwapModalDefaults()" class="text-[10px] text-zinc-400 hover:text-zinc-200 underline">Standaard herstellen</button>
-          <div class="flex items-center gap-2">
-            <button type="button" onclick="closeJournalVwapSettingsModal()" class="px-3 py-1 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-[10px] rounded-sm">Sluiten</button>
-            <button type="button" onclick="saveVwapModalSettings()" class="px-3 py-1 bg-blue-600 text-white hover:bg-blue-500 text-[10px] font-semibold rounded-sm">Opslaan &amp; Toepassen</button>
-          </div>
-        </div>
+        <div class="chart-settings-footer"><button type="button" onclick="resetVwapModalDefaults()" class="chart-settings-template text-left">Defaults <i class="fas fa-chevron-down float-right mt-1 text-[8px]"></i></button><span class="flex items-center gap-2"><button type="button" onclick="closeJournalVwapSettingsModal()" class="chart-settings-button">Cancel</button><button type="button" onclick="saveVwapModalSettings(true)" class="chart-settings-button primary">Ok</button></span></div>
       </div>
     </div>
 
@@ -10097,7 +11094,7 @@
       }
       // ---- METADATA MODALS & STRUCTURAL VARIABLE MANIPULATION ----
       function openModal(id) {
-        modalTagGroupFilter = null;
+        modalTagGroupFilter = tagGroups.length ? tagGroups[0].id : "__ungrouped__";
         var trade = trades.find(function (t) {
           return t.id === id;
         });
@@ -10218,30 +11215,26 @@
         var groupTabsContainer = document.getElementById("modalTagGroupTabs");
         if (groupTabsContainer) {
           groupTabsContainer.innerHTML = "";
+          function appendGroupTab(label, value) {
+            var tab = document.createElement("button");
+            tab.type = "button";
+            tab.className = "trade-tag-group-tab" + (modalTagGroupFilter === value ? " active" : "");
+            tab.textContent = label;
+            tab.setAttribute("aria-pressed", String(tab.classList.contains("active")));
+            tab.onclick = function () {
+              modalTagGroupFilter = value;
+              renderModalTags();
+            };
+            groupTabsContainer.appendChild(tab);
+          }
+          tagGroups.forEach(function (g) {
+            appendGroupTab(g.name, g.id);
+          });
           if (tagGroups.length) {
-            var allTab = document.createElement("button");
-            allTab.type = "button";
-            allTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (!modalTagGroupFilter ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-            allTab.textContent = "Alle";
-            allTab.onclick = function () { modalTagGroupFilter = null; renderModalTags(); };
-            groupTabsContainer.appendChild(allTab);
-            tagGroups.forEach(function (g) {
-              var tab = document.createElement("button");
-              tab.type = "button";
-              tab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (modalTagGroupFilter === g.id ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-              tab.textContent = g.name;
-              tab.onclick = function () { modalTagGroupFilter = g.id; renderModalTags(); };
-              groupTabsContainer.appendChild(tab);
-            });
             var allGroupedTags = getGroupedTagNames();
             var hasUngrouped = globalTags.some(function (t) { return allGroupedTags.indexOf(t) === -1; });
             if (hasUngrouped) {
-              var unTab = document.createElement("button");
-              unTab.type = "button";
-              unTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (modalTagGroupFilter === "__ungrouped__" ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-              unTab.textContent = "Ongegroepeerd";
-              unTab.onclick = function () { modalTagGroupFilter = "__ungrouped__"; renderModalTags(); };
-              groupTabsContainer.appendChild(unTab);
+              appendGroupTab("Ongegroepeerd", "__ungrouped__");
             }
           }
         }
@@ -10256,22 +11249,43 @@
           var activeGroup = tagGroups.find(function (g) { return g.id === modalTagGroupFilter; });
           visibleTags = activeGroup ? activeGroup.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; }) : globalTags;
         }
-        visibleTags.forEach(function (t) {
-          if (currentEditTags.indexOf(t) >= 0) return;
+        function appendTagSection(title, tags) {
+          var available = tags.filter(function (t) { return currentEditTags.indexOf(t) < 0; });
+          if (!available.length) return;
+          var section = document.createElement("div");
+          section.className = "trade-tag-group-section";
+          var heading = document.createElement("div");
+          heading.className = "trade-tag-group-heading";
+          heading.innerHTML = "<span>" + esc(title) + "</span><span>" + available.length + " beschikbaar</span>";
+          var options = document.createElement("div");
+          options.className = "trade-tag-group-options";
+          available.forEach(function (t) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "trade-tag-option border px-2 py-0.5 rounded-sm text-[10px] uppercase transition-[filter] hover:brightness-110";
+            applyTagColor(btn, t);
+            btn.textContent = formatTagLabel(t);
+            btn.onclick = function () {
+              currentEditTags.push(t);
+              renderModalTags();
+              autoCommitTradeEdits();
+            };
+            options.appendChild(btn);
+          });
+          section.appendChild(heading);
+          section.appendChild(options);
+          containerAvailable.appendChild(section);
+        }
 
-          var btn = document.createElement("button");
-          btn.className =
-            "border px-2 py-0.5 rounded-sm text-[10px] uppercase transition-[filter] hover:brightness-110";
-          applyTagColor(btn, t);
-          btn.textContent = formatTagLabel(t);
-          btn.onclick = function () {
-            currentEditTags.push(t);
-            renderModalTags();
-            autoCommitTradeEdits();
-          };
-
-          containerAvailable.appendChild(btn);
-        });
+        if (modalTagGroupFilter === "__ungrouped__") {
+          appendTagSection("Ongegroepeerd", visibleTags);
+        } else {
+          var selectedGroup = tagGroups.find(function (g) { return g.id === modalTagGroupFilter; });
+          appendTagSection(selectedGroup ? selectedGroup.name : "Beschikbare tags", visibleTags);
+        }
+        if (!containerAvailable.children.length) {
+          containerAvailable.innerHTML = '<div class="text-[10px] text-slate-400 italic py-3 text-center">Alle tags uit deze groep zijn al geselecteerd.</div>';
+        }
       }
 
       function createNewTag() {
@@ -12834,6 +13848,14 @@
           sharedLayoutDefault: localStorage.getItem("qt_shared_layout_default_v1") || "",
           sharedFootprintActive: (function () { try { return JSON.parse(localStorage.getItem("qt_shared_footprint_active_v1") || "null"); } catch (error) { return null; } })(),
           backtestChartLayout: (function () { try { return JSON.parse(localStorage.getItem("qt_bt_chart_layout_v1") || "null"); } catch (error) { return null; } })(),
+          journalTradePopupSettings: {
+            chartTimeframes: typeof getJournalCustomTimeframes === "function" ? getJournalCustomTimeframes() : [],
+            cvdHeight: Number(localStorage.getItem("qt_journal_cvd_height_v1")) || null,
+            vwapSettings: (function () { try { return JSON.parse(localStorage.getItem("qt_journal_vwap_settings_v1") || "null"); } catch (error) { return null; } })(),
+            chartPresets: (function () { try { return JSON.parse(localStorage.getItem("journalChartPresets") || "[]"); } catch (error) { return []; } })(),
+            chartDefaultPresets: (function () { try { return JSON.parse(localStorage.getItem("journalChartDefaultPresets") || "{}"); } catch (error) { return {}; } })(),
+            chartSavedColors: (function () { try { return JSON.parse(localStorage.getItem("journalChartSavedColors") || "[]"); } catch (error) { return []; } })(),
+          },
         };
         var backupDataString = JSON.stringify(data, null, 2);
 
@@ -13044,6 +14066,18 @@
               if (importedData && typeof importedData.sharedLayoutDefault === "string") localStorage.setItem("qt_shared_layout_default_v1", importedData.sharedLayoutDefault);
               if (importedData && importedData.sharedFootprintActive) localStorage.setItem("qt_shared_footprint_active_v1", JSON.stringify(importedData.sharedFootprintActive));
               if (importedData && importedData.backtestChartLayout) localStorage.setItem("qt_bt_chart_layout_v1", JSON.stringify(importedData.backtestChartLayout));
+              var popupSettings = importedData && importedData.journalTradePopupSettings;
+              if (popupSettings && typeof popupSettings === "object") {
+                if (Array.isArray(popupSettings.chartTimeframes)) localStorage.setItem("qt_journal_timeframes_v1", JSON.stringify(popupSettings.chartTimeframes));
+                if (typeof popupSettings.cvdHeight === "number" && popupSettings.cvdHeight > 0) localStorage.setItem("qt_journal_cvd_height_v1", String(Math.round(popupSettings.cvdHeight)));
+                if (popupSettings.vwapSettings && typeof popupSettings.vwapSettings === "object") localStorage.setItem("qt_journal_vwap_settings_v1", JSON.stringify(popupSettings.vwapSettings));
+                if (Array.isArray(popupSettings.chartPresets)) localStorage.setItem("journalChartPresets", JSON.stringify(popupSettings.chartPresets));
+                if (popupSettings.chartDefaultPresets && typeof popupSettings.chartDefaultPresets === "object") localStorage.setItem("journalChartDefaultPresets", JSON.stringify(popupSettings.chartDefaultPresets));
+                if (Array.isArray(popupSettings.chartSavedColors)) localStorage.setItem("journalChartSavedColors", JSON.stringify(popupSettings.chartSavedColors));
+              }
+              if (typeof renderJournalCustomTimeframes === "function") renderJournalCustomTimeframes();
+              if (typeof syncJournalTradeChartTimeframeButtons === "function") syncJournalTradeChartTimeframeButtons();
+              if (typeof renderJournalChartSavedOptions === "function") renderJournalChartSavedOptions();
               if (typeof renderSharedChartProfileLists === "function") renderSharedChartProfileLists();
 
               // Reset filters on journal view so imported trades are immediately displayed
@@ -18016,6 +19050,10 @@
          ========================================== */
       var DEFAULT_JOURNAL_VWAP_SETTINGS = {
         enabled: true,
+        hideOnDaily: false,
+        source: "hlc3",
+        offset: 0,
+        bandsMode: "standard",
         resetPeriod: "daily", // "daily", "custom_time", "weekly", "continuous"
         resetTime: "09:30",   // HH:mm for custom reset time
         useEndTime: false,    // whether to apply an end time
@@ -18027,6 +19065,14 @@
           opacity: 1.0,
           width: 2,
           style: "solid"
+        },
+        visibility: {
+          inputsStatusLine: true,
+          labelsPriceScale: false,
+          valuesStatusLine: true,
+          showMain: true,
+          showBands: true,
+          precision: "default"
         },
         bands: [
           { id: "sd1", enabled: true, multiplier: 1.0, color: "#38bdf8", opacity: 0.8, fillEnabled: true, fillColor: "#38bdf8", fillOpacity: 0.15, width: 1, style: "dashed" },
@@ -18059,7 +19105,13 @@
           var stored = localStorage.getItem("qt_journal_vwap_settings_v1");
           if (stored) {
             var parsed = JSON.parse(stored);
-            return Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS, parsed);
+            var settings = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS, parsed);
+            settings.main = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.main, parsed.main || {});
+            settings.visibility = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.visibility, parsed.visibility || {});
+            settings.bands = Array.isArray(parsed.bands) ? parsed.bands.map(function(band, index) {
+              return Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.bands[index] || DEFAULT_JOURNAL_VWAP_SETTINGS.bands[0], band);
+            }) : JSON.parse(JSON.stringify(DEFAULT_JOURNAL_VWAP_SETTINGS.bands));
+            return settings;
           }
         } catch (e) {
           console.error("Error reading VWAP settings:", e);
@@ -18188,6 +19240,8 @@
               var vol = Number(bar.volume || bar.vol || bar.v || bar.size || bar.qty || bar.quantity) || 0;
               if (vol <= 0) vol = 1;
               var typicalPrice = (Number(bar.high) + Number(bar.low) + Number(bar.close)) / 3;
+              if (settings.source === "close") typicalPrice = Number(bar.close);
+              if (settings.source === "ohlc4") typicalPrice = (Number(bar.open) + Number(bar.high) + Number(bar.low) + Number(bar.close)) / 4;
               cumVol += vol;
               cumVolPrice += vol * typicalPrice;
               cumVolPriceSq += vol * typicalPrice * typicalPrice;
@@ -18240,7 +19294,7 @@
         var vwapResults = calculateJournalVwapData(chartData, settings);
 
         // 1. Main VWAP line
-        if (settings.main && settings.main.enabled !== false) {
+        if (settings.main && settings.main.enabled !== false && (!settings.visibility || settings.visibility.showMain !== false)) {
           var mainColorRgba = getRgbaColor(settings.main.color, settings.main.opacity);
           var mainLineWidth = Number(settings.main.width) || 2;
           var mainLineStyle = getLwLineStyle(settings.main.style);
@@ -18287,7 +19341,7 @@
           var ref = currentVwapSeries.bands[i];
           var band = activeBands[i];
 
-          if (i < activeBands.length && band && band.enabled !== false) {
+          if (i < activeBands.length && band && band.enabled !== false && (!settings.visibility || settings.visibility.showBands !== false)) {
             var mult = Number(band.multiplier) || 1.0;
             var style = getLwLineStyle(band.style);
             var width = Number(band.width) || 1;
@@ -18410,10 +19464,8 @@
         if (resetEl && timeWrap) {
           if (resetEl.value === "custom_time") {
             timeWrap.classList.remove("hidden");
-            timeWrap.classList.add("flex");
           } else {
             timeWrap.classList.add("hidden");
-            timeWrap.classList.remove("flex");
           }
         }
 
@@ -18422,22 +19474,33 @@
         if (useEndEl && endWrap) {
           if (useEndEl.checked) {
             endWrap.classList.remove("hidden");
-            endWrap.classList.add("space-y-2");
           } else {
             endWrap.classList.add("hidden");
-            endWrap.classList.remove("space-y-2");
           }
         }
       }
 
       function renderJournalVwapModalContent() {
         var settings = getJournalVwapSettings();
+        var visibility = settings.visibility || DEFAULT_JOURNAL_VWAP_SETTINGS.visibility;
         
         var enabledEl = document.getElementById("vwapModalEnabled");
         if (enabledEl) enabledEl.checked = !!settings.enabled;
 
         var resetEl = document.getElementById("vwapModalResetPeriod");
         if (resetEl) resetEl.value = settings.resetPeriod || "daily";
+
+        var hideDailyEl = document.getElementById("vwapModalHideOnDaily");
+        if (hideDailyEl) hideDailyEl.checked = !!settings.hideOnDaily;
+
+        var sourceEl = document.getElementById("vwapModalSource");
+        if (sourceEl) sourceEl.value = settings.source || "hlc3";
+
+        var offsetEl = document.getElementById("vwapModalOffset");
+        if (offsetEl) offsetEl.value = Number(settings.offset) || 0;
+
+        var bandsModeEl = document.getElementById("vwapModalBandsMode");
+        if (bandsModeEl) bandsModeEl.value = settings.bandsMode || "standard";
 
         var timeEl = document.getElementById("vwapModalResetTime");
         if (timeEl) timeEl.value = settings.resetTime || "09:30";
@@ -18452,84 +19515,59 @@
         if (endBehavEl) endBehavEl.value = settings.endBehavior || "freeze";
 
         toggleVwapCustomTimeInput();
+        var precisionEl = document.getElementById("vwapModalPrecision");
+        if (precisionEl) precisionEl.value = visibility.precision || "default";
+        var labelsEl = document.getElementById("vwapModalLabelsPriceScale");
+        if (labelsEl) labelsEl.checked = !!visibility.labelsPriceScale;
+        var valuesEl = document.getElementById("vwapModalValuesStatusLine");
+        if (valuesEl) valuesEl.checked = visibility.valuesStatusLine !== false;
+        var inputsEl = document.getElementById("vwapModalInputsStatusLine");
+        if (inputsEl) inputsEl.checked = visibility.inputsStatusLine !== false;
+        var showMainEl = document.getElementById("vwapModalShowMain");
+        if (showMainEl) showMainEl.checked = visibility.showMain !== false;
+        var showBandsEl = document.getElementById("vwapModalShowBands");
+        if (showBandsEl) showBandsEl.checked = visibility.showBands !== false;
 
-        var colorEl = document.getElementById("vwapModalMainColor");
-        if (colorEl) colorEl.value = settings.main.color || "#38bdf8";
-
-        var widthEl = document.getElementById("vwapModalMainWidth");
-        if (widthEl) widthEl.value = settings.main.width || 2;
-
-        var styleEl = document.getElementById("vwapModalMainStyle");
-        if (styleEl) styleEl.value = settings.main.style || "solid";
-
-        var mainOpacityEl = document.getElementById("vwapModalMainOpacity");
-        if (mainOpacityEl) {
-          mainOpacityEl.value = settings.main.opacity !== undefined ? settings.main.opacity : 1.0;
-          var valDisp = document.getElementById("vwapMainOpacityVal");
-          if (valDisp) valDisp.textContent = Math.round(mainOpacityEl.value * 100) + "%";
-        }
-
+        renderVwapBandInputs(settings.bands || []);
         renderVwapBandsList(settings.bands || []);
+      }
+
+      function renderVwapBandInputs(bands) {
+        var container = document.getElementById("vwapModalBandInputs");
+        if (!container) return;
+        container.innerHTML = bands.map(function(band, index) {
+          return '<label class="vwap-tv-band-input"><input type="checkbox" ' + (band.enabled !== false ? 'checked' : '') + ' onchange="updateVwapBandProp(' + index + ', \'enabled\', this.checked)" />' +
+            '<span>Band #' + (index + 1) + ' multiplier</span>' +
+            '<input type="number" step="0.1" min="0.1" max="10" value="' + (Number(band.multiplier) || 1) + '" onchange="updateVwapBandProp(' + index + ', \'multiplier\', parseFloat(this.value))" class="bt-input" /></label>';
+        }).join("") + '<button type="button" onclick="addVwapBand()" class="chart-settings-button mt-3"><i class="fas fa-plus mr-2"></i>Add band</button>';
       }
 
       function renderVwapBandsList(bands) {
         var container = document.getElementById("vwapModalBandsList");
         if (!container) return;
-
-        if (!bands || bands.length === 0) {
-          container.innerHTML = '<div class="text-[10px] text-zinc-500 italic p-2 text-center">Geen standaard deviatie banden toegevoegd.</div>';
-          return;
-        }
-
-        var html = "";
+        var main = getJournalVwapSettings().main;
+        var html = '<div class="chart-settings-section-title">Lines</div>';
+        html += renderVwapStyleRow(-1, "VWAP", main);
+        bands.forEach(function(band, index) { html += renderVwapStyleRow(index, "Band #" + (index + 1), band); });
+        html += '<div class="chart-settings-section-title">Background fills</div>';
         bands.forEach(function(band, index) {
-          var opacityVal = band.opacity !== undefined ? band.opacity : 0.8;
-          var fillEnabled = band.fillEnabled !== false;
-          var fillColor = band.fillColor || band.color || "#38bdf8";
-          var fillOpacityVal = band.fillOpacity !== undefined ? band.fillOpacity : 0.15;
-
-          html += '<div class="p-2.5 bg-[#0e1319] border border-terminal rounded-sm text-[11px] mb-2 space-y-2">';
-          // Row 1: Line options
-          html += '<div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">';
-          html += '<input type="checkbox" ' + (band.enabled !== false ? 'checked' : '') + ' onchange="updateVwapBandProp(' + index + ', \'enabled\', this.checked)" class="accent-blue-500 shrink-0" title="In/uitschakelen" />';
-          html += '<div class="flex items-center gap-1 shrink-0"><span class="text-[10px] text-zinc-400 font-mono">SD &plusmn;</span>';
-          html += '<input type="number" step="0.1" min="0.1" max="10" value="' + (band.multiplier || 1.0) + '" onchange="updateVwapBandProp(' + index + ', \'multiplier\', parseFloat(this.value))" class="bt-input !w-14 !h-7 text-center font-mono text-[10px]" /></div>';
-          html += '<input type="color" value="' + (band.color || "#818cf8") + '" onchange="updateVwapBandProp(' + index + ', \'color\', this.value)" class="w-6 h-6 bg-transparent border-0 cursor-pointer rounded shrink-0" title="Lijnkleur" />';
-          html += '<select onchange="updateVwapBandProp(' + index + ', \'style\', this.value)" class="bt-input !h-7 text-[10px] min-w-0 flex-1">';
-          html += '<option value="dashed"' + (band.style === "dashed" ? ' selected' : '') + '>Gestreept</option>';
-          html += '<option value="solid"' + (band.style === "solid" ? ' selected' : '') + '>Vol</option>';
-          html += '<option value="dotted"' + (band.style === "dotted" ? ' selected' : '') + '>Gestippeld</option>';
-          html += '</select>';
-          html += '<input type="number" min="1" max="5" value="' + (band.width || 1) + '" onchange="updateVwapBandProp(' + index + ', \'width\', parseInt(this.value))" class="bt-input !w-10 !h-7 text-center shrink-0 text-[10px]" title="Lijndikte" />';
-          html += '<div class="flex items-center gap-1 shrink-0 bg-zinc-900/80 px-1.5 py-1 rounded border border-zinc-800">';
-          html += '<span class="text-[9px] text-zinc-400 shrink-0">Lijn Opaciteit:</span>';
-          html += '<input type="range" min="0" max="1" step="0.05" value="' + opacityVal + '" oninput="this.nextElementSibling.textContent = Math.round(this.value * 100) + \'%\'; updateVwapBandProp(' + index + ', \'opacity\', parseFloat(this.value))" class="w-14 h-1.5 bg-zinc-700 rounded accent-blue-500 cursor-pointer" />';
-          html += '<span class="font-mono text-[9px] text-zinc-300 w-7 text-right">' + Math.round(opacityVal * 100) + '%</span>';
-          html += '</div>';
-          html += '<button type="button" onclick="deleteVwapBand(' + index + ')" class="bt-tool !w-7 !h-7 text-red-400 hover:text-red-300 shrink-0 ml-auto" title="Verwijder band"><i class="fas fa-trash-can text-[10px]"></i></button>';
-          html += '</div>';
-
-          // Row 2: Band Fill options
-          html += '<div class="flex items-center gap-3 pt-1.5 border-t border-zinc-800/80 text-[10px] text-zinc-400 flex-wrap sm:flex-nowrap">';
-          html += '<label class="flex items-center gap-1.5 cursor-pointer shrink-0">';
-          html += '<input type="checkbox" ' + (fillEnabled ? 'checked' : '') + ' onchange="updateVwapBandProp(' + index + ', \'fillEnabled\', this.checked)" class="accent-blue-500" />';
-          html += '<span class="text-zinc-300 font-medium">Achtergrond vullen</span>';
-          html += '</label>';
-          html += '<div class="flex items-center gap-1.5 shrink-0">';
-          html += '<span>Vulkleur:</span>';
-          html += '<input type="color" value="' + fillColor + '" onchange="updateVwapBandProp(' + index + ', \'fillColor\', this.value)" class="w-5 h-5 bg-transparent border-0 cursor-pointer rounded" />';
-          html += '</div>';
-          html += '<div class="flex items-center gap-1.5 shrink-0 bg-zinc-900/80 px-1.5 py-1 rounded border border-zinc-800">';
-          html += '<span>Vul Opaciteit:</span>';
-          html += '<input type="range" min="0" max="1" step="0.05" value="' + fillOpacityVal + '" oninput="this.nextElementSibling.textContent = Math.round(this.value * 100) + \'%\'; updateVwapBandProp(' + index + ', \'fillOpacity\', parseFloat(this.value))" class="w-16 h-1.5 bg-zinc-700 rounded accent-blue-500 cursor-pointer" />';
-          html += '<span class="font-mono text-[9px] text-zinc-300 w-7 text-right">' + Math.round(fillOpacityVal * 100) + '%</span>';
-          html += '</div>';
-          html += '</div>';
-
-          html += '</div>';
+          var fillOpacity = band.fillOpacity !== undefined ? band.fillOpacity : 0.15;
+          html += '<label class="vwap-tv-fill-row"><input type="checkbox" ' + (band.fillEnabled !== false ? 'checked' : '') + ' onchange="updateVwapBandProp(' + index + ', \'fillEnabled\', this.checked)" /><span>Band #' + (index + 1) + ' background</span><input type="color" value="' + (band.fillColor || band.color) + '" onchange="updateVwapBandProp(' + index + ', \'fillColor\', this.value)" /><span class="vwap-tv-opacity"><input type="range" min="0" max="1" step="0.05" value="' + fillOpacity + '" oninput="this.nextElementSibling.value=Math.round(this.value*100)+\'%\'; updateVwapBandProp(' + index + ', \'fillOpacity\', parseFloat(this.value))" /><output>' + Math.round(fillOpacity * 100) + '%</output></span></label>';
         });
-
         container.innerHTML = html;
+      }
+
+      function renderVwapStyleRow(index, label, line) {
+        var opacity = line.opacity !== undefined ? line.opacity : 0.8;
+        var update = index < 0 ? "updateVwapMainProp" : "function(prop,value){updateVwapBandProp(" + index + ",prop,value)}";
+        return '<div class="vwap-tv-style-row"><input type="checkbox" ' + (line.enabled !== false ? 'checked' : '') + ' onchange="(' + update + ')(\'enabled\',this.checked)" /><span>' + label + '</span><input type="color" value="' + (line.color || "#38bdf8") + '" onchange="(' + update + ')(\'color\',this.value)" /><select class="bt-input" onchange="(' + update + ')(\'style\',this.value)"><option value="solid"' + (line.style === "solid" ? ' selected' : '') + '>Solid</option><option value="dashed"' + (line.style === "dashed" ? ' selected' : '') + '>Dashed</option><option value="dotted"' + (line.style === "dotted" ? ' selected' : '') + '>Dotted</option></select><span class="vwap-tv-opacity"><input type="range" min="0" max="1" step="0.05" value="' + opacity + '" oninput="this.nextElementSibling.value=Math.round(this.value*100)+\'%\'; (' + update + ')(\'opacity\',parseFloat(this.value))" /><output>' + Math.round(opacity * 100) + '%</output></span></div>';
+      }
+
+      function updateVwapMainProp(prop, value) {
+        var settings = getJournalVwapSettings();
+        settings.main[prop] = value;
+        saveJournalVwapSettings(settings);
+        if (currentLwChart && currentJournalChartData) applyJournalVwapToChart(currentLwChart, currentJournalChartData);
       }
 
       function updateVwapBandProp(index, prop, value) {
@@ -18560,6 +19598,7 @@
           style: "dashed"
         });
         saveJournalVwapSettings(settings);
+        renderVwapBandInputs(settings.bands);
         renderVwapBandsList(settings.bands);
         if (currentLwChart && currentJournalChartData) {
           applyJournalVwapToChart(currentLwChart, currentJournalChartData);
@@ -18571,6 +19610,7 @@
         if (settings.bands && settings.bands[index]) {
           settings.bands.splice(index, 1);
           saveJournalVwapSettings(settings);
+          renderVwapBandInputs(settings.bands);
           renderVwapBandsList(settings.bands);
           if (currentLwChart && currentJournalChartData) {
             applyJournalVwapToChart(currentLwChart, currentJournalChartData);
@@ -18578,14 +19618,27 @@
         }
       }
 
-      function saveVwapModalSettings() {
+      function saveVwapModalSettings(closeAfterSave) {
         var settings = getJournalVwapSettings();
+        var visibility = settings.visibility || {};
         
         var enabledEl = document.getElementById("vwapModalEnabled");
         if (enabledEl) settings.enabled = enabledEl.checked;
 
         var resetEl = document.getElementById("vwapModalResetPeriod");
         if (resetEl) settings.resetPeriod = resetEl.value;
+
+        var hideDailyEl = document.getElementById("vwapModalHideOnDaily");
+        if (hideDailyEl) settings.hideOnDaily = hideDailyEl.checked;
+
+        var sourceEl = document.getElementById("vwapModalSource");
+        if (sourceEl) settings.source = sourceEl.value;
+
+        var offsetEl = document.getElementById("vwapModalOffset");
+        if (offsetEl) settings.offset = parseInt(offsetEl.value, 10) || 0;
+
+        var bandsModeEl = document.getElementById("vwapModalBandsMode");
+        if (bandsModeEl) settings.bandsMode = bandsModeEl.value;
 
         var timeEl = document.getElementById("vwapModalResetTime");
         if (timeEl) settings.resetTime = timeEl.value;
@@ -18599,23 +19652,25 @@
         var endBehavEl = document.getElementById("vwapModalEndBehavior");
         if (endBehavEl) settings.endBehavior = endBehavEl.value || "freeze";
 
-        var colorEl = document.getElementById("vwapModalMainColor");
-        if (colorEl) settings.main.color = colorEl.value;
-
-        var widthEl = document.getElementById("vwapModalMainWidth");
-        if (widthEl) settings.main.width = parseInt(widthEl.value) || 2;
-
-        var styleEl = document.getElementById("vwapModalMainStyle");
-        if (styleEl) settings.main.style = styleEl.value;
-
-        var mainOpacityEl = document.getElementById("vwapModalMainOpacity");
-        if (mainOpacityEl) settings.main.opacity = parseFloat(mainOpacityEl.value);
+        var precisionEl = document.getElementById("vwapModalPrecision");
+        if (precisionEl) visibility.precision = precisionEl.value;
+        var labelsEl = document.getElementById("vwapModalLabelsPriceScale");
+        if (labelsEl) visibility.labelsPriceScale = labelsEl.checked;
+        var valuesEl = document.getElementById("vwapModalValuesStatusLine");
+        if (valuesEl) visibility.valuesStatusLine = valuesEl.checked;
+        var inputsEl = document.getElementById("vwapModalInputsStatusLine");
+        if (inputsEl) visibility.inputsStatusLine = inputsEl.checked;
+        var showMainEl = document.getElementById("vwapModalShowMain");
+        if (showMainEl) visibility.showMain = showMainEl.checked;
+        var showBandsEl = document.getElementById("vwapModalShowBands");
+        if (showBandsEl) visibility.showBands = showBandsEl.checked;
+        settings.visibility = visibility;
 
         saveJournalVwapSettings(settings);
         if (currentLwChart && currentJournalChartData) {
           applyJournalVwapToChart(currentLwChart, currentJournalChartData);
         }
-        closeJournalVwapSettingsModal();
+        if (closeAfterSave) closeJournalVwapSettingsModal();
       }
 
       function resetVwapModalDefaults() {
