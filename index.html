@@ -4153,9 +4153,6 @@
               ></i>
               <span>Upload Grafiek Data</span>
             </button>
-            <button onclick="openChartDataLibrary(); toggleDropdown('dataMenuDropdown');" class="w-full text-left px-3 py-2 hover:bg-zinc-800 hover:text-white rounded-sm text-xs transition-colors flex items-start">
-              <i class="fas fa-database w-4 text-center mr-1.5 text-slate-200 mt-0.5 shrink-0"></i><span>Chart data</span>
-            </button>
             <button
               onclick="
                 openManualTradeModal();
@@ -4379,6 +4376,26 @@
                 >
                   0
                 </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-terminal-card border border-emerald-900/70 p-2 rounded-sm">
+                <span class="text-[9px] uppercase font-mono tracking-wider text-emerald-400 block">Win MFE gem.</span>
+                <div id="kpi-win-mfe" class="text-sm font-bold font-mono text-emerald-300 mt-0.5">-</div>
+              </div>
+              <div class="bg-terminal-card border border-emerald-900/70 p-2 rounded-sm">
+                <span class="text-[9px] uppercase font-mono tracking-wider text-emerald-400 block">Win MAE gem.</span>
+                <div id="kpi-win-mae" class="text-sm font-bold font-mono text-emerald-300 mt-0.5">-</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-terminal-card border border-red-900/70 p-2 rounded-sm">
+                <span class="text-[9px] uppercase font-mono tracking-wider text-red-400 block">Loss MFE gem.</span>
+                <div id="kpi-loss-mfe" class="text-sm font-bold font-mono text-red-300 mt-0.5">-</div>
+              </div>
+              <div class="bg-terminal-card border border-red-900/70 p-2 rounded-sm">
+                <span class="text-[9px] uppercase font-mono tracking-wider text-red-400 block">Loss MAE gem.</span>
+                <div id="kpi-loss-mae" class="text-sm font-bold font-mono text-red-300 mt-0.5">-</div>
               </div>
             </div>
             <div
@@ -6983,6 +7000,8 @@
         },
         { key: "pnl", label: "Bruto PNL", align: "right", sortable: true },
         { key: "netpnl", label: "Netto PNL", align: "right", sortable: true },
+        { key: "mfe", label: "MFE", align: "right", sortable: false },
+        { key: "mae", label: "MAE", align: "right", sortable: false },
         { key: "tags", label: "TAGS", align: "left", sortable: false },
         {
           key: "screenshots",
@@ -10340,6 +10359,7 @@
           document.getElementById("kpi-pf").innerText = "0.00";
           document.getElementById("kpi-rr").innerText = "0.00";
           document.getElementById("kpi-trades").innerText = "0";
+          updateJournalExcursionAverages([], []);
 
           renderDayChart({});
           renderHourChart({});
@@ -10352,6 +10372,8 @@
           loss = 0;
         var dayStats = {},
           hourStats = {};
+        var winningExcursions = [];
+        var losingExcursions = [];
         var dayNames = [
           "Zondag",
           "Maandag",
@@ -10373,6 +10395,9 @@
           } else {
             loss += Math.abs(net);
           }
+          var excursion = calculateTradeMfeMae(t);
+          if (excursion && net > 0) winningExcursions.push(excursion);
+          else if (excursion && net < 0) losingExcursions.push(excursion);
 
           if (t.time instanceof Date && !isNaN(t.time)) {
             var d = t.time.getDay();
@@ -10418,6 +10443,7 @@
         document.getElementById("kpi-winrate").innerText = wr + "%";
         document.getElementById("kpi-pf").innerText = pf;
         document.getElementById("kpi-trades").innerText = filtered.length;
+        updateJournalExcursionAverages(winningExcursions, losingExcursions);
 
         renderDayChart(dayStats);
         renderHourChart(hourStats);
@@ -10673,6 +10699,7 @@
         display.forEach(function (trade) {
           var c = trade.fee || 0;
           var net = trade.pnl - c;
+          var excursion = calculateTradeMfeMae(trade);
           var isLong =
             trade.side.toLowerCase().indexOf("buy") >= 0 ||
             trade.side.toLowerCase() === "long";
@@ -10732,6 +10759,14 @@
               (net >= 0 ? "pnl-profit" : "pnl-loss") +
               '">' +
               fmtUSD(net) +
+              "</td>",
+            mfe:
+              '<td class="px-4 py-2 text-right font-mono text-emerald-300">' +
+              formatExcursionR(excursion && excursion.mfe) +
+              "</td>",
+            mae:
+              '<td class="px-4 py-2 text-right font-mono text-red-300">' +
+              formatExcursionR(excursion && excursion.mae) +
               "</td>",
             tags:
               '<td class="px-4 py-2 max-w-xs">' +
@@ -11481,9 +11516,14 @@
         });
       }
 
-      function scheduleSilentTradeSave() {
+      function scheduleSilentTradeSave(options) {
+        options = options || {};
         runWhenPageIsIdle(function () {
           saveData({ skipUpdate: true });
+          if (options.refreshExcursions) {
+            renderTable({ skipAnimation: true });
+            calculateStats();
+          }
         }, 1200);
       }
 
@@ -12368,7 +12408,6 @@
           } else {
             loss += Math.abs(net);
           }
-
           var isLong =
             trade.side.toLowerCase().indexOf("buy") >= 0 ||
             trade.side.toLowerCase() === "long";
@@ -12433,8 +12472,84 @@
         if (pfEl) pfEl.innerText = pf;
         var cntEl = document.getElementById("tag-kpi-count");
         if (cntEl) cntEl.innerText = matches.length;
-
         renderAnalyticsChart(matches);
+      }
+
+      function calculateTradeMfeMae(trade) {
+        if (!trade || trade.rrRemoved || !(trade.time instanceof Date) || isNaN(trade.time)) return null;
+        var entryPrice = Number(trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" ? trade.rrEntry : trade.entry);
+        var stopPrice = trade.sl !== undefined && trade.sl !== null && trade.sl !== "" ? Number(trade.sl) : NaN;
+        var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
+        var chartData = prepareJournalChartDataForTrade(source, trade);
+        if (!Number.isFinite(entryPrice) || !chartData || !chartData.length) return null;
+        var side = String(trade.side || "").toLowerCase();
+        var isLong = side.indexOf("buy") >= 0 || side === "long";
+        var isShort = side.indexOf("sell") >= 0 || side === "short";
+        if (!isLong && !isShort) return null;
+
+        if (!Number.isFinite(stopPrice)) {
+          var exitPrice = Number(trade.exit);
+          var defaultRisk = Math.max(entryPrice * 0.003, 0.5);
+          if (Number.isFinite(exitPrice) && Math.abs(exitPrice - entryPrice) > entryPrice * 0.0001) {
+            var exitDistance = Math.abs(exitPrice - entryPrice);
+            if (exitDistance > 0.05) defaultRisk = exitDistance;
+          }
+          var step = getJournalTradeTickSize(trade, chartData);
+          stopPrice = Math.round((isLong ? entryPrice - defaultRisk : entryPrice + defaultRisk) / step) * step;
+        }
+        var risk = Math.abs(entryPrice - stopPrice);
+        if (!Number.isFinite(risk) || risk <= 0) return null;
+
+        var entryTime = findBestTradeCandleTime(chartData, toChartTimestampFromLocalDate(trade.time), entryPrice);
+        if (!entryTime) return null;
+        var requestedExitTime = trade.exitTime instanceof Date && !isNaN(trade.exitTime)
+          ? toChartTimestampFromLocalDate(trade.exitTime)
+          : (Number.isFinite(Number(trade.rrEndTime)) ? Number(trade.rrEndTime) : null);
+        var exitTime = requestedExitTime ? findBestTradeCandleTime(chartData, requestedExitTime, Number(trade.exit)) : null;
+        var recordedExitPrice = Number(trade.exit);
+        if (!exitTime && Number.isFinite(recordedExitPrice)) {
+          var inferredExitCandle = chartData.find(function (candle) {
+            return Number(candle.time) >= entryTime && Number(candle.low) <= recordedExitPrice && Number(candle.high) >= recordedExitPrice;
+          });
+          if (inferredExitCandle) exitTime = Number(inferredExitCandle.time);
+        }
+        var tradeCandles = chartData.filter(function (candle) {
+          return exitTime && Number(candle.time) >= Math.min(entryTime, exitTime) && Number(candle.time) <= Math.max(entryTime, exitTime) && Number.isFinite(Number(candle.high)) && Number.isFinite(Number(candle.low));
+        });
+        var mfeCandles = chartData.filter(function (candle) {
+          return Number(candle.time) >= entryTime && Number.isFinite(Number(candle.high)) && Number.isFinite(Number(candle.low));
+        });
+        if (!mfeCandles.length) return null;
+
+        var highestAfterEntry = Math.max.apply(null, mfeCandles.map(function (candle) { return Number(candle.high); }));
+        var lowestAfterEntry = Math.min.apply(null, mfeCandles.map(function (candle) { return Number(candle.low); }));
+        var highestDuringTrade = tradeCandles.length ? Math.max.apply(null, tradeCandles.map(function (candle) { return Number(candle.high); })) : null;
+        var lowestDuringTrade = tradeCandles.length ? Math.min.apply(null, tradeCandles.map(function (candle) { return Number(candle.low); })) : null;
+        var favorableExcursion = isLong ? highestAfterEntry - entryPrice : entryPrice - lowestAfterEntry;
+        var adverseExcursion = tradeCandles.length ? (isLong ? entryPrice - lowestDuringTrade : highestDuringTrade - entryPrice) : null;
+        return {
+          mfe: Math.min(30, Math.max(0, favorableExcursion / risk)),
+          mae: adverseExcursion === null ? null : Math.min(1, Math.max(0, adverseExcursion / risk)),
+          risk: risk,
+        };
+      }
+
+      function formatExcursionR(value) {
+        return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? Number(value).toFixed(2) + "R" : "-";
+      }
+
+      function updateJournalExcursionAverages(winningExcursions, losingExcursions) {
+        function setAverage(id, values, key) {
+          var element = document.getElementById(id);
+          if (!element) return;
+          var availableValues = values.map(function (value) { return value[key]; }).filter(function (value) { return Number.isFinite(Number(value)); });
+          var average = availableValues.length ? availableValues.reduce(function (sum, value) { return sum + value; }, 0) / availableValues.length : null;
+          element.innerText = formatExcursionR(average);
+        }
+        setAverage("kpi-win-mfe", winningExcursions, "mfe");
+        setAverage("kpi-win-mae", winningExcursions, "mae");
+        setAverage("kpi-loss-mfe", losingExcursions, "mfe");
+        setAverage("kpi-loss-mae", losingExcursions, "mae");
       }
 
       var analyticsPnlChartInstance = null;
@@ -14852,6 +14967,7 @@
           tp: Number(trade.tp),
           sl: Number(trade.sl),
           width: Number(trade.rrWidthPx) || null,
+          startTime: trade.rrStartTime || null,
           endTime: trade.rrEndTime || null,
         };
         var text = "Entry: " + journalRrClipboard.entry + " | TP: " + journalRrClipboard.tp + " | SL: " + journalRrClipboard.sl;
@@ -14865,13 +14981,14 @@
         currentRiskRewardTrade.tp = journalRrClipboard.tp;
         currentRiskRewardTrade.sl = journalRrClipboard.sl;
         currentRiskRewardTrade.rrWidthPx = journalRrClipboard.width;
+        currentRiskRewardTrade.rrStartTime = journalRrClipboard.startTime;
         currentRiskRewardTrade.rrEndTime = journalRrClipboard.endTime;
         currentRiskRewardTrade.rrRemoved = false;
         currentRiskRewardTrade.rrHidden = false;
         journalRrSelected = true;
         closeJournalChartContextMenu();
         renderRiskRewardOverlay(currentRiskRewardTrade);
-        scheduleSilentTradeSave();
+        scheduleSilentTradeSave({ refreshExcursions: true });
       }
 
       function toggleJournalRrHidden() {
@@ -14887,7 +15004,7 @@
         currentRiskRewardTrade.rrRemoved = true;
         closeJournalRrSettings();
         clearRiskRewardOverlay();
-        scheduleSilentTradeSave();
+        scheduleSilentTradeSave({ refreshExcursions: true });
       }
 
       function openJournalRrDetailedSettings() {
@@ -14955,7 +15072,7 @@
       function saveJournalRrDetailedSettings() {
         journalRrSettingsSnapshot = null;
         closeJournalRrSettings();
-        scheduleSilentTradeSave();
+        scheduleSilentTradeSave({ refreshExcursions: true });
       }
 
       function openJournalChartContextMenu(event) {
@@ -15134,6 +15251,20 @@
             : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
 
           var step = getJournalTradeTickSize(trade, chartDataToUse);
+          if ((journalChartMagnet || e.ctrlKey) && ["entry", "tp", "sl"].indexOf(handleType) >= 0 && currentLwChart) {
+            var pointerTime = currentLwChart.timeScale().coordinateToTime(e.clientX - rect.left);
+            var nearestCandle = pointerTime !== null ? findNearestJournalChartCandle(chartDataToUse, Number(pointerTime)) : null;
+            if (nearestCandle && nearestCandle.candle) {
+              var candlePrices = [nearestCandle.candle.open, nearestCandle.candle.high, nearestCandle.candle.low, nearestCandle.candle.close]
+                .map(Number)
+                .filter(Number.isFinite);
+              if (candlePrices.length) {
+                price = candlePrices.reduce(function (nearestPrice, candidatePrice) {
+                  return Math.abs(candidatePrice - price) < Math.abs(nearestPrice - price) ? candidatePrice : nearestPrice;
+                }, candlePrices[0]);
+              }
+            }
+          }
           price = Math.round(price / step) * step;
 
           var decimals = 2;
@@ -15145,6 +15276,23 @@
           }
           price = Number(price.toFixed(Math.max(decimals, 2)));
 
+          if (handleType === "move") {
+            var priceDelta = price - activeRrDrag.startPointerPrice;
+            trade.rrEntry = Number((activeRrDrag.startEntry + priceDelta).toFixed(Math.max(decimals, 2)));
+            trade.tp = Number((activeRrDrag.startTp + priceDelta).toFixed(Math.max(decimals, 2)));
+            trade.sl = Number((activeRrDrag.startSl + priceDelta).toFixed(Math.max(decimals, 2)));
+            var moveTimeScale = currentLwChart ? currentLwChart.timeScale() : null;
+            if (moveTimeScale) {
+              var horizontalDelta = e.clientX - activeRrDrag.startClientX;
+              var movedStartTime = moveTimeScale.coordinateToTime(activeRrDrag.startX + horizontalDelta);
+              var movedEndTime = moveTimeScale.coordinateToTime(activeRrDrag.endX + horizontalDelta);
+              if (movedStartTime !== null) trade.rrStartTime = movedStartTime;
+              if (movedEndTime !== null) trade.rrEndTime = movedEndTime;
+            }
+            renderRiskRewardOverlay(trade);
+            return;
+          }
+
           if (handleType === "width") {
             var mouseX = e.clientX - rect.left;
             var chartDataToUse = currentJournalChartData && currentJournalChartData.length
@@ -15152,7 +15300,7 @@
               : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
             var entryTime = trade.time ? toChartTimestampFromLocalDate(trade.time) : null;
             var baseEntry = (trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" && !isNaN(Number(trade.rrEntry))) ? Number(trade.rrEntry) : Number(trade.entry);
-            var entryCandleTime = (entryTime && baseEntry) ? findBestTradeCandleTime(chartDataToUse, entryTime, baseEntry) : null;
+            var entryCandleTime = trade.rrStartTime || ((entryTime && baseEntry) ? findBestTradeCandleTime(chartDataToUse, entryTime, baseEntry) : null);
             var timeScale = currentLwChart ? currentLwChart.timeScale() : null;
             var startX = (timeScale && entryCandleTime !== null) ? timeScale.timeToCoordinate(entryCandleTime) : null;
             if (startX === null || isNaN(startX)) {
@@ -15201,7 +15349,7 @@
           }
 
           if (typeof scheduleSilentTradeSave === "function") {
-            scheduleSilentTradeSave();
+            scheduleSilentTradeSave({ refreshExcursions: true });
           }
         });
 
@@ -15228,12 +15376,17 @@
         });
       }
 
-      function bindRrLineDrag(handleEl, handleType, trade) {
+      function bindRrLineDrag(handleEl, handleType, trade, dragContext) {
         initGlobalRrDragListeners();
         handleEl.addEventListener("pointerdown", function (event) {
           if (journalRrLocked) return;
           event.stopPropagation();
           event.preventDefault();
+          if (handleType === "move" && !journalRrSelected) {
+            journalRrSelected = true;
+            renderRiskRewardOverlay(trade);
+            return;
+          }
           journalRrSelected = true;
           if (event.pointerId !== undefined && typeof handleEl.setPointerCapture === "function") {
             try {
@@ -15241,6 +15394,18 @@
             } catch (err) {}
           }
           activeRrDrag = { handleType: handleType, trade: trade, pointerId: event.pointerId, handleEl: handleEl };
+          if (handleType === "move" && dragContext) {
+            var pricePane = document.getElementById("tradePriceChartPane");
+            var paneRect = pricePane ? pricePane.getBoundingClientRect() : null;
+            var pointerPrice = paneRect && currentLwSeries ? currentLwSeries.coordinateToPrice(event.clientY - paneRect.top) : null;
+            activeRrDrag.startPointerPrice = Number(pointerPrice);
+            activeRrDrag.startClientX = event.clientX;
+            activeRrDrag.startEntry = Number(trade.rrEntry !== undefined ? trade.rrEntry : trade.entry);
+            activeRrDrag.startTp = Number(trade.tp);
+            activeRrDrag.startSl = Number(trade.sl);
+            activeRrDrag.startX = dragContext.startX;
+            activeRrDrag.endX = dragContext.endX;
+          }
         });
       }
       var currentJournalRenderableWorkspace = null;
@@ -19672,17 +19837,21 @@
           ? Number(trade.tp)
           : Number((Math.round((isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance)) / step) * step).toFixed(Math.max(decimals, 2)));
 
+        var rrValuesInitialized = false;
         if (trade.sl === undefined || trade.sl === null || trade.sl === "" || isNaN(Number(trade.sl))) {
           trade.sl = slPrice;
+          rrValuesInitialized = true;
         }
         if (trade.tp === undefined || trade.tp === null || trade.tp === "" || isNaN(Number(trade.tp))) {
           trade.tp = tpPrice;
+          rrValuesInitialized = true;
         }
+        if (rrValuesInitialized && typeof scheduleSilentTradeSave === "function") scheduleSilentTradeSave({ refreshExcursions: true });
 
         var oneR = Math.abs(entryPrice - slPrice);
         if (isNaN(oneR) || oneR <= 0.001) oneR = defaultRDistance;
 
-        var entryCandleTime = findBestTradeCandleTime(chartDataToUse, entryTime, entryPrice);
+        var entryCandleTime = trade.rrStartTime || findBestTradeCandleTime(chartDataToUse, entryTime, entryPrice);
         var exitCandleTime = exitTime ? findBestTradeCandleTime(chartDataToUse, exitTime, exitPrice) : null;
         var endTime = trade.rrEndTime || (exitCandleTime || entryCandleTime + 300);
         var isBreakEven = isNaN(oneR) || (Math.abs(tpPrice - entryPrice) < 0.0001 && Math.abs(slPrice - entryPrice) < 0.0001);
@@ -19831,14 +20000,18 @@
           zone.style.boxShadow = config.shadow || "none";
           zone.style.pointerEvents = "auto";
           zone.style.cursor = "pointer";
-          zone.addEventListener("pointerdown", function (event) {
-            if (event.button !== 0) return;
-            event.stopPropagation();
-            if (!journalRrSelected) {
-              journalRrSelected = true;
-              renderRiskRewardOverlay(trade);
-            }
-          });
+          if (journalRrLocked) {
+            zone.addEventListener("pointerdown", function (event) {
+              if (event.button !== 0) return;
+              event.stopPropagation();
+              if (!journalRrSelected) {
+                journalRrSelected = true;
+                renderRiskRewardOverlay(trade);
+              }
+            });
+          } else {
+            bindRrLineDrag(zone, "move", trade, { startX: startX, endX: endX !== null && !isNaN(endX) ? endX : startX + width });
+          }
           zone.addEventListener("contextmenu", openJournalRrSettings);
           overlay.appendChild(zone);
         }
