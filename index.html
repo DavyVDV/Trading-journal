@@ -6898,6 +6898,8 @@
 
       var trades = [];
       var globalChartData = [];
+      var journalRrState = {};
+      var journalRrStateSaveTimer = null;
       var CHART_TIME_MODE = "local-wall-clock-v2";
       var pnlChartInstance = null;
       var sortCol = localStorage.getItem("qt_sortCol") || "time";
@@ -8588,6 +8590,7 @@
           var s = await localforage.getItem("qt_journal_trades_v3_idb");
           var gcd = await localforage.getItem("qt_global_chart_data_v1");
           var chartTimeMode = await localforage.getItem("qt_global_chart_data_time_mode");
+          journalRrState = await localforage.getItem("qt_journal_rr_state_v1") || {};
           if (gcd) {
             globalChartData = typeof gcd === "string" ? JSON.parse(gcd) : gcd;
             if (chartTimeMode !== CHART_TIME_MODE) {
@@ -8635,6 +8638,12 @@
               if (t.chartData && t.chartData.length && t.chartDataTimeMode !== CHART_TIME_MODE) {
                 t.chartData = migrateChartCandlesToLocalWallClock(t.chartData);
                 t.chartDataTimeMode = CHART_TIME_MODE;
+              }
+              var savedRrState = journalRrState[t.id];
+              if (savedRrState) {
+                Object.keys(savedRrState).forEach(function (key) {
+                  t[key] = savedRrState[key];
+                });
               }
             });
           } else {
@@ -8828,6 +8837,10 @@
       function clearAllData() {
         showConfirm("Wipe complete local database (including flowcharts)?", function () {
           trades = [];
+          journalRrState = {};
+          if (journalRrStateSaveTimer) clearTimeout(journalRrStateSaveTimer);
+          journalRrStateSaveTimer = null;
+          localforage.removeItem("qt_journal_rr_state_v1");
           analyticsFilterTags = [];
           tagFilter.tags = [];
           selectedTrades = [];
@@ -10654,6 +10667,20 @@
           });
       }
 
+      function updateTradeExcursionInRenderedTable(trade) {
+        if (!trade) return;
+        var excursion = calculateTradeMfeMae(trade);
+        document
+          .querySelectorAll("#tradeTableBody tr[data-trade-id]")
+          .forEach(function (row) {
+            if (row.getAttribute("data-trade-id") !== String(trade.id)) return;
+            var mfeCell = row.querySelector('td[data-col-key="mfe"]');
+            var maeCell = row.querySelector('td[data-col-key="mae"]');
+            if (mfeCell) mfeCell.textContent = formatExcursionR(excursion && excursion.mfe);
+            if (maeCell) maeCell.textContent = formatExcursionR(excursion && excursion.mae);
+          });
+      }
+
       function renderTable(options) {
         options = options || {};
         var tbody = document.getElementById("tradeTableBody");
@@ -11674,6 +11701,7 @@
 
       function closeModal() {
         tradeModalChartRenderToken++;
+        var closingTrade = currentRiskRewardTrade;
         cancelJournalRrSettings();
         autoCommitTradeEdits();
         document.getElementById("noteModal").classList.add("hidden");
@@ -11689,6 +11717,7 @@
         currentLwSeries = null;
         currentRiskRewardTpScaleSeries = null;
         currentRiskRewardSlScaleSeries = null;
+        updateTradeExcursionInRenderedTable(closingTrade);
         if (chartToRemove) {
           runWhenPageIsIdle(function () {
             chartToRemove.remove();
@@ -14950,13 +14979,33 @@
       var journalRrSettingsSnapshot = null;
       var currentJournalChartData = [];
 
+      function getJournalRrStateSnapshot(trade) {
+        var snapshot = {};
+        ["rrEntry", "tp", "sl", "rrWidthPx", "rrStartTime", "rrEndTime", "rrRemoved", "rrHidden", "rrLocked", "rrStyle"].forEach(function (key) {
+          if (trade[key] !== undefined) snapshot[key] = trade[key];
+        });
+        return snapshot;
+      }
+
+      function persistJournalRrState(trade) {
+        if (!trade || !trade.id) return;
+        journalRrState[trade.id] = getJournalRrStateSnapshot(trade);
+        if (journalRrStateSaveTimer) clearTimeout(journalRrStateSaveTimer);
+        journalRrStateSaveTimer = setTimeout(function () {
+          journalRrStateSaveTimer = null;
+          localforage.setItem("qt_journal_rr_state_v1", journalRrState).catch(function (error) {
+            console.error("RR-instellingen konden niet worden opgeslagen:", error);
+          });
+        }, 80);
+      }
+
       function toggleJournalRrLock() {
         journalRrLocked = !journalRrLocked;
         if (currentRiskRewardTrade) currentRiskRewardTrade.rrLocked = journalRrLocked;
         updateJournalRrLockUI();
         scheduleRiskRewardOverlayRender();
         if (typeof renderJournalChartDrawings === "function") renderJournalChartDrawings();
-        if (typeof scheduleSilentTradeSave === "function") scheduleSilentTradeSave();
+        persistJournalRrState(currentRiskRewardTrade);
       }
 
       function openJournalRrSettings(event) {
@@ -15036,7 +15085,7 @@
         journalRrSelected = true;
         closeJournalChartContextMenu();
         renderRiskRewardOverlay(currentRiskRewardTrade);
-        scheduleSilentTradeSave({ refreshExcursions: true });
+        persistJournalRrState(currentRiskRewardTrade);
       }
 
       function toggleJournalRrHidden() {
@@ -15044,7 +15093,7 @@
         currentRiskRewardTrade.rrHidden = !currentRiskRewardTrade.rrHidden;
         closeJournalRrContextMenu();
         renderRiskRewardOverlay(currentRiskRewardTrade);
-        scheduleSilentTradeSave();
+        persistJournalRrState(currentRiskRewardTrade);
       }
 
       function removeJournalRrTool() {
@@ -15052,7 +15101,7 @@
         currentRiskRewardTrade.rrRemoved = true;
         closeJournalRrSettings();
         clearRiskRewardOverlay();
-        scheduleSilentTradeSave({ refreshExcursions: true });
+        persistJournalRrState(currentRiskRewardTrade);
       }
 
       function openJournalRrDetailedSettings() {
@@ -15120,7 +15169,7 @@
       function saveJournalRrDetailedSettings() {
         journalRrSettingsSnapshot = null;
         closeJournalRrSettings();
-        scheduleSilentTradeSave({ refreshExcursions: true });
+        persistJournalRrState(currentRiskRewardTrade);
       }
 
       function openJournalChartContextMenu(event) {
@@ -15396,9 +15445,7 @@
             renderRiskRewardOverlay(trade);
           }
 
-          if (typeof scheduleSilentTradeSave === "function") {
-            scheduleSilentTradeSave({ refreshExcursions: true });
-          }
+          persistJournalRrState(trade);
         });
 
         window.addEventListener("pointercancel", function () {
@@ -19897,7 +19944,7 @@
           trade.tp = tpPrice;
           rrValuesInitialized = true;
         }
-        if (rrValuesInitialized && typeof scheduleSilentTradeSave === "function") scheduleSilentTradeSave({ refreshExcursions: true });
+        if (rrValuesInitialized) persistJournalRrState(trade);
 
         var oneR = Math.abs(entryPrice - slPrice);
         if (isNaN(oneR) || oneR <= 0.001) oneR = defaultRDistance;
