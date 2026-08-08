@@ -2678,9 +2678,6 @@
         overflow-y: hidden;
         scrollbar-width: none;
       }
-      .journal-panel-selected {
-        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.2) !important;
-      }
       .journal-timeframe-bar::-webkit-scrollbar {
         display: none;
       }
@@ -3027,20 +3024,70 @@
         font: 700 9px "JetBrains Mono", monospace;
       }
       #journalChartWorkspaceSettings .bt-input { height: 30px; font-size: 10px; }
+      .journal-layout-presets {
+        display: grid;
+        gap: 0;
+        border: 1px solid rgba(148, 163, 184, .18);
+        background: #1b1c1f;
+      }
+      .journal-layout-preset-row {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        align-items: center;
+        min-height: 40px;
+        padding: 5px 8px 5px 4px;
+        border-bottom: 1px solid rgba(148, 163, 184, .18);
+      }
+      .journal-layout-preset-row:last-child { border-bottom: 0; }
+      .journal-layout-preset-count { color: #7f8792; font: 500 10px "JetBrains Mono", monospace; text-align: center; }
+      .journal-layout-preset-options { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+      .journal-layout-preset {
+        width: 31px;
+        height: 25px;
+        padding: 3px;
+        border: 1px solid transparent;
+        border-radius: 3px;
+        color: #d6d8dc;
+        background: transparent;
+      }
+      .journal-layout-preset:hover { border-color: #555a63; background: #27292d; color: #fff; }
+      .journal-layout-preset.active { border-color: #e5e7eb; background: #f4f4f5; color: #111318; }
+      .journal-layout-preset-preview { position: relative; display: block; width: 100%; height: 100%; }
+      .journal-layout-preset-preview span { position: absolute; border: 1px solid currentColor; border-radius: 1px; }
       #journalChartGridLayer {
         position: absolute;
         inset: 0;
         z-index: 2;
         pointer-events: none;
       }
+      .journal-grid-splitter {
+        position: absolute;
+        z-index: 80;
+        pointer-events: auto;
+        touch-action: none;
+      }
+      .journal-grid-splitter::after {
+        content: "";
+        position: absolute;
+        background: rgba(148, 163, 184, .32);
+        transition: background-color 120ms ease, box-shadow 120ms ease;
+      }
+      .journal-grid-splitter:hover::after,
+      .journal-grid-splitter.dragging::after {
+        background: #3b82f6;
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, .35);
+      }
+      .journal-grid-splitter.vertical { top: 0; bottom: 0; width: 9px; margin-left: -4px; cursor: col-resize; }
+      .journal-grid-splitter.vertical::after { top: 0; bottom: 0; left: 4px; width: 1px; }
+      .journal-grid-splitter.horizontal { left: 0; right: 0; height: 9px; margin-top: -4px; cursor: row-resize; }
+      .journal-grid-splitter.horizontal::after { left: 0; right: 0; top: 4px; height: 1px; }
       .journal-secondary-panel {
         position: absolute;
         overflow: visible;
         pointer-events: auto;
         background: #10151c;
-        border-left: 1px solid rgba(148, 163, 184, .12);
-        border-top: 1px solid rgba(148, 163, 184, .12);
-        box-shadow: inset 0 1px 0 rgba(0, 0, 0, .3);
+        border: 0;
+        box-shadow: inset 1px 0 rgba(148, 163, 184, .12), inset 0 1px rgba(148, 163, 184, .12), inset 0 2px rgba(0, 0, 0, .3);
       }
       .journal-secondary-price { position: absolute; left: 0; right: 0; overflow: hidden; background: #10151c; }
       .journal-secondary-cvd { position: absolute; inset: auto 0 0 0; overflow: visible; background: #10151c; }
@@ -6038,7 +6085,7 @@
                 </div>
                 <div id="journalChartWorkspaceSettings" class="chart-settings-window hidden fixed z-[430] text-[10px]" onclick="event.stopPropagation()">
                   <div class="chart-settings-header">
-                    <div><strong class="chart-settings-title">Chart layout</strong><span class="ml-2 text-[9px] text-zinc-500">max. 8 panelen</span></div>
+                    <div><strong class="chart-settings-title">Chart layout</strong><span class="ml-2 text-[9px] text-zinc-500">max. 4 panelen</span></div>
                     <button type="button" class="chart-settings-close" onclick="closeJournalChartWorkspaceSettings()" title="Sluiten"><i class="fas fa-times"></i></button>
                   </div>
                   <div class="chart-settings-tabs" role="tablist" aria-label="Chart layout instellingen">
@@ -6048,9 +6095,7 @@
                   <div class="chart-settings-body">
                     <section class="chart-settings-panel space-y-3" data-settings-panel="layout">
                     <div class="chart-settings-section-title">Layout settings</div>
-                    <div class="journal-setting-grid">
-                      <label><span class="bt-label">Aantal grafieken</span><select id="journalChartPanelCount" class="bt-input" onchange="updateJournalChartWorkspaceSettings()"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
-                    </div>
+                    <div id="journalLayoutPresetGrid" class="journal-layout-presets" aria-label="Chart layout presets"></div>
                     <div class="chart-settings-section-title">Chart panels</div>
                     <div id="journalChartPanelSettingsList" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
                     <div class="chart-settings-section-title">Synchronization</div>
@@ -14964,9 +15009,9 @@
         var panel = workspace.panels[journalContextPanelIndex] || workspace.panels[0];
         if (panel) panel.showCvd = false;
         trade.chartWorkspace = workspace;
-        var vwapSettings = getJournalVwapSettings();
+        var vwapSettings = getJournalVwapSettings(journalContextPanelIndex);
         vwapSettings.enabled = false;
-        saveJournalVwapSettings(vwapSettings);
+        saveJournalVwapSettings(vwapSettings, journalContextPanelIndex);
         closeJournalChartContextMenu();
         saveData({ skipUpdate: true });
         renderLightweightChart(trade);
@@ -15267,9 +15312,96 @@
 
       function cloneSharedValue(value) { return JSON.parse(JSON.stringify(value)); }
 
+      function createJournalGridPresetCells(count, columns) {
+        var rows = Math.ceil(count / columns);
+        return Array.from({ length: count }, function (_, index) {
+          return { x: (index % columns) / columns, y: Math.floor(index / columns) / rows, w: 1 / columns, h: 1 / rows };
+        });
+      }
+
+      function createJournalStripPresetCells(count, vertical) {
+        return Array.from({ length: count }, function (_, index) {
+          return vertical
+            ? { x: 0, y: index / count, w: 1, h: 1 / count }
+            : { x: index / count, y: 0, w: 1 / count, h: 1 };
+        });
+      }
+
+      function createJournalMajorPresetCells(count, side) {
+        var cells = [{ x: 0, y: 0, w: 1, h: 1 }];
+        var remaining = count - 1;
+        for (var index = 0; index < remaining; index++) {
+          if (side === "left" || side === "right") {
+            cells.push({ x: side === "left" ? .5 : 0, y: index / remaining, w: .5, h: 1 / remaining });
+          } else {
+            cells.push({ x: index / remaining, y: side === "top" ? .5 : 0, w: 1 / remaining, h: .5 });
+          }
+        }
+        if (side === "left") cells[0] = { x: 0, y: 0, w: .5, h: 1 };
+        if (side === "right") cells[0] = { x: .5, y: 0, w: .5, h: 1 };
+        if (side === "top") cells[0] = { x: 0, y: 0, w: 1, h: .5 };
+        if (side === "bottom") cells[0] = { x: 0, y: .5, w: 1, h: .5 };
+        return cells;
+      }
+
+      function createJournalBandPresetCells(count, firstBandCount) {
+        var secondBandCount = count - firstBandCount;
+        var cells = [];
+        for (var top = 0; top < firstBandCount; top++) cells.push({ x: top / firstBandCount, y: 0, w: 1 / firstBandCount, h: .5 });
+        for (var bottom = 0; bottom < secondBandCount; bottom++) cells.push({ x: bottom / secondBandCount, y: .5, w: 1 / secondBandCount, h: .5 });
+        return cells;
+      }
+
+      function getJournalLayoutPresets() {
+        var presets = [];
+        for (var count = 1; count <= 4; count++) {
+          var items = [];
+          function add(id, cells, label) { items.push({ id: count + "-" + id, count: count, cells: cells, label: label }); }
+          if (count === 1) add("single", createJournalGridPresetCells(1, 1), "Eén chart");
+          else if (count === 2) {
+            add("columns", createJournalStripPresetCells(count, false), "Kolommen");
+            add("rows", createJournalStripPresetCells(count, true), "Rijen");
+          } else if (count === 3) {
+            add("columns", createJournalStripPresetCells(count, false), "Kolommen");
+            add("rows", createJournalStripPresetCells(count, true), "Rijen");
+            add("major-left", createJournalMajorPresetCells(count, "left"), "Groot links");
+            add("major-right", createJournalMajorPresetCells(count, "right"), "Groot rechts");
+            add("major-top", createJournalMajorPresetCells(count, "top"), "Groot boven");
+            add("major-bottom", createJournalMajorPresetCells(count, "bottom"), "Groot onder");
+          } else if (count === 4) {
+            add("grid", createJournalGridPresetCells(count, 2), "Raster 2 × 2");
+          }
+          presets.push({ count: count, items: items });
+        }
+        return presets;
+      }
+
+      function getJournalLayoutPreset(id) {
+        var match = null;
+        getJournalLayoutPresets().some(function (group) {
+          match = group.items.find(function (preset) { return preset.id === id; }) || null;
+          return !!match;
+        });
+        return match;
+      }
+
+      function normalizeJournalLayoutCells(cells, count) {
+        if (!Array.isArray(cells) || cells.length !== count) return null;
+        var normalized = cells.map(function (cell) {
+          return {
+            x: Math.max(0, Math.min(1, Number(cell && cell.x) || 0)),
+            y: Math.max(0, Math.min(1, Number(cell && cell.y) || 0)),
+            w: Math.max(.05, Math.min(1, Number(cell && cell.w) || 0)),
+            h: Math.max(.05, Math.min(1, Number(cell && cell.h) || 0)),
+          };
+        });
+        return normalized.every(function (cell) { return cell.x + cell.w <= 1.0001 && cell.y + cell.h <= 1.0001; }) ? normalized : null;
+      }
+
       function normalizeSharedLayout(layout) {
         layout = layout && typeof layout === "object" ? layout : {};
         var count = Math.max(1, Math.min(8, Math.round(Number(layout.count) || 1)));
+        var shape = getJournalChartGridShape(count);
         var panels = [];
         for (var index = 0; index < count; index++) {
           var panel = Array.isArray(layout.panels) ? layout.panels[index] : null;
@@ -15283,9 +15415,19 @@
             rightOffset: Math.max(0, Math.min(45, Number(panel && panel.rightOffset) || 0)),
             yOffset: Math.max(0, Math.min(40, Number(panel && panel.yOffset) || 0)),
             cvdHeightRatio: Math.max(.16, Math.min(.7, Number(panel && panel.cvdHeightRatio) || .3)),
+            vwap: panel && panel.vwap ? cloneSharedValue(panel.vwap) : null,
           });
         }
-        return { count: count, showCvd: layout.showCvd !== false, syncCrosshair: layout.syncCrosshair !== false, panels: panels };
+        return {
+          count: count,
+          showCvd: layout.showCvd !== false,
+          syncCrosshair: layout.syncCrosshair !== false,
+          layoutPreset: String(layout.layoutPreset || ""),
+          layoutCells: normalizeJournalLayoutCells(layout.layoutCells, count),
+          columnRatios: normalizeJournalGridRatios(layout.columnRatios, shape.columns),
+          rowRatios: normalizeJournalGridRatios(layout.rowRatios, shape.rows),
+          panels: panels,
+        };
       }
 
       function getSharedDefaultProfile(key, defaultKey, valueKey, fallback) {
@@ -15320,6 +15462,7 @@
         var defaults = defaultJournalChartWorkspace();
         var stored = trade && trade.chartWorkspace && typeof trade.chartWorkspace === "object" ? trade.chartWorkspace : {};
         var count = Math.max(1, Math.min(8, Math.round(Number(stored.count) || defaults.count || 1)));
+        var shape = getJournalChartGridShape(count);
         var panels = [];
         for (var index = 0; index < count; index++) {
           var savedPanel = Array.isArray(stored.panels) ? stored.panels[index] : null;
@@ -15332,15 +15475,27 @@
             gridOpacity: Math.max(0, Math.min(30, Number(savedPanel && savedPanel.gridOpacity) || Number(defaults.panels[index] && defaults.panels[index].gridOpacity) || 0)),
             rightOffset: Math.max(0, Math.min(45, Number(savedPanel && savedPanel.rightOffset) || Number(defaults.panels[index] && defaults.panels[index].rightOffset) || 0)),
             yOffset: Math.max(0, Math.min(40, Number(savedPanel && savedPanel.yOffset) || Number(defaults.panels[index] && defaults.panels[index].yOffset) || 0)),
+            vwap: normalizeJournalVwapSettings(
+              savedPanel && savedPanel.vwap || defaults.panels[index] && defaults.panels[index].vwap || getLegacyJournalVwapSettings(),
+            ),
           });
         }
         var workspace = {
           count: count,
           showCvd: typeof stored.showCvd === "boolean" ? stored.showCvd : defaults.showCvd,
           syncCrosshair: typeof stored.syncCrosshair === "boolean" ? stored.syncCrosshair : defaults.syncCrosshair,
+          layoutPreset: String(stored.layoutPreset || defaults.layoutPreset || ""),
+          layoutCells: normalizeJournalLayoutCells(stored.layoutCells || defaults.layoutCells, count),
+          columnRatios: normalizeJournalGridRatios(stored.columnRatios || defaults.columnRatios, shape.columns),
+          rowRatios: normalizeJournalGridRatios(stored.rowRatios || defaults.rowRatios, shape.rows),
           panels: panels,
           footprint: Object.assign({}, defaults.footprint, stored.footprint || {}),
         };
+        if (count <= 4 && !getJournalLayoutPreset(workspace.layoutPreset)) {
+          var fallbackPreset = getJournalLayoutPreset(defaultJournalLayoutPresetId(count));
+          workspace.layoutPreset = fallbackPreset.id;
+          if (count === 3 || workspace.layoutCells) workspace.layoutCells = cloneSharedValue(fallbackPreset.cells);
+        }
         if (trade) trade.chartWorkspace = workspace;
         return workspace;
       }
@@ -15369,6 +15524,7 @@
         document.getElementById("journalRightOffset").value = String(panel.rightOffset || 0);
         document.getElementById("journalYOffset").value = String(panel.yOffset || 0);
         document.getElementById("journalContextCvdEnabled").checked = panel.showCvd !== false;
+        document.getElementById("journalContextVwapEnabled").checked = !!getJournalVwapSettings(journalContextPanelIndex).enabled;
         document.getElementById("journalIndicatorPanelLabel").textContent = "Grafiek " + (journalContextPanelIndex + 1);
         var menu = document.getElementById("journalChartContextSettings");
         setChartSettingsTab("journalChartContextSettings", "canvas");
@@ -15691,15 +15847,79 @@
         }
       }
 
+      function defaultJournalLayoutPresetId(count) {
+        return count === 1 ? "1-single" : count === 4 ? "4-grid" : count + "-columns";
+      }
+
+      function renderJournalLayoutPresets(workspace) {
+        var container = document.getElementById("journalLayoutPresetGrid");
+        if (!container) return;
+        container.innerHTML = "";
+        var activeId = workspace.layoutPreset || defaultJournalLayoutPresetId(workspace.count);
+        getJournalLayoutPresets().forEach(function (group) {
+          var row = document.createElement("div");
+          row.className = "journal-layout-preset-row";
+          var count = document.createElement("span");
+          count.className = "journal-layout-preset-count";
+          count.textContent = String(group.count);
+          var options = document.createElement("div");
+          options.className = "journal-layout-preset-options";
+          group.items.forEach(function (preset) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "journal-layout-preset" + (preset.id === activeId ? " active" : "");
+            button.title = preset.count + " charts: " + preset.label;
+            button.setAttribute("aria-label", button.title);
+            button.innerHTML = '<span class="journal-layout-preset-preview">' + preset.cells.map(function (cell) {
+              return '<span style="left:' + (cell.x * 100) + '%;top:' + (cell.y * 100) + '%;width:' + (cell.w * 100) + '%;height:' + (cell.h * 100) + '%"></span>';
+            }).join("") + "</span>";
+            button.onclick = function () { applyJournalLayoutPreset(preset.id); };
+            options.appendChild(button);
+          });
+          row.append(count, options);
+          container.appendChild(row);
+        });
+      }
+
+      function applyJournalLayoutPreset(presetId) {
+        var preset = getJournalLayoutPreset(presetId);
+        var trade = getCurrentJournalChartTrade();
+        if (!preset || !trade) return;
+        var workspace = getJournalChartWorkspace(trade);
+        var panels = workspace.panels.slice(0, preset.count);
+        while (panels.length < preset.count) {
+          panels.push({
+            timeframe: [60, 300, 900, 1800, 3600, 14400, 86400][(panels.length - 1) % 7],
+            type: "candles",
+            autoScale: true,
+            showCvd: true,
+            vwap: normalizeJournalVwapSettings(getLegacyJournalVwapSettings()),
+          });
+        }
+        workspace.count = preset.count;
+        workspace.panels = panels;
+        workspace.layoutPreset = preset.id;
+        workspace.layoutCells = cloneSharedValue(preset.cells);
+        var shape = getJournalChartGridShape(preset.count);
+        workspace.columnRatios = normalizeJournalGridRatios(null, shape.columns);
+        workspace.rowRatios = normalizeJournalGridRatios(null, shape.rows);
+        trade.chartWorkspace = workspace;
+        journalTradeChartTimeframe = panels[0].timeframe;
+        saveData({ skipUpdate: true });
+        renderLightweightChart(trade);
+        renderJournalLayoutPresets(workspace);
+        renderJournalChartPanelSettings(workspace);
+      }
+
 
       function openJournalChartWorkspaceSettings() {
         var menu = document.getElementById("journalChartWorkspaceSettings");
         var button = document.getElementById("journalChartLayoutButton");
         var workspace = getJournalChartWorkspace();
         if (!menu) return;
+        hideJournalSharedCrosshair();
         populateJournalFootprintDataTypes();
         initializeFootprintSettingGroups("journal");
-        document.getElementById("journalChartPanelCount").value = String(workspace.count);
         var fp = workspace.footprint;
         document.getElementById("journalFootprintView").value = fp.view;
         document.getElementById("journalFootprintVisualization").value = fp.visualization;
@@ -15727,6 +15947,7 @@
         document.getElementById("journalFootprintColorIntensityMax").value = fp.colorIntensityMax || 100;
         var syncChk = document.getElementById("journalWorkspaceCrosshairSync");
         if (syncChk) syncChk.checked = workspace.syncCrosshair !== false;
+        renderJournalLayoutPresets(workspace);
         renderJournalChartPanelSettings(workspace);
         renderSharedChartProfileLists();
         setChartSettingsTab("journalChartWorkspaceSettings", "layout");
@@ -15759,7 +15980,7 @@
         if (!trade) return;
         populateJournalFootprintDataTypes();
         var previous = getJournalChartWorkspace(trade);
-        var count = Math.max(1, Math.min(8, Number(document.getElementById("journalChartPanelCount").value) || 1));
+        var count = previous.count;
         var panels = previous.panels.slice(0, count);
         while (panels.length < count) {
           panels.push({ timeframe: [60, 300, 900, 1800, 3600, 14400, 86400][(panels.length - 1) % 7], type: "candles", autoScale: true });
@@ -15790,8 +16011,19 @@
           colorIntensityFixed: document.getElementById("journalFootprintColorIntensityFixed").checked,
           colorIntensityMax: Math.max(1, Number(document.getElementById("journalFootprintColorIntensityMax").value) || 100),
         };
-        trade.chartWorkspace = { count: count, showCvd: true, syncCrosshair: previous.syncCrosshair !== false, panels: panels, footprint: fp };
+        trade.chartWorkspace = {
+          count: count,
+          showCvd: previous.showCvd !== false,
+          syncCrosshair: previous.syncCrosshair !== false,
+          layoutPreset: previous.layoutPreset,
+          layoutCells: previous.layoutCells,
+          columnRatios: previous.columnRatios,
+          rowRatios: previous.rowRatios,
+          panels: panels,
+          footprint: fp,
+        };
         saveData({ skipUpdate: true });
+        renderJournalLayoutPresets(trade.chartWorkspace);
         renderJournalChartPanelSettings(trade.chartWorkspace);
         if (journalWorkspaceRenderFrame) cancelAnimationFrame(journalWorkspaceRenderFrame);
         journalWorkspaceRenderFrame = requestAnimationFrame(function () {
@@ -17027,9 +17259,7 @@
         if (!context || typeof context.setTransform !== "function") return;
         context.setTransform(ratio, 0, 0, ratio, 0, 0);
         context.clearRect(0, 0, bounds.width, bounds.height);
-        if (panelIndex === 0) {
-          renderJournalVwapBandFills(context, bounds);
-        }
+        renderJournalVwapBandFills(context, bounds, panelIndex);
         var isCurrentActivePanel = (panelIndex === journalActivePanelIndex);
         var drawings = getJournalChartDrawings(panelIndex).concat((isCurrentActivePanel && journalChartDrawingPreview) ? [journalChartDrawingPreview] : []);
         drawings.forEach(function (drawing, index) {
@@ -17144,10 +17374,39 @@
         else renderJournalChartDrawings();
       }
 
+      var journalChartPanListenersBound = false;
+      function initJournalChartPanListeners() {
+        if (journalChartPanListenersBound) return;
+        journalChartPanListenersBound = true;
+        window.addEventListener("pointermove", function (event) {
+          if (!journalChartPan || journalChartPan.pointerId !== event.pointerId || !journalChartPan.canvas) return;
+          var bounds = journalChartPan.canvas.getBoundingClientRect();
+          if (!bounds.width) return;
+          var x = event.clientX - bounds.left;
+          var span = journalChartPan.range.to - journalChartPan.range.from;
+          var shift = (journalChartPan.x - x) * span / Math.max(1, bounds.width);
+          journalChartPan.chart.timeScale().setVisibleLogicalRange({
+            from: journalChartPan.range.from + shift,
+            to: journalChartPan.range.to + shift,
+          });
+        }, true);
+        function stopJournalChartPan(event) {
+          if (!journalChartPan || journalChartPan.pointerId !== event.pointerId) return;
+          var canvas = journalChartPan.canvas;
+          journalChartPan = null;
+          try {
+            if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+          } catch (error) {}
+        }
+        window.addEventListener("pointerup", stopJournalChartPan, true);
+        window.addEventListener("pointercancel", stopJournalChartPan, true);
+      }
+
       function bindJournalChartDrawingCanvas(targetCanvas, targetPanelIndex) {
         var canvas = targetCanvas || document.getElementById("journalChartDrawingCanvas");
         var pIndex = (typeof targetPanelIndex === "number") ? targetPanelIndex : 0;
         if (!canvas || canvas.dataset.bound) return;
+        initJournalChartPanListeners();
         canvas.dataset.bound = "true";
         canvas.addEventListener("contextmenu", function (event) {
           setJournalActivePanel(pIndex);
@@ -17206,6 +17465,8 @@
                     panelIndex: pIndex,
                     chart: activeChart,
                     series: activeSeries,
+                    canvas: canvas,
+                    pointerId: event.pointerId,
                     x: coordinates.x,
                     y: coordinates.y,
                     range: visibleRange,
@@ -17975,6 +18236,10 @@
 
       function disposeJournalSecondaryCharts() {
         if (typeof hideAllJournalSyncLines === "function") hideAllJournalSyncLines();
+        if (journalGridResizeState) {
+          journalGridResizeState.element.classList.remove("dragging");
+          journalGridResizeState = null;
+        }
         journalSecondaryCharts.forEach(function (panel) {
           try { if (panel.chart) panel.chart.remove(); } catch (error) {}
           try { if (panel.cvdChart) panel.cvdChart.remove(); } catch (error) {}
@@ -17984,23 +18249,281 @@
         if (layer) layer.innerHTML = "";
       }
 
-      function getJournalChartGridCells(count, width, height) {
+      function getJournalChartGridShape(count) {
         var columns = count <= 1 ? 1 : count <= 4 ? 2 : count <= 6 ? 3 : 4;
-        var rows = Math.ceil(count / columns);
+        return { columns: columns, rows: Math.ceil(count / columns) };
+      }
+
+      function normalizeJournalGridRatios(values, length) {
+        if (length <= 1) return [1];
+        var ratios = Array.isArray(values) && values.length === length
+          ? values.map(function (value) { return Math.max(.05, Number(value) || 0); })
+          : Array.from({ length: length }, function () { return 1; });
+        var total = ratios.reduce(function (sum, value) { return sum + value; }, 0) || length;
+        return ratios.map(function (value) { return value / total; });
+      }
+
+      function getJournalChartGridCells(count, width, height, workspace) {
+        var presetCells = normalizeJournalLayoutCells(workspace && workspace.layoutCells, count);
+        if (presetCells) {
+          var presetGap = 1;
+          return presetCells.map(function (cell) {
+            var left = cell.x <= 0 ? 0 : cell.x * width + presetGap / 2;
+            var top = cell.y <= 0 ? 0 : cell.y * height + presetGap / 2;
+            var right = cell.x + cell.w >= .9999 ? width : (cell.x + cell.w) * width - presetGap / 2;
+            var bottom = cell.y + cell.h >= .9999 ? height : (cell.y + cell.h) * height - presetGap / 2;
+            return { left: left, top: top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) };
+          });
+        }
+        var shape = getJournalChartGridShape(count);
+        var columns = shape.columns;
+        var rows = shape.rows;
         var gap = 1;
-        var usableWidth = Math.max(1, width);
-        var cellWidth = (usableWidth - gap * (columns - 1)) / columns;
-        var cellHeight = (height - gap * (rows - 1)) / rows;
+        var usableWidth = Math.max(1, width - gap * (columns - 1));
+        var usableHeight = Math.max(1, height - gap * (rows - 1));
+        var columnRatios = normalizeJournalGridRatios(workspace && workspace.columnRatios, columns);
+        var rowRatios = normalizeJournalGridRatios(workspace && workspace.rowRatios, rows);
+        var columnWidths = columnRatios.map(function (ratio) { return usableWidth * ratio; });
+        var rowHeights = rowRatios.map(function (ratio) { return usableHeight * ratio; });
+        var columnOffsets = [0];
+        var rowOffsets = [0];
+        for (var columnIndex = 1; columnIndex < columns; columnIndex++) columnOffsets[columnIndex] = columnOffsets[columnIndex - 1] + columnWidths[columnIndex - 1] + gap;
+        for (var rowIndex = 1; rowIndex < rows; rowIndex++) rowOffsets[rowIndex] = rowOffsets[rowIndex - 1] + rowHeights[rowIndex - 1] + gap;
         var cells = [];
         for (var index = 0; index < count; index++) {
+          var column = index % columns;
+          var row = Math.floor(index / columns);
           cells.push({
-            left: (index % columns) * (cellWidth + gap),
-            top: Math.floor(index / columns) * (cellHeight + gap),
-            width: cellWidth,
-            height: cellHeight,
+            left: columnOffsets[column],
+            top: rowOffsets[row],
+            width: columnWidths[column],
+            height: rowHeights[row],
           });
         }
         return cells;
+      }
+
+      var journalGridResizeState = null;
+      var journalGridResizeListenersBound = false;
+
+      function applyJournalGridCellsToSecondaryPanels(workspace, cells) {
+        journalSecondaryCharts.forEach(function (record) {
+          var cell = cells[record.panelIndex];
+          if (!cell) return;
+          record.element.classList.toggle("hidden", !!cell.hidden);
+          if (cell.hidden) return;
+          record.cellHeight = cell.height;
+          record.element.style.left = cell.left + "px";
+          record.element.style.top = cell.top + "px";
+          record.element.style.width = cell.width + "px";
+          record.element.style.height = cell.height + "px";
+          var panelShowsCvd = workspace.showCvd && record.config.showCvd !== false && record.cvdElement;
+          var cvdHeight = panelShowsCvd ? getJournalCvdPanelHeight(cell.height, workspace, record.panelIndex) : 0;
+          record.priceElement.style.height = (cell.height - cvdHeight) + "px";
+          if (record.cvdElement) {
+            record.cvdElement.style.top = (cell.height - cvdHeight) + "px";
+            record.cvdElement.style.height = cvdHeight + "px";
+          }
+        });
+      }
+
+      function positionJournalGridSplitters(cells) {
+        var layer = document.getElementById("journalChartGridLayer");
+        if (!layer) return;
+        layer.querySelectorAll('.journal-grid-splitter.vertical').forEach(function (splitter) {
+          var boundary = Number(splitter.dataset.boundary);
+          var cell = cells[boundary];
+          if (cell) splitter.style.left = (cell.left + cell.width + .5) + "px";
+        });
+        layer.querySelectorAll('.journal-grid-splitter.horizontal').forEach(function (splitter) {
+          var boundary = Number(splitter.dataset.boundary);
+          var shape = getJournalChartGridShape(cells.length);
+          var cell = cells[boundary * shape.columns];
+          if (cell) splitter.style.top = (cell.top + cell.height + .5) + "px";
+        });
+      }
+
+      function getJournalPresetDividers(layoutCells) {
+        var dividers = [];
+        var epsilon = .0001;
+        ["column", "row"].forEach(function (axis) {
+          var endKey = axis === "column" ? "x" : "y";
+          var sizeKey = axis === "column" ? "w" : "h";
+          var crossKey = axis === "column" ? "y" : "x";
+          var crossSizeKey = axis === "column" ? "h" : "w";
+          var boundaries = [];
+          layoutCells.forEach(function (cell) {
+            [cell[endKey], cell[endKey] + cell[sizeKey]].forEach(function (value) {
+              if (value > epsilon && value < 1 - epsilon && !boundaries.some(function (item) { return Math.abs(item - value) < epsilon; })) boundaries.push(value);
+            });
+          });
+          boundaries.forEach(function (boundary) {
+            var before = layoutCells.filter(function (cell) { return Math.abs(cell[endKey] + cell[sizeKey] - boundary) < epsilon; });
+            var after = layoutCells.filter(function (cell) { return Math.abs(cell[endKey] - boundary) < epsilon; });
+            var intervals = [];
+            before.forEach(function (first) {
+              after.forEach(function (second) {
+                var start = Math.max(first[crossKey], second[crossKey]);
+                var end = Math.min(first[crossKey] + first[crossSizeKey], second[crossKey] + second[crossSizeKey]);
+                if (end - start > epsilon) intervals.push({ start: start, end: end });
+              });
+            });
+            intervals.sort(function (a, b) { return a.start - b.start; });
+            var merged = [];
+            intervals.forEach(function (interval) {
+              var previous = merged[merged.length - 1];
+              if (previous && interval.start <= previous.end + epsilon) previous.end = Math.max(previous.end, interval.end);
+              else merged.push({ start: interval.start, end: interval.end });
+            });
+            merged.forEach(function (interval) { dividers.push({ axis: axis, coordinate: boundary, start: interval.start, end: interval.end }); });
+          });
+        });
+        return dividers;
+      }
+
+      function resizeJournalGridFromPointer(event) {
+        if (!journalGridResizeState || event.pointerId !== journalGridResizeState.pointerId) return;
+        event.preventDefault();
+        var state = journalGridResizeState;
+        var delta = (state.axis === "column" ? event.clientX : event.clientY) - state.startPosition;
+        if (state.startCells) {
+          var minimumRatio = (state.axis === "column" ? 140 : 110) / Math.max(1, state.availableSize);
+          var nextBoundary = state.boundaryCoordinate + delta / Math.max(1, state.availableSize);
+          var before = state.startCells.filter(function (cell) {
+            return Math.abs((state.axis === "column" ? cell.x + cell.w : cell.y + cell.h) - state.boundaryCoordinate) < .0001;
+          });
+          var after = state.startCells.filter(function (cell) {
+            return Math.abs((state.axis === "column" ? cell.x : cell.y) - state.boundaryCoordinate) < .0001;
+          });
+          var lower = before.reduce(function (value, cell) { return Math.max(value, (state.axis === "column" ? cell.x : cell.y) + minimumRatio); }, 0);
+          var upper = after.reduce(function (value, cell) { return Math.min(value, (state.axis === "column" ? cell.x + cell.w : cell.y + cell.h) - minimumRatio); }, 1);
+          nextBoundary = Math.max(lower, Math.min(upper, nextBoundary));
+          state.workspace.layoutCells = state.startCells.map(function (cell) {
+            var next = Object.assign({}, cell);
+            if (state.axis === "column") {
+              var right = cell.x + cell.w;
+              if (Math.abs(right - state.boundaryCoordinate) < .0001) next.w = nextBoundary - cell.x;
+              if (Math.abs(cell.x - state.boundaryCoordinate) < .0001) { next.x = nextBoundary; next.w = right - nextBoundary; }
+            } else {
+              var bottom = cell.y + cell.h;
+              if (Math.abs(bottom - state.boundaryCoordinate) < .0001) next.h = nextBoundary - cell.y;
+              if (Math.abs(cell.y - state.boundaryCoordinate) < .0001) { next.y = nextBoundary; next.h = bottom - nextBoundary; }
+            }
+            return next;
+          });
+          document.querySelectorAll('.journal-grid-splitter[data-preset-divider="true"]').forEach(function (splitter) {
+            if (splitter.dataset.axis !== state.axis || Math.abs(Number(splitter.dataset.coordinate) - state.boundaryCoordinate) >= .0001) return;
+            if (state.axis === "column") splitter.style.left = (nextBoundary * state.availableSize + .5) + "px";
+            else splitter.style.top = (nextBoundary * state.availableSize + .5) + "px";
+          });
+          var presetCells = applyJournalChartWorkspaceGeometry(state.workspace);
+          applyJournalGridCellsToSecondaryPanels(state.workspace, presetCells);
+          resizeJournalTradeChartPanes();
+          return;
+        }
+        var sizes = state.startRatios.map(function (ratio) { return ratio * state.availableSize; });
+        var pairSize = sizes[state.boundary] + sizes[state.boundary + 1];
+        var minimum = Math.min(state.axis === "column" ? 140 : 110, Math.max(40, pairSize / 2 - 1));
+        sizes[state.boundary] = Math.max(minimum, Math.min(pairSize - minimum, sizes[state.boundary] + delta));
+        sizes[state.boundary + 1] = pairSize - sizes[state.boundary];
+        var ratios = sizes.map(function (size) { return size / state.availableSize; });
+        if (state.axis === "column") state.workspace.columnRatios = ratios;
+        else state.workspace.rowRatios = ratios;
+        var cells = applyJournalChartWorkspaceGeometry(state.workspace);
+        applyJournalGridCellsToSecondaryPanels(state.workspace, cells);
+        positionJournalGridSplitters(cells);
+        resizeJournalTradeChartPanes();
+      }
+
+      function finishJournalGridResize(event) {
+        if (!journalGridResizeState || event.pointerId !== journalGridResizeState.pointerId) return;
+        var state = journalGridResizeState;
+        journalGridResizeState = null;
+        state.element.classList.remove("dragging");
+        try {
+          if (state.element.hasPointerCapture(event.pointerId)) state.element.releasePointerCapture(event.pointerId);
+        } catch (error) {}
+        var trade = getCurrentJournalChartTrade();
+        if (trade) {
+          trade.chartWorkspace = state.workspace;
+          saveData({ skipUpdate: true });
+        }
+        var cells = applyJournalChartWorkspaceGeometry(state.workspace);
+        renderJournalChartGridSplitters(state.workspace, cells);
+      }
+
+      function initJournalGridResizeListeners() {
+        if (journalGridResizeListenersBound) return;
+        journalGridResizeListenersBound = true;
+        window.addEventListener("pointermove", resizeJournalGridFromPointer, true);
+        window.addEventListener("pointerup", finishJournalGridResize, true);
+        window.addEventListener("pointercancel", finishJournalGridResize, true);
+      }
+
+      function renderJournalChartGridSplitters(workspace, cells) {
+        var layer = document.getElementById("journalChartGridLayer");
+        var container = document.getElementById("journalChartStageArea") || document.getElementById("chartDataPreviewContainer");
+        if (!layer || !container) return;
+        layer.querySelectorAll(".journal-grid-splitter").forEach(function (splitter) { splitter.remove(); });
+        if (journalMaximizedPanelIndex !== null || workspace.count <= 1) return;
+        initJournalGridResizeListeners();
+        var shape = getJournalChartGridShape(workspace.count);
+
+        function addSplitter(axis, boundary, presetDivider) {
+          var splitter = document.createElement("div");
+          splitter.className = "journal-grid-splitter " + (axis === "column" ? "vertical" : "horizontal");
+          splitter.dataset.axis = axis;
+          splitter.dataset.boundary = String(boundary);
+          if (presetDivider) {
+            splitter.dataset.presetDivider = "true";
+            splitter.dataset.coordinate = String(presetDivider.coordinate);
+            if (axis === "column") {
+              splitter.style.left = (presetDivider.coordinate * container.clientWidth + .5) + "px";
+              splitter.style.top = (presetDivider.start * container.clientHeight) + "px";
+              splitter.style.bottom = "auto";
+              splitter.style.height = ((presetDivider.end - presetDivider.start) * container.clientHeight) + "px";
+            } else {
+              splitter.style.top = (presetDivider.coordinate * container.clientHeight + .5) + "px";
+              splitter.style.left = (presetDivider.start * container.clientWidth) + "px";
+              splitter.style.right = "auto";
+              splitter.style.width = ((presetDivider.end - presetDivider.start) * container.clientWidth) + "px";
+            }
+          }
+          splitter.setAttribute("role", "separator");
+          splitter.setAttribute("aria-orientation", axis === "column" ? "vertical" : "horizontal");
+          splitter.title = axis === "column" ? "Sleep om grafiekbreedtes aan te passen" : "Sleep om grafiekhoogtes aan te passen";
+          splitter.addEventListener("pointerdown", function (event) {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            var ratios = axis === "column" ? workspace.columnRatios : workspace.rowRatios;
+            var availableSize = axis === "column" ? container.clientWidth : container.clientHeight;
+            journalGridResizeState = {
+              axis: axis,
+              boundary: boundary,
+              pointerId: event.pointerId,
+              startPosition: axis === "column" ? event.clientX : event.clientY,
+              startRatios: ratios.slice(),
+              startCells: presetDivider ? cloneSharedValue(workspace.layoutCells) : null,
+              boundaryCoordinate: presetDivider ? presetDivider.coordinate : null,
+              availableSize: Math.max(1, presetDivider ? availableSize : availableSize - (ratios.length - 1)),
+              workspace: workspace,
+              element: splitter,
+            };
+            splitter.classList.add("dragging");
+            try { splitter.setPointerCapture(event.pointerId); } catch (error) {}
+          });
+          layer.appendChild(splitter);
+        }
+
+        var layoutCells = normalizeJournalLayoutCells(workspace.layoutCells, workspace.count);
+        if (layoutCells) {
+          getJournalPresetDividers(layoutCells).forEach(function (divider, dividerIndex) { addSplitter(divider.axis, dividerIndex, divider); });
+          return;
+        }
+        for (var column = 0; column < shape.columns - 1; column++) addSplitter("column", column);
+        for (var row = 0; row < shape.rows - 1; row++) addSplitter("row", row);
+        positionJournalGridSplitters(cells);
       }
 
       function getJournalCvdPanelHeight(cellHeight, workspace, panelIndex) {
@@ -18111,7 +18634,7 @@
             }
           }
         } else {
-          cells = getJournalChartGridCells(workspace.count, container.clientWidth, container.clientHeight);
+          cells = getJournalChartGridCells(workspace.count, container.clientWidth, container.clientHeight, workspace);
         }
 
         var primary = cells[0];
@@ -18344,6 +18867,7 @@
               });
             }
             journalSecondaryCharts.push(record);
+            applyJournalVwapToChart(chart, data, index);
             if (typeof bindJournalChartDrawingCanvas === "function") {
               bindJournalChartDrawingCanvas(drawingCanvas, index);
             }
@@ -18357,6 +18881,7 @@
             }
           })(panelIndex);
         }
+        renderJournalChartGridSplitters(workspace, cells);
         syncJournalChartPriceScales();
         scheduleJournalFootprintRender();
       }
@@ -18506,7 +19031,7 @@
         var workspace = getJournalChartWorkspace();
         if (!workspace.showCvd || workspace.panels[0].showCvd === false) return applyJournalChartWorkspaceGeometry(workspace);
         if (workspace.count > 1) {
-          var cells = getJournalChartGridCells(workspace.count, container.clientWidth, container.clientHeight);
+          var cells = getJournalChartGridCells(workspace.count, container.clientWidth, container.clientHeight, workspace);
           var cellHeight = cells[0] ? cells[0].height : container.clientHeight;
           workspace.panels[0].cvdHeightRatio = Math.max(.16, Math.min(.7, Number(height) / Math.max(1, cellHeight)));
           var trade = getCurrentJournalChartTrade();
@@ -19539,31 +20064,52 @@
         return hexOrRgba;
       }
 
-      function getJournalVwapSettings() {
+      function normalizeJournalVwapSettings(value) {
+        var parsed = value && typeof value === "object" ? value : {};
+        var settings = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS, parsed);
+        settings.main = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.main, parsed.main || {});
+        settings.visibility = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.visibility, parsed.visibility || {});
+        settings.bands = Array.isArray(parsed.bands) ? parsed.bands.map(function(band, index) {
+          return Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.bands[index] || DEFAULT_JOURNAL_VWAP_SETTINGS.bands[0], band);
+        }) : JSON.parse(JSON.stringify(DEFAULT_JOURNAL_VWAP_SETTINGS.bands));
+        return settings;
+      }
+
+      function getLegacyJournalVwapSettings() {
         try {
           var stored = localStorage.getItem("qt_journal_vwap_settings_v1");
-          if (stored) {
-            var parsed = JSON.parse(stored);
-            var settings = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS, parsed);
-            settings.main = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.main, parsed.main || {});
-            settings.visibility = Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.visibility, parsed.visibility || {});
-            settings.bands = Array.isArray(parsed.bands) ? parsed.bands.map(function(band, index) {
-              return Object.assign({}, DEFAULT_JOURNAL_VWAP_SETTINGS.bands[index] || DEFAULT_JOURNAL_VWAP_SETTINGS.bands[0], band);
-            }) : JSON.parse(JSON.stringify(DEFAULT_JOURNAL_VWAP_SETTINGS.bands));
-            return settings;
-          }
+          if (stored) return normalizeJournalVwapSettings(JSON.parse(stored));
         } catch (e) {
           console.error("Error reading VWAP settings:", e);
         }
         return JSON.parse(JSON.stringify(DEFAULT_JOURNAL_VWAP_SETTINGS));
       }
 
-      function saveJournalVwapSettings(settings) {
+      var journalVwapSettingsPanelIndex = 0;
+
+      function getJournalVwapSettings(panelIndex) {
+        var index = typeof panelIndex === "number" ? panelIndex : journalVwapSettingsPanelIndex;
+        var trade = getCurrentJournalChartTrade();
+        var workspace = trade && trade.chartWorkspace;
+        var panel = workspace && Array.isArray(workspace.panels) ? workspace.panels[index] : null;
+        return normalizeJournalVwapSettings(panel && panel.vwap || getLegacyJournalVwapSettings());
+      }
+
+      function saveJournalVwapSettings(settings, panelIndex) {
+        var index = typeof panelIndex === "number" ? panelIndex : journalVwapSettingsPanelIndex;
+        var normalized = normalizeJournalVwapSettings(settings);
         try {
-          localStorage.setItem("qt_journal_vwap_settings_v1", JSON.stringify(settings));
+          if (index === 0) localStorage.setItem("qt_journal_vwap_settings_v1", JSON.stringify(normalized));
         } catch (e) {
           console.error("Error saving VWAP settings:", e);
         }
+        var trade = getCurrentJournalChartTrade();
+        if (!trade) return;
+        var workspace = getJournalChartWorkspace(trade);
+        if (!workspace.panels[index]) return;
+        workspace.panels[index].vwap = normalized;
+        trade.chartWorkspace = workspace;
+        saveData({ skipUpdate: true });
       }
 
       function getLwLineStyle(style) {
@@ -19701,24 +20247,16 @@
         return results;
       }
 
-      var currentVwapChart = null;
-      var currentVwapSeries = {
-        main: null,
-        bands: []
-      };
+      var journalVwapSeriesByChart = new WeakMap();
 
-      function applyJournalVwapToChart(chart, chartData) {
+      function applyJournalVwapToChart(chart, chartData, panelIndex) {
         if (!chart) return;
-        
-        var settings = getJournalVwapSettings();
-        
-        if (currentVwapChart !== chart) {
+        var settings = getJournalVwapSettings(typeof panelIndex === "number" ? panelIndex : 0);
+        var currentVwapSeries = journalVwapSeriesByChart.get(chart);
+        if (!currentVwapSeries) {
           currentVwapSeries = { main: null, bands: [] };
-          currentVwapChart = chart;
+          journalVwapSeriesByChart.set(chart, currentVwapSeries);
         }
-
-        var contextCheckbox = document.getElementById("journalContextVwapEnabled");
-        if (contextCheckbox) contextCheckbox.checked = !!settings.enabled;
 
         if (!settings.enabled || !chartData || chartData.length === 0) {
           if (currentVwapSeries.main) currentVwapSeries.main.setData([]);
@@ -19818,9 +20356,11 @@
         requestAnimationFrame(renderJournalChartDrawings);
       }
 
-      function renderJournalVwapBandFills(context, bounds) {
-        if (!currentLwChart || !currentLwSeries || !currentJournalChartData || currentJournalChartData.length === 0) return;
-        var settings = getJournalVwapSettings();
+      function renderJournalVwapBandFills(context, bounds, panelIndex) {
+        var index = typeof panelIndex === "number" ? panelIndex : 0;
+        var chartContext = getJournalChartContextForPanel(index);
+        if (!chartContext.chart || !chartContext.series || !chartContext.data || chartContext.data.length === 0) return;
+        var settings = getJournalVwapSettings(index);
         if (!settings.enabled) return;
         var activeBands = settings.bands || [];
         var fillableBands = activeBands.filter(function(b) {
@@ -19828,7 +20368,7 @@
         });
         if (fillableBands.length === 0) return;
 
-        var vwapResults = calculateJournalVwapData(currentJournalChartData, settings);
+        var vwapResults = calculateJournalVwapData(chartContext.data, settings);
         if (vwapResults.length < 2) return;
 
         context.save();
@@ -19844,10 +20384,10 @@
 
           for (var i = 0; i < vwapResults.length; i++) {
             var r = vwapResults[i];
-            var x = currentLwChart.timeScale().timeToCoordinate(r.time);
+            var x = chartContext.chart.timeScale().timeToCoordinate(r.time);
             if (x === null || x === undefined || isNaN(x)) continue;
-            var yUpper = currentLwSeries.priceToCoordinate(r.vwap + mult * r.sd);
-            var yLower = currentLwSeries.priceToCoordinate(r.vwap - mult * r.sd);
+            var yUpper = chartContext.series.priceToCoordinate(r.vwap + mult * r.sd);
+            var yLower = chartContext.series.priceToCoordinate(r.vwap - mult * r.sd);
             if (yUpper !== null && yUpper !== undefined && !isNaN(yUpper) &&
                 yLower !== null && yLower !== undefined && !isNaN(yLower)) {
               upperCoords.push({ x: x, y: yUpper });
@@ -19873,17 +20413,17 @@
       }
 
       function toggleJournalVwapEnabled(enabled) {
-        var settings = getJournalVwapSettings();
+        journalVwapSettingsPanelIndex = journalContextPanelIndex;
+        var settings = getJournalVwapSettings(journalVwapSettingsPanelIndex);
         settings.enabled = !!enabled;
-        saveJournalVwapSettings(settings);
-        if (currentLwChart && currentJournalChartData) {
-          applyJournalVwapToChart(currentLwChart, currentJournalChartData);
-        }
+        saveJournalVwapSettings(settings, journalVwapSettingsPanelIndex);
+        applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
       }
 
       function openJournalVwapSettingsModal() {
         var modal = document.getElementById("journalVwapModal");
         if (!modal) return;
+        journalVwapSettingsPanelIndex = journalContextPanelIndex;
         renderJournalVwapModalContent();
         modal.classList.remove("hidden");
         modal.classList.add("flex");
@@ -19894,6 +20434,13 @@
         if (modal) {
           modal.classList.add("hidden");
           modal.classList.remove("flex");
+        }
+      }
+
+      function applyJournalVwapToPanel(panelIndex) {
+        var chartContext = getJournalChartContextForPanel(panelIndex);
+        if (chartContext && chartContext.chart) {
+          applyJournalVwapToChart(chartContext.chart, chartContext.data, panelIndex);
         }
       }
 
@@ -20006,7 +20553,7 @@
         var settings = getJournalVwapSettings();
         settings.main[prop] = value;
         saveJournalVwapSettings(settings);
-        if (currentLwChart && currentJournalChartData) applyJournalVwapToChart(currentLwChart, currentJournalChartData);
+        applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
       }
 
       function updateVwapBandProp(index, prop, value) {
@@ -20014,9 +20561,7 @@
         if (settings.bands && settings.bands[index]) {
           settings.bands[index][prop] = value;
           saveJournalVwapSettings(settings);
-          if (currentLwChart && currentJournalChartData) {
-            applyJournalVwapToChart(currentLwChart, currentJournalChartData);
-          }
+          applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
         }
       }
 
@@ -20039,9 +20584,7 @@
         saveJournalVwapSettings(settings);
         renderVwapBandInputs(settings.bands);
         renderVwapBandsList(settings.bands);
-        if (currentLwChart && currentJournalChartData) {
-          applyJournalVwapToChart(currentLwChart, currentJournalChartData);
-        }
+        applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
       }
 
       function deleteVwapBand(index) {
@@ -20051,9 +20594,7 @@
           saveJournalVwapSettings(settings);
           renderVwapBandInputs(settings.bands);
           renderVwapBandsList(settings.bands);
-          if (currentLwChart && currentJournalChartData) {
-            applyJournalVwapToChart(currentLwChart, currentJournalChartData);
-          }
+          applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
         }
       }
 
@@ -20106,18 +20647,14 @@
         settings.visibility = visibility;
 
         saveJournalVwapSettings(settings);
-        if (currentLwChart && currentJournalChartData) {
-          applyJournalVwapToChart(currentLwChart, currentJournalChartData);
-        }
+        applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
         if (closeAfterSave) closeJournalVwapSettingsModal();
       }
 
       function resetVwapModalDefaults() {
         saveJournalVwapSettings(DEFAULT_JOURNAL_VWAP_SETTINGS);
         renderJournalVwapModalContent();
-        if (currentLwChart && currentJournalChartData) {
-          applyJournalVwapToChart(currentLwChart, currentJournalChartData);
-        }
+        applyJournalVwapToPanel(journalVwapSettingsPanelIndex);
       }
 
       function renderLightweightChart(trade) {
@@ -20281,7 +20818,7 @@
 
         
         currentLwSeries.setData(chartDataToUse);
-        applyJournalVwapToChart(currentLwChart, chartDataToUse);
+        applyJournalVwapToChart(currentLwChart, chartDataToUse, 0);
         if (workspace.showCvd && workspace.panels[0].showCvd !== false) {
           renderTradeCvdChart(chartDataToUse);
         } else if (currentTradeCvdSeries) {
