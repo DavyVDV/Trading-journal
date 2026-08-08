@@ -7541,6 +7541,21 @@
         return grouped;
       }
 
+      function sortJournalTradeTags(tags) {
+        var groupOrder = {};
+        tagGroups.forEach(function (group, groupIndex) {
+          (group.tags || []).forEach(function (tag) {
+            if (groupOrder[tag] === undefined) groupOrder[tag] = groupIndex;
+          });
+        });
+        return (tags || []).slice().sort(function (a, b) {
+          var aGroup = groupOrder[a] === undefined ? tagGroups.length : groupOrder[a];
+          var bGroup = groupOrder[b] === undefined ? tagGroups.length : groupOrder[b];
+          if (aGroup !== bGroup) return aGroup - bGroup;
+          return formatTagLabel(a).localeCompare(formatTagLabel(b));
+        });
+      }
+
       function renderTagGroupsManagement() {
         var list = document.getElementById("tagGroupsList");
         var ungroupedList = document.getElementById("ungroupedTagsList");
@@ -10538,7 +10553,7 @@
 
       function renderTradeTagsContent(trade) {
         var tagsHtml =
-          (trade.tags || [])
+          sortJournalTradeTags(trade.tags)
             .map(function (tag) {
               return (
                 '<span class="trade-tag colored-tag px-1 py-0.5 rounded-sm border uppercase" style="' +
