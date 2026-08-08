@@ -19374,7 +19374,7 @@
             slText = rrStyle.statsMode === "price" ? slPrice.toFixed(priceDecimals) : rrStyle.statsMode === "ticks" ? "-" + slTicks + "t" : slPrice.toFixed(priceDecimals) + " · -" + slTicks + "t";
           }
           if (rrStyle.showPriceLabels && rrStyle.statsMode !== "rr") createInfoLabel(tpText, tpY, rrStyle.targetColor, "above");
-          createInfoLabel(rrStyle.compactStats ? (isFinite(rrRatio) ? rrRatio.toFixed(2) + "R" : "-") : "RR ratio: " + (isFinite(rrRatio) ? rrRatio.toFixed(2) : "-"), entryY, "#334155", "middle");
+          createInfoLabel(rrStyle.compactStats ? (isFinite(rrRatio) ? rrRatio.toFixed(2) + "R" : "-") : "RR ratio: " + (isFinite(rrRatio) ? rrRatio.toFixed(2) : "-"), entryY, "#334155", isLong ? "above" : "below");
           if (rrStyle.showPriceLabels && rrStyle.statsMode !== "rr") createInfoLabel(slText, slY, rrStyle.stopColor, "below");
         }
 
