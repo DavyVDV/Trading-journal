@@ -12549,14 +12549,13 @@
 
       function calculateTradeMfeMae(trade) {
         if (!trade || trade.rrRemoved) return null;
-        var requiredRrValues = [trade.rrEntry, trade.tp, trade.sl, trade.rrStartTime, trade.rrEndTime];
+        var requiredRrValues = [trade.rrEntry, trade.tp, trade.sl, trade.rrStartTime];
         if (requiredRrValues.some(function (value) { return value === null || value === undefined || value === ""; })) return null;
         var entryPrice = Number(trade.rrEntry);
         var targetPrice = Number(trade.tp);
         var stopPrice = Number(trade.sl);
         var requestedEntryTime = Number(trade.rrStartTime);
-        var requestedEndTime = Number(trade.rrEndTime);
-        if (![entryPrice, targetPrice, stopPrice, requestedEntryTime, requestedEndTime].every(Number.isFinite)) return null;
+        if (![entryPrice, targetPrice, stopPrice, requestedEntryTime].every(Number.isFinite)) return null;
         var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
         var sourceLast = source && source.length ? source[source.length - 1] : null;
         var cacheSignature = [
@@ -12564,7 +12563,6 @@
           targetPrice,
           stopPrice,
           requestedEntryTime,
-          requestedEndTime,
           source ? source.length : 0,
           sourceLast ? sourceLast.time : "",
         ].join("|");
@@ -12582,11 +12580,9 @@
         if (!Number.isFinite(risk) || risk <= 0) return null;
 
         var entryTime = findBestTradeCandleTime(chartData, requestedEntryTime, entryPrice);
-        var evaluationEndTime = findBestTradeCandleTime(chartData, requestedEndTime, targetPrice);
-        if (!entryTime || !evaluationEndTime || evaluationEndTime < entryTime) return null;
+  if (!entryTime) return null;
         var startIndex = findJournalChartLowerBound(chartData, entryTime);
-        var evaluationEndIndex = findJournalChartLowerBound(chartData, evaluationEndTime);
-        if (startIndex >= chartData.length || evaluationEndIndex >= chartData.length) return null;
+  if (startIndex >= chartData.length) return null;
 
         function getRrHits(candle) {
           return {
@@ -12596,7 +12592,7 @@
         }
 
         var firstHit = null;
-        for (var hitIndex = startIndex; hitIndex <= evaluationEndIndex; hitIndex++) {
+        for (var hitIndex = startIndex; hitIndex < chartData.length; hitIndex++) {
           var hits = getRrHits(chartData[hitIndex]);
           if (!hits.tp && !hits.sl) continue;
           var hitType;
@@ -12610,7 +12606,7 @@
           break;
         }
 
-        var maeEndIndex = firstHit ? firstHit.index : evaluationEndIndex;
+        var maeEndIndex = firstHit ? firstHit.index : chartData.length - 1;
         var mfeEndIndex = maeEndIndex;
         if (firstHit && firstHit.type === "tp") {
           mfeEndIndex = chartData.length - 1;
