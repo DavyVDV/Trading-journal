@@ -12556,6 +12556,7 @@
         var cacheSignature = [
           trade.time.getTime(),
           trade.exitTime instanceof Date && !isNaN(trade.exitTime) ? trade.exitTime.getTime() : "",
+          trade.rrStartTime || "",
           trade.rrEndTime || "",
           entryPrice,
           stopPrice,
@@ -12588,7 +12589,10 @@
         var risk = Math.abs(entryPrice - stopPrice);
         if (!Number.isFinite(risk) || risk <= 0) return null;
 
-        var entryTime = findBestTradeCandleTime(chartData, toChartTimestampFromLocalDate(trade.time), entryPrice);
+        var requestedEntryTime = Number.isFinite(Number(trade.rrStartTime))
+          ? Number(trade.rrStartTime)
+          : toChartTimestampFromLocalDate(trade.time);
+        var entryTime = findBestTradeCandleTime(chartData, requestedEntryTime, entryPrice);
         if (!entryTime) return null;
         var recordedExitPrice = Number(trade.exit);
         var exitTime = null;
