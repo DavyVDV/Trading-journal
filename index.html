@@ -12548,20 +12548,23 @@
       var tradeExcursionCache = new WeakMap();
 
       function calculateTradeMfeMae(trade) {
-        if (!trade || trade.rrRemoved || !(trade.time instanceof Date) || isNaN(trade.time)) return null;
-        var entryPrice = Number(trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" ? trade.rrEntry : trade.entry);
-        var stopPrice = trade.sl !== undefined && trade.sl !== null && trade.sl !== "" ? Number(trade.sl) : NaN;
+        if (!trade || trade.rrRemoved) return null;
+        var requiredRrValues = [trade.rrEntry, trade.tp, trade.sl, trade.rrStartTime, trade.rrEndTime];
+        if (requiredRrValues.some(function (value) { return value === null || value === undefined || value === ""; })) return null;
+        var entryPrice = Number(trade.rrEntry);
+        var targetPrice = Number(trade.tp);
+        var stopPrice = Number(trade.sl);
+        var requestedEntryTime = Number(trade.rrStartTime);
+        var requestedEndTime = Number(trade.rrEndTime);
+        if (![entryPrice, targetPrice, stopPrice, requestedEntryTime, requestedEndTime].every(Number.isFinite)) return null;
         var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
         var sourceLast = source && source.length ? source[source.length - 1] : null;
         var cacheSignature = [
-          trade.time.getTime(),
-          trade.exitTime instanceof Date && !isNaN(trade.exitTime) ? trade.exitTime.getTime() : "",
-          trade.rrStartTime || "",
-          trade.rrEndTime || "",
           entryPrice,
+          targetPrice,
           stopPrice,
-          trade.exit,
-          trade.side,
+          requestedEntryTime,
+          requestedEndTime,
           source ? source.length : 0,
           sourceLast ? sourceLast.time : "",
         ].join("|");
@@ -12570,80 +12573,78 @@
           return cachedExcursion.value;
         }
         var chartData = prepareJournalChartDataForTrade(source, trade);
-        if (!Number.isFinite(entryPrice) || !chartData || !chartData.length) return null;
-        var side = String(trade.side || "").toLowerCase();
-        var isLong = side.indexOf("buy") >= 0 || side === "long";
-        var isShort = side.indexOf("sell") >= 0 || side === "short";
+        if (!chartData || !chartData.length) return null;
+        var isLong = targetPrice > entryPrice && stopPrice < entryPrice;
+        var isShort = targetPrice < entryPrice && stopPrice > entryPrice;
         if (!isLong && !isShort) return null;
 
-        if (!Number.isFinite(stopPrice)) {
-          var exitPrice = Number(trade.exit);
-          var defaultRisk = Math.max(entryPrice * 0.003, 0.5);
-          if (Number.isFinite(exitPrice) && Math.abs(exitPrice - entryPrice) > entryPrice * 0.0001) {
-            var exitDistance = Math.abs(exitPrice - entryPrice);
-            if (exitDistance > 0.05) defaultRisk = exitDistance;
-          }
-          var step = getJournalTradeTickSize(trade, chartData);
-          stopPrice = Math.round((isLong ? entryPrice - defaultRisk : entryPrice + defaultRisk) / step) * step;
-        }
         var risk = Math.abs(entryPrice - stopPrice);
         if (!Number.isFinite(risk) || risk <= 0) return null;
 
-        var requestedEntryTime = Number.isFinite(Number(trade.rrStartTime))
-          ? Number(trade.rrStartTime)
-          : toChartTimestampFromLocalDate(trade.time);
         var entryTime = findBestTradeCandleTime(chartData, requestedEntryTime, entryPrice);
-        if (!entryTime) return null;
-        var recordedExitPrice = Number(trade.exit);
-        var exitTime = null;
-        var capExitCandle = false;
+        var evaluationEndTime = findBestTradeCandleTime(chartData, requestedEndTime, targetPrice);
+        if (!entryTime || !evaluationEndTime || evaluationEndTime < entryTime) return null;
+        var startIndex = findJournalChartLowerBound(chartData, entryTime);
+        var evaluationEndIndex = findJournalChartLowerBound(chartData, evaluationEndTime);
+        if (startIndex >= chartData.length || evaluationEndIndex >= chartData.length) return null;
 
-        if (trade.exitTime instanceof Date && !isNaN(trade.exitTime)) {
-          // Trusted timestamp from trade data
-          exitTime = findBestTradeCandleTime(chartData, toChartTimestampFromLocalDate(trade.exitTime), recordedExitPrice);
-          capExitCandle = true;
+        function getRrHits(candle) {
+          return {
+            tp: isLong ? Number(candle.high) >= targetPrice : Number(candle.low) <= targetPrice,
+            sl: isLong ? Number(candle.low) <= stopPrice : Number(candle.high) >= stopPrice,
+          };
         }
 
-        if (!exitTime && Number.isFinite(Number(trade.rrEndTime))) {
-          // The RR tool width defines the selected excursion window.
-          exitTime = findBestTradeCandleTime(chartData, Number(trade.rrEndTime), recordedExitPrice);
+        var firstHit = null;
+        for (var hitIndex = startIndex; hitIndex <= evaluationEndIndex; hitIndex++) {
+          var hits = getRrHits(chartData[hitIndex]);
+          if (!hits.tp && !hits.sl) continue;
+          var hitType;
+          if (hits.tp && hits.sl) {
+            var referencePrice = Number.isFinite(Number(chartData[hitIndex].open)) ? Number(chartData[hitIndex].open) : entryPrice;
+            hitType = Math.abs(referencePrice - targetPrice) <= Math.abs(referencePrice - stopPrice) ? "tp" : "sl";
+          } else {
+            hitType = hits.tp ? "tp" : "sl";
+          }
+          firstHit = { index: hitIndex, type: hitType };
+          break;
         }
 
-        if (!exitTime && Number.isFinite(recordedExitPrice)) {
-          // Price inference: first candle after entry whose range contains the exit price
-          for (var inferredIndex = findJournalChartLowerBound(chartData, entryTime); inferredIndex < chartData.length; inferredIndex++) {
-            var inferredCandle = chartData[inferredIndex];
-            if (Number(inferredCandle.low) <= recordedExitPrice && Number(inferredCandle.high) >= recordedExitPrice) {
-              exitTime = Number(inferredCandle.time);
-              capExitCandle = true;
+        var maeEndIndex = firstHit ? firstHit.index : evaluationEndIndex;
+        var mfeEndIndex = maeEndIndex;
+        if (firstHit && firstHit.type === "tp") {
+          mfeEndIndex = chartData.length - 1;
+          for (var postTpIndex = firstHit.index + 1; postTpIndex < chartData.length; postTpIndex++) {
+            if (getRrHits(chartData[postTpIndex]).sl) {
+              mfeEndIndex = postTpIndex - 1;
               break;
             }
           }
         }
-        if (!exitTime) return null;
-        var rangeStart = entryTime;
-        var rangeEnd = Math.max(entryTime, exitTime);
+
         var highestDuringTrade = -Infinity;
         var lowestDuringTrade = Infinity;
-        for (var candleIndex = findJournalChartLowerBound(chartData, rangeStart); candleIndex < chartData.length; candleIndex++) {
+        for (var candleIndex = startIndex; candleIndex <= mfeEndIndex; candleIndex++) {
           var candle = chartData[candleIndex];
-          if (Number(candle.time) > rangeEnd) break;
           var candleHigh = Number(candle.high);
           var candleLow = Number(candle.low);
           if (!Number.isFinite(candleHigh) || !Number.isFinite(candleLow)) continue;
-          // Cap exit candle at exit price: intra-candle price after TP/stop fill is not part of the trade
-          if (capExitCandle && Number(candle.time) === exitTime && Number.isFinite(recordedExitPrice)) {
-            if (isLong) candleHigh = Math.min(candleHigh, recordedExitPrice);
-            else candleLow = Math.max(candleLow, recordedExitPrice);
-          }
           highestDuringTrade = Math.max(highestDuringTrade, candleHigh);
           lowestDuringTrade = Math.min(lowestDuringTrade, candleLow);
         }
         if (!Number.isFinite(highestDuringTrade) || !Number.isFinite(lowestDuringTrade)) return null;
         var favorableExcursion = isLong ? highestDuringTrade - entryPrice : entryPrice - lowestDuringTrade;
-        var adverseExcursion = isLong ? entryPrice - lowestDuringTrade : highestDuringTrade - entryPrice;
+
+        var adversePrice = entryPrice;
+        for (var maeIndex = startIndex; maeIndex <= maeEndIndex; maeIndex++) {
+          var adverseCandle = chartData[maeIndex];
+          var adverseExtreme = Number(isLong ? adverseCandle.low : adverseCandle.high);
+          if (!Number.isFinite(adverseExtreme)) continue;
+          adversePrice = isLong ? Math.min(adversePrice, adverseExtreme) : Math.max(adversePrice, adverseExtreme);
+        }
+        var adverseExcursion = isLong ? entryPrice - adversePrice : adversePrice - entryPrice;
         var excursion = {
-          mfe: Math.min(30, Math.max(0, favorableExcursion / risk)),
+          mfe: Math.max(0, favorableExcursion / risk),
           mae: Math.min(1, Math.max(0, adverseExcursion / risk)),
           risk: risk,
         };
@@ -15039,6 +15040,11 @@
         }, 80);
       }
 
+      function refreshJournalRrExcursions(trade) {
+        if (trade) tradeExcursionCache.delete(trade);
+        updateUI();
+      }
+
       function toggleJournalRrLock() {
         journalRrLocked = !journalRrLocked;
         if (currentRiskRewardTrade) currentRiskRewardTrade.rrLocked = journalRrLocked;
@@ -15126,6 +15132,7 @@
         closeJournalChartContextMenu();
         renderRiskRewardOverlay(currentRiskRewardTrade);
         persistJournalRrState(currentRiskRewardTrade);
+        refreshJournalRrExcursions(currentRiskRewardTrade);
       }
 
       function toggleJournalRrHidden() {
@@ -15142,6 +15149,7 @@
         closeJournalRrSettings();
         clearRiskRewardOverlay();
         persistJournalRrState(currentRiskRewardTrade);
+        refreshJournalRrExcursions(currentRiskRewardTrade);
       }
 
       function openJournalRrDetailedSettings() {
@@ -15210,6 +15218,7 @@
         journalRrSettingsSnapshot = null;
         closeJournalRrSettings();
         persistJournalRrState(currentRiskRewardTrade);
+        refreshJournalRrExcursions(currentRiskRewardTrade);
       }
 
       function openJournalChartContextMenu(event) {
@@ -15486,6 +15495,7 @@
           }
 
           persistJournalRrState(trade);
+          refreshJournalRrExcursions(trade);
         });
 
         window.addEventListener("pointercancel", function () {
