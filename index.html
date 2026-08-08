@@ -6974,6 +6974,12 @@
       var activeHeaderFilter = null;
       var logbookTagFilterLogic =
         localStorage.getItem("qt_logbook_tag_filter_logic") || "OR";
+      var numericColumnFilters = {
+        pnl: { mode: "", value: "" },
+        netpnl: { mode: "", value: "" },
+        mfe: { mode: "", value: "" },
+        mae: { mode: "", value: "" },
+      };
 
       var COLUMN_DEFS = [
         {
@@ -8771,6 +8777,32 @@
           });
         }
 
+        ["pnl", "netpnl", "mfe", "mae"].forEach(function (columnKey) {
+          var filter = numericColumnFilters[columnKey];
+          if (!filter || !filter.mode) return;
+          var threshold = Number(filter.value);
+          var needsThreshold = filter.mode === "gt" || filter.mode === "lt";
+          if (needsThreshold && !Number.isFinite(threshold)) return;
+
+          f = f.filter(function (t) {
+            var value;
+            if (columnKey === "pnl") {
+              value = Number(t.pnl) || 0;
+            } else if (columnKey === "netpnl") {
+              value = (Number(t.pnl) || 0) - (Number(t.fee) || 0);
+            } else {
+              var excursion = calculateTradeMfeMae(t);
+              value = excursion ? Number(excursion[columnKey]) : NaN;
+            }
+            if (!Number.isFinite(value)) return false;
+            if (filter.mode === "gt") return value > threshold;
+            if (filter.mode === "lt") return value < threshold;
+            if (filter.mode === "positive") return value > 0;
+            if (filter.mode === "negative") return value < 0;
+            return true;
+          });
+        });
+
         return f;
       }
 
@@ -9954,6 +9986,17 @@
               ? "text-blue-400"
               : "text-zinc-500 hover:text-white";
             renderHeaderFilterCell(th, def.label, indicator, "tags", filterColor);
+          } else if (["pnl", "netpnl", "mfe", "mae"].indexOf(def.key) >= 0) {
+            var numericFilter = numericColumnFilters[def.key];
+            var isFilterActive = !!(numericFilter && numericFilter.mode && (
+              numericFilter.mode === "positive" ||
+              numericFilter.mode === "negative" ||
+              (numericFilter.value !== "" && Number.isFinite(Number(numericFilter.value)))
+            ));
+            var filterColor = isFilterActive
+              ? "text-blue-400"
+              : "text-zinc-500 hover:text-white";
+            renderHeaderFilterCell(th, def.label, indicator, def.key, filterColor);
           } else {
             th.innerHTML =
               '<span style="pointer-events:none">' +
@@ -9996,7 +10039,9 @@
             ? "Filter tijd"
             : kind === "side"
               ? "Filter richting"
-              : "Filter tags",
+              : kind === "tags"
+                ? "Filter tags"
+                : "Filter " + (kind === "pnl" ? "bruto PNL" : kind === "netpnl" ? "netto PNL" : kind.toUpperCase()),
         );
         btn.innerHTML = '<i class="fas fa-filter pointer-events-none text-[11px]"></i>';
         btn.addEventListener("click", function (event) {
@@ -10039,6 +10084,7 @@
         if (kind === "time") renderTimeHeaderFilter(dropdown);
         if (kind === "side") renderSideHeaderFilter(dropdown);
         if (kind === "tags") renderTagsHeaderFilter(dropdown);
+        if (["pnl", "netpnl", "mfe", "mae"].indexOf(kind) >= 0) renderNumericHeaderFilter(dropdown, kind);
 
         document.body.appendChild(dropdown);
         positionHeaderFilterDropdown(dropdown, trigger, kind);
@@ -10087,6 +10133,61 @@
         var main = document.querySelector("main");
         if (!main) return;
         main.style.paddingBottom = height > 0 ? height + "px" : "";
+      }
+
+      function renderNumericHeaderFilter(container, kind) {
+        var filter = numericColumnFilters[kind];
+        var isPnl = kind === "pnl" || kind === "netpnl";
+        var label = kind === "pnl" ? "Bruto PNL" : kind === "netpnl" ? "Netto PNL" : kind.toUpperCase();
+        var thresholdLabel = isPnl ? "Bedrag" : "Waarde in R";
+        var options =
+          '<button type="button" data-numeric-mode="gt" class="numeric-filter-choice header-filter-option"><span>Groter dan</span><i class="fas fa-angle-right"></i></button>' +
+          '<button type="button" data-numeric-mode="lt" class="numeric-filter-choice header-filter-option"><span>Kleiner dan</span><i class="fas fa-angle-left"></i></button>';
+        if (isPnl) {
+          options +=
+            '<button type="button" data-numeric-mode="positive" class="numeric-filter-choice header-filter-option"><span>Positief</span><i class="fas fa-plus"></i></button>' +
+            '<button type="button" data-numeric-mode="negative" class="numeric-filter-choice header-filter-option"><span>Negatief</span><i class="fas fa-minus"></i></button>';
+        }
+        container.innerHTML =
+          '<div class="header-filter-shell">' +
+          '<div class="header-filter-heading"><span>' + label + '</span><i class="fas fa-filter"></i></div>' +
+          '<div class="header-filter-section">' + options + '</div>' +
+          '<label class="header-filter-label"><span>' + thresholdLabel + '</span><input type="number" step="any" class="header-filter-input" id="numericFilterValue" placeholder="Voer waarde in"></label>' +
+          '<button type="button" id="numericFilterReset" class="header-filter-action">Reset</button>' +
+          '</div>';
+
+        var input = container.querySelector("#numericFilterValue");
+        if (filter && filter.value !== "") input.value = filter.value;
+        container.querySelectorAll(".numeric-filter-choice").forEach(function (button) {
+          var mode = button.getAttribute("data-numeric-mode");
+          if (filter && filter.mode === mode) button.classList.add("is-active");
+          button.onclick = function () {
+            filter.mode = mode;
+            if (mode === "positive" || mode === "negative") filter.value = "";
+            updateUI();
+          };
+        });
+        if (input) {
+          input.addEventListener("input", function () {
+            filter.value = input.value;
+          });
+          input.addEventListener("change", function () {
+            if (input.value === "") filter.mode = "";
+            updateUI();
+          });
+          input.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              if (input.value === "") filter.mode = "";
+              updateUI();
+            }
+          });
+        }
+        container.querySelector("#numericFilterReset").onclick = function () {
+          filter.mode = "";
+          filter.value = "";
+          updateUI();
+        };
       }
 
       function renderHeaderFilterRow() {
