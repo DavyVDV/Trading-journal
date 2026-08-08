@@ -11516,15 +11516,25 @@
         });
       }
 
+      var silentTradeSaveTimer = null;
+      var silentTradeSaveRefreshExcursions = false;
+
       function scheduleSilentTradeSave(options) {
         options = options || {};
-        runWhenPageIsIdle(function () {
-          saveData({ skipUpdate: true });
-          if (options.refreshExcursions) {
-            renderTable({ skipAnimation: true });
-            calculateStats();
-          }
-        }, 1200);
+        silentTradeSaveRefreshExcursions = silentTradeSaveRefreshExcursions || !!options.refreshExcursions;
+        if (silentTradeSaveTimer) clearTimeout(silentTradeSaveTimer);
+        silentTradeSaveTimer = setTimeout(function () {
+          silentTradeSaveTimer = null;
+          var refreshExcursions = silentTradeSaveRefreshExcursions;
+          silentTradeSaveRefreshExcursions = false;
+          runWhenPageIsIdle(function () {
+            saveData({ skipUpdate: true });
+            if (refreshExcursions) {
+              renderTable({ skipAnimation: true });
+              calculateStats();
+            }
+          }, 1200);
+        }, 180);
       }
 
       function handleScreenshotDrag(event, isOver) {
@@ -12516,20 +12526,15 @@
         var tradeCandles = chartData.filter(function (candle) {
           return exitTime && Number(candle.time) >= Math.min(entryTime, exitTime) && Number(candle.time) <= Math.max(entryTime, exitTime) && Number.isFinite(Number(candle.high)) && Number.isFinite(Number(candle.low));
         });
-        var mfeCandles = chartData.filter(function (candle) {
-          return Number(candle.time) >= entryTime && Number.isFinite(Number(candle.high)) && Number.isFinite(Number(candle.low));
-        });
-        if (!mfeCandles.length) return null;
+        if (!tradeCandles.length) return null;
 
-        var highestAfterEntry = Math.max.apply(null, mfeCandles.map(function (candle) { return Number(candle.high); }));
-        var lowestAfterEntry = Math.min.apply(null, mfeCandles.map(function (candle) { return Number(candle.low); }));
-        var highestDuringTrade = tradeCandles.length ? Math.max.apply(null, tradeCandles.map(function (candle) { return Number(candle.high); })) : null;
-        var lowestDuringTrade = tradeCandles.length ? Math.min.apply(null, tradeCandles.map(function (candle) { return Number(candle.low); })) : null;
-        var favorableExcursion = isLong ? highestAfterEntry - entryPrice : entryPrice - lowestAfterEntry;
-        var adverseExcursion = tradeCandles.length ? (isLong ? entryPrice - lowestDuringTrade : highestDuringTrade - entryPrice) : null;
+        var highestDuringTrade = Math.max.apply(null, tradeCandles.map(function (candle) { return Number(candle.high); }));
+        var lowestDuringTrade = Math.min.apply(null, tradeCandles.map(function (candle) { return Number(candle.low); }));
+        var favorableExcursion = isLong ? highestDuringTrade - entryPrice : entryPrice - lowestDuringTrade;
+        var adverseExcursion = isLong ? entryPrice - lowestDuringTrade : highestDuringTrade - entryPrice;
         return {
           mfe: Math.min(30, Math.max(0, favorableExcursion / risk)),
-          mae: adverseExcursion === null ? null : Math.min(1, Math.max(0, adverseExcursion / risk)),
+          mae: Math.min(1, Math.max(0, adverseExcursion / risk)),
           risk: risk,
         };
       }
@@ -15289,7 +15294,7 @@
               if (movedStartTime !== null) trade.rrStartTime = movedStartTime;
               if (movedEndTime !== null) trade.rrEndTime = movedEndTime;
             }
-            renderRiskRewardOverlay(trade);
+            scheduleRiskRewardOverlayRender();
             return;
           }
 
@@ -15312,7 +15317,7 @@
               var newTime = timeScale.coordinateToTime(startX + newWidth);
               if (newTime) trade.rrEndTime = newTime;
             }
-            renderRiskRewardOverlay(trade);
+            scheduleRiskRewardOverlayRender();
             return;
           }
 
@@ -15324,7 +15329,7 @@
             trade.sl = price;
           }
 
-          renderRiskRewardOverlay(trade);
+          scheduleRiskRewardOverlayRender();
         }, { passive: false });
 
         window.addEventListener("pointerup", function (e) {
@@ -20120,9 +20125,10 @@
 
         function findFirstRiskRewardHit() {
           if (!chartDataToUse || chartDataToUse.length === 0) return null;
-          for (var i = 0; i < chartDataToUse.length; i++) {
+          var firstIndex = findJournalChartLowerBound(chartDataToUse, entryCandleTime);
+          for (var i = firstIndex; i < chartDataToUse.length; i++) {
             var candle = chartDataToUse[i];
-            if (candle.time < entryCandleTime || candle.time > endTime) continue;
+            if (candle.time > endTime) break;
 
             var tpHit = isLong ? candle.high >= tpPrice : candle.low <= tpPrice;
             var slHit = isLong ? candle.low <= slPrice : candle.high >= slPrice;
