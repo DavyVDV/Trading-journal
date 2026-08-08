@@ -12633,6 +12633,11 @@
           var candleHigh = Number(candle.high);
           var candleLow = Number(candle.low);
           if (!Number.isFinite(candleHigh) || !Number.isFinite(candleLow)) continue;
+          // Cap exit candle at exit price: intra-candle price after TP/stop fill is not part of the trade
+          if (Number(candle.time) === exitTime && Number.isFinite(recordedExitPrice)) {
+            if (isLong) candleHigh = Math.min(candleHigh, recordedExitPrice);
+            else candleLow = Math.max(candleLow, recordedExitPrice);
+          }
           highestDuringTrade = Math.max(highestDuringTrade, candleHigh);
           lowestDuringTrade = Math.min(lowestDuringTrade, candleLow);
         }
