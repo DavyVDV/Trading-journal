@@ -11236,6 +11236,8 @@
         );
       }
       // ---- METADATA MODALS & STRUCTURAL VARIABLE MANIPULATION ----
+      var tradeModalChartRenderToken = 0;
+
       function openModal(id) {
         modalTagGroupFilter = tagGroups.length ? tagGroups[0].id : "__ungrouped__";
         var trade = trades.find(function (t) {
@@ -11272,15 +11274,24 @@
         setTradeModalSidebarHidden(localStorage.getItem("qt_trade_modal_sidebar_hidden_v1") === "true", false);
         document.getElementById("noteModal").classList.remove("hidden");
         bindJournalCvdResize();
-        try {
-          renderLightweightChart(trade);
-        } catch (err) {
-          console.error("Trade chart render failed:", err);
-        }
+        var chartRenderToken = ++tradeModalChartRenderToken;
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            var modal = document.getElementById("noteModal");
+            var activeTradeId = document.getElementById("editTradeId").value;
+            if (chartRenderToken !== tradeModalChartRenderToken || !modal || modal.classList.contains("hidden") || activeTradeId !== id) return;
+            try {
+              renderLightweightChart(trade);
+            } catch (err) {
+              console.error("Trade chart render failed:", err);
+            }
+          });
+        });
         document.addEventListener("keydown", closeModalOnEsc);
         
         // Ensure chart resizes correctly when it becomes visible
         setTimeout(function() {
+          if (chartRenderToken !== tradeModalChartRenderToken || document.getElementById("editTradeId").value !== id) return;
           applyJournalCvdHeight(Number(localStorage.getItem("qt_journal_cvd_height_v1")) || document.getElementById("chartDataPreviewContainer").clientHeight * .3);
           if (currentLwChart && document.getElementById("chartDataPreviewContainer").offsetWidth > 0) {
             currentLwChart.resize(
@@ -11662,6 +11673,7 @@
       }
 
       function closeModal() {
+        tradeModalChartRenderToken++;
         cancelJournalRrSettings();
         autoCommitTradeEdits();
         document.getElementById("noteModal").classList.add("hidden");
@@ -12485,11 +12497,29 @@
         renderAnalyticsChart(matches);
       }
 
+      var tradeExcursionCache = new WeakMap();
+
       function calculateTradeMfeMae(trade) {
         if (!trade || trade.rrRemoved || !(trade.time instanceof Date) || isNaN(trade.time)) return null;
         var entryPrice = Number(trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" ? trade.rrEntry : trade.entry);
         var stopPrice = trade.sl !== undefined && trade.sl !== null && trade.sl !== "" ? Number(trade.sl) : NaN;
         var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
+        var sourceLast = source && source.length ? source[source.length - 1] : null;
+        var cacheSignature = [
+          trade.time.getTime(),
+          trade.exitTime instanceof Date && !isNaN(trade.exitTime) ? trade.exitTime.getTime() : "",
+          trade.rrEndTime || "",
+          entryPrice,
+          stopPrice,
+          trade.exit,
+          trade.side,
+          source ? source.length : 0,
+          sourceLast ? sourceLast.time : "",
+        ].join("|");
+        var cachedExcursion = tradeExcursionCache.get(trade);
+        if (cachedExcursion && cachedExcursion.source === source && cachedExcursion.signature === cacheSignature) {
+          return cachedExcursion.value;
+        }
         var chartData = prepareJournalChartDataForTrade(source, trade);
         if (!Number.isFinite(entryPrice) || !chartData || !chartData.length) return null;
         var side = String(trade.side || "").toLowerCase();
@@ -12518,25 +12548,38 @@
         var exitTime = requestedExitTime ? findBestTradeCandleTime(chartData, requestedExitTime, Number(trade.exit)) : null;
         var recordedExitPrice = Number(trade.exit);
         if (!exitTime && Number.isFinite(recordedExitPrice)) {
-          var inferredExitCandle = chartData.find(function (candle) {
-            return Number(candle.time) >= entryTime && Number(candle.low) <= recordedExitPrice && Number(candle.high) >= recordedExitPrice;
-          });
-          if (inferredExitCandle) exitTime = Number(inferredExitCandle.time);
+          for (var inferredIndex = findJournalChartLowerBound(chartData, entryTime); inferredIndex < chartData.length; inferredIndex++) {
+            var inferredCandle = chartData[inferredIndex];
+            if (Number(inferredCandle.low) <= recordedExitPrice && Number(inferredCandle.high) >= recordedExitPrice) {
+              exitTime = Number(inferredCandle.time);
+              break;
+            }
+          }
         }
-        var tradeCandles = chartData.filter(function (candle) {
-          return exitTime && Number(candle.time) >= Math.min(entryTime, exitTime) && Number(candle.time) <= Math.max(entryTime, exitTime) && Number.isFinite(Number(candle.high)) && Number.isFinite(Number(candle.low));
-        });
-        if (!tradeCandles.length) return null;
-
-        var highestDuringTrade = Math.max.apply(null, tradeCandles.map(function (candle) { return Number(candle.high); }));
-        var lowestDuringTrade = Math.min.apply(null, tradeCandles.map(function (candle) { return Number(candle.low); }));
+        if (!exitTime) return null;
+        var rangeStart = Math.min(entryTime, exitTime);
+        var rangeEnd = Math.max(entryTime, exitTime);
+        var highestDuringTrade = -Infinity;
+        var lowestDuringTrade = Infinity;
+        for (var candleIndex = findJournalChartLowerBound(chartData, rangeStart); candleIndex < chartData.length; candleIndex++) {
+          var candle = chartData[candleIndex];
+          if (Number(candle.time) > rangeEnd) break;
+          var candleHigh = Number(candle.high);
+          var candleLow = Number(candle.low);
+          if (!Number.isFinite(candleHigh) || !Number.isFinite(candleLow)) continue;
+          highestDuringTrade = Math.max(highestDuringTrade, candleHigh);
+          lowestDuringTrade = Math.min(lowestDuringTrade, candleLow);
+        }
+        if (!Number.isFinite(highestDuringTrade) || !Number.isFinite(lowestDuringTrade)) return null;
         var favorableExcursion = isLong ? highestDuringTrade - entryPrice : entryPrice - lowestDuringTrade;
         var adverseExcursion = isLong ? entryPrice - lowestDuringTrade : highestDuringTrade - entryPrice;
-        return {
+        var excursion = {
           mfe: Math.min(30, Math.max(0, favorableExcursion / risk)),
           mae: Math.min(1, Math.max(0, adverseExcursion / risk)),
           risk: risk,
         };
+        tradeExcursionCache.set(trade, { source: source, signature: cacheSignature, value: excursion });
+        return excursion;
       }
 
       function formatExcursionR(value) {
@@ -19776,7 +19819,10 @@
             var stage = document.getElementById("journalChartStageArea");
             if (!stage || !stage.contains(event.target) || event.target.closest(".journal-rr-tool")) return;
             journalRrSelected = false;
-            scheduleRiskRewardOverlayRender();
+            overlay.querySelectorAll(".rr-drag-dot, .rr-selection-detail").forEach(function (element) {
+              element.remove();
+            });
+            overlay.style.zIndex = journalRrLocked ? "10" : "40";
           }, true);
           var chartContainer = document.getElementById("chartDataPreviewContainer");
           if (chartContainer) {
@@ -20056,7 +20102,7 @@
 
           function createInfoLabel(text, y, background, placement) {
             var label = document.createElement("div");
-            label.className = "journal-rr-tool";
+            label.className = "journal-rr-tool" + (journalRrSelected && !rrStyle.alwaysShowStats ? " rr-selection-detail" : "");
             label.textContent = text;
             label.style.position = "absolute";
             label.style.left = (left + width / 2) + "px";
