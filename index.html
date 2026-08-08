@@ -12590,12 +12590,30 @@
 
         var entryTime = findBestTradeCandleTime(chartData, toChartTimestampFromLocalDate(trade.time), entryPrice);
         if (!entryTime) return null;
-        var requestedExitTime = trade.exitTime instanceof Date && !isNaN(trade.exitTime)
-          ? toChartTimestampFromLocalDate(trade.exitTime)
-          : (Number.isFinite(Number(trade.rrEndTime)) ? Number(trade.rrEndTime) : null);
-        var exitTime = requestedExitTime ? findBestTradeCandleTime(chartData, requestedExitTime, Number(trade.exit)) : null;
         var recordedExitPrice = Number(trade.exit);
+        var exitTime = null;
+
+        if (trade.exitTime instanceof Date && !isNaN(trade.exitTime)) {
+          // Trusted timestamp from trade data
+          exitTime = findBestTradeCandleTime(chartData, toChartTimestampFromLocalDate(trade.exitTime), recordedExitPrice);
+        }
+
+        if (!exitTime && Number.isFinite(Number(trade.rrEndTime))) {
+          // RR tool edge: only use if its candle actually contains the exit price
+          var rrCandleTime = findBestTradeCandleTime(chartData, Number(trade.rrEndTime), recordedExitPrice);
+          if (rrCandleTime && Number.isFinite(recordedExitPrice)) {
+            var rrCandle = null;
+            for (var ri = findJournalChartLowerBound(chartData, rrCandleTime); ri < chartData.length; ri++) {
+              if (Number(chartData[ri].time) === rrCandleTime) { rrCandle = chartData[ri]; break; }
+            }
+            if (rrCandle && Number(rrCandle.low) <= recordedExitPrice && Number(rrCandle.high) >= recordedExitPrice) {
+              exitTime = rrCandleTime;
+            }
+          }
+        }
+
         if (!exitTime && Number.isFinite(recordedExitPrice)) {
+          // Price inference: first candle after entry whose range contains the exit price
           for (var inferredIndex = findJournalChartLowerBound(chartData, entryTime); inferredIndex < chartData.length; inferredIndex++) {
             var inferredCandle = chartData[inferredIndex];
             if (Number(inferredCandle.low) <= recordedExitPrice && Number(inferredCandle.high) >= recordedExitPrice) {
@@ -12605,7 +12623,7 @@
           }
         }
         if (!exitTime) return null;
-        var rangeStart = Math.min(entryTime, exitTime);
+        var rangeStart = entryTime;
         var rangeEnd = Math.max(entryTime, exitTime);
         var highestDuringTrade = -Infinity;
         var lowestDuringTrade = Infinity;
