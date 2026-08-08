@@ -14720,7 +14720,7 @@
       var currentTradeCvdChart = null;
       var currentTradeCvdSeries = null;
       var currentRiskRewardTrade = null;
-      var journalRrLocked = true;
+      var journalRrLocked = false;
       var journalRrSelected = false;
       var journalRrHitBounds = null;
       var journalRrClipboard = null;
@@ -14835,7 +14835,7 @@
         var menu = document.getElementById("journalRrSettings");
         var trade = currentRiskRewardTrade;
         if (!menu || !trade) return;
-        journalRrSettingsSnapshot = { rrEntry: trade.rrEntry, tp: trade.tp, sl: trade.sl, rrStyle: trade.rrStyle ? JSON.parse(JSON.stringify(trade.rrStyle)) : null, rrHidden: !!trade.rrHidden, rrLocked: trade.rrLocked !== false };
+        journalRrSettingsSnapshot = { rrEntry: trade.rrEntry, tp: trade.tp, sl: trade.sl, rrStyle: trade.rrStyle ? JSON.parse(JSON.stringify(trade.rrStyle)) : null, rrHidden: !!trade.rrHidden, rrLocked: trade.rrLocked === true };
         var style = getJournalRrStyle(trade);
         var step = getJournalTradeTickSize(trade, currentJournalChartData);
         ["journalRrEntryInput", "journalRrTpInput", "journalRrSlInput"].forEach(function (id) { document.getElementById(id).step = step; });
@@ -14854,7 +14854,7 @@
         document.getElementById("journalRrCompactStats").checked = style.compactStats;
         document.getElementById("journalRrAlwaysShowStats").checked = style.alwaysShowStats;
         document.getElementById("journalRrVisible").checked = !trade.rrHidden;
-        document.getElementById("journalRrEditable").checked = trade.rrLocked === false;
+        document.getElementById("journalRrEditable").checked = trade.rrLocked !== true;
         setChartSettingsTab("journalRrSettings", "style");
         centerChartSettingsMenu(menu, "chartDataPreviewContainer");
       }
@@ -16717,13 +16717,16 @@
       }
 
       function applyJournalChartPricePan() {
-        [currentLwSeries, currentRiskRewardTpScaleSeries, currentRiskRewardSlScaleSeries].forEach(function (series) {
+        if (currentLwSeries && typeof currentLwSeries.applyOptions === "function") {
+          currentLwSeries.applyOptions({
+            autoscaleInfoProvider: function (original) {
+              return journalChartAutoscaleInfoProvider(original);
+            },
+          });
+        }
+        [currentRiskRewardTpScaleSeries, currentRiskRewardSlScaleSeries].forEach(function (series) {
           if (series && typeof series.applyOptions === "function") {
-            series.applyOptions({
-              autoscaleInfoProvider: function (original) {
-                return journalChartAutoscaleInfoProvider(original);
-              },
-            });
+            series.applyOptions({ autoscaleInfoProvider: function () { return null; } });
           }
         });
         scheduleRiskRewardOverlayRender();
@@ -19044,7 +19047,7 @@
         var overlay = document.getElementById("riskRewardOverlay");
         if (!overlay || !currentLwChart || !currentLwSeries || !trade) return;
         currentRiskRewardTrade = trade;
-        journalRrLocked = trade.rrLocked !== false;
+        journalRrLocked = trade.rrLocked === true;
         overlay.innerHTML = "";
         overlay.style.pointerEvents = "none";
         overlay.style.zIndex = journalRrSelected || !journalRrLocked ? "40" : "10";
@@ -20235,6 +20238,7 @@
             lastValueVisible: false,
             priceLineVisible: false,
             crosshairMarkerVisible: false,
+            autoscaleInfoProvider: function () { return null; },
           });
           currentRiskRewardSlScaleSeries = currentLwChart.addLineSeries({
             color: 'rgba(255,255,255,0)',
@@ -20242,6 +20246,7 @@
             lastValueVisible: false,
             priceLineVisible: false,
             crosshairMarkerVisible: false,
+            autoscaleInfoProvider: function () { return null; },
           });
           
           var ro = new ResizeObserver(function(entries) {
