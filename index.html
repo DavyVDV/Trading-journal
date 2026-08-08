@@ -8682,6 +8682,9 @@
         endTime: "",
       };
 
+      var _dateFilterStartEl = null;
+      var _dateFilterEndEl = null;
+
       function getFilteredTrades() {
         var f = trades || [];
 
@@ -8713,12 +8716,10 @@
         }
 
         // Date range filter
-        var dStartNode =
-          document.getElementById("headerDateFilterStart") ||
-          document.getElementById("dateFilterStart");
-        var dEndNode =
-          document.getElementById("headerDateFilterEnd") ||
-          document.getElementById("dateFilterEnd");
+        if (!_dateFilterStartEl) _dateFilterStartEl = document.getElementById("headerDateFilterStart") || document.getElementById("dateFilterStart");
+        if (!_dateFilterEndEl) _dateFilterEndEl = document.getElementById("headerDateFilterEnd") || document.getElementById("dateFilterEnd");
+        var dStartNode = _dateFilterStartEl;
+        var dEndNode = _dateFilterEndEl;
         var dStart = dStartNode ? dStartNode.value : "";
         var dEnd = dEndNode ? dEndNode.value : "";
 
@@ -10329,7 +10330,17 @@
         }
       }
 
+      var _updateUIRafId = null;
+
       function updateUI() {
+        if (_updateUIRafId) return;
+        _updateUIRafId = requestAnimationFrame(function () {
+          _updateUIRafId = null;
+          _doUpdateUI();
+        });
+      }
+
+      function _doUpdateUI() {
         renderColVisibilitySelectors();
         renderHeaders();
         renderTable();
@@ -10723,6 +10734,10 @@
           return;
         }
 
+        var _hiddenColSet = {};
+        hiddenCols.forEach(function (k) { _hiddenColSet[k] = true; });
+        var _allRowsHtml = "";
+
         display.forEach(function (trade) {
           var c = trade.fee || 0;
           var net = trade.pnl - c;
@@ -10740,7 +10755,7 @@
 
           var cells = {
             select:
-              '<td class="px-4 py-2 text-center cursor-pointer select-none" onclick="toggleTradeSelect(\'' +
+              '<td data-col-key="select"' + (_hiddenColSet.select ? ' style="display:none"' : '') + ' class="px-4 py-2 text-center cursor-pointer select-none" onclick="toggleTradeSelect(\'' +
               trade.id +
               '\', event)"><input type="checkbox" ' +
               (isSelected ? "checked" : "") +
@@ -10748,59 +10763,59 @@
               trade.id +
               '\', event)" class="rounded-sm bg-terminal-input border-terminal text-white focus:ring-0 focus:outline-none outline-none focus:ring-offset-0 focus:border-transparent select-none w-3.5 h-3.5 cursor-pointer"></td>',
             time:
-              '<td class="px-4 py-2 font-mono text-zinc-300">' +
+              '<td data-col-key="time"' + (_hiddenColSet.time ? ' style="display:none"' : '') + ' class="px-4 py-2 font-mono text-zinc-300">' +
               dateStr +
               "</td>",
             symbol:
-              '<td class="px-4 py-2 font-bold text-white uppercase tracking-tight">' +
+              '<td data-col-key="symbol"' + (_hiddenColSet.symbol ? ' style="display:none"' : '') + ' class="px-4 py-2 font-bold text-white uppercase tracking-tight">' +
               esc(trade.symbol) +
               "</td>",
             side:
-              '<td class="px-4 py-2 font-bold text-[10px] ' +
+              '<td data-col-key="side"' + (_hiddenColSet.side ? ' style="display:none"' : '') + ' class="px-4 py-2 font-bold text-[10px] ' +
               (isLong ? "text-emerald-500" : "text-red-500") +
               '">' +
               (isLong ? "LONG" : "SHORT") +
               "</td>",
             volume:
-              '<td class="px-4 py-2 text-right text-zinc-300">' +
+              '<td data-col-key="volume"' + (_hiddenColSet.volume ? ' style="display:none"' : '') + ' class="px-4 py-2 text-right text-zinc-300">' +
               trade.volume +
               "</td>",
             prices:
-              '<td class="px-4 py-2 text-zinc-300 text-[11px] font-mono">' +
+              '<td data-col-key="prices"' + (_hiddenColSet.prices ? ' style="display:none"' : '') + ' class="px-4 py-2 text-zinc-300 text-[11px] font-mono">' +
               trade.entry.toFixed(2) +
-              " → " +
+              " \u2192 " +
               trade.exit.toFixed(2) +
               "</td>",
             pnl:
-              '<td class="px-4 py-2 text-right font-mono ' +
+              '<td data-col-key="pnl"' + (_hiddenColSet.pnl ? ' style="display:none"' : '') + ' class="px-4 py-2 text-right font-mono ' +
               (trade.pnl >= 0 ? "pnl-profit" : "pnl-loss") +
               '">' +
               fmtUSD(trade.pnl) +
               "</td>",
             commission:
-              '<td class="px-4 py-2 text-right text-zinc-300">-$' +
+              '<td data-col-key="commission"' + (_hiddenColSet.commission ? ' style="display:none"' : '') + ' class="px-4 py-2 text-right text-zinc-300">-$' +
               c.toFixed(2) +
               "</td>",
             netpnl:
-              '<td class="px-4 py-2 text-right font-mono ' +
+              '<td data-col-key="netpnl"' + (_hiddenColSet.netpnl ? ' style="display:none"' : '') + ' class="px-4 py-2 text-right font-mono ' +
               (net >= 0 ? "pnl-profit" : "pnl-loss") +
               '">' +
               fmtUSD(net) +
               "</td>",
             mfe:
-              '<td class="px-4 py-2 text-right font-mono text-emerald-300">' +
+              '<td data-col-key="mfe"' + (_hiddenColSet.mfe ? ' style="display:none"' : '') + ' class="px-4 py-2 text-right font-mono text-emerald-300">' +
               formatExcursionR(excursion && excursion.mfe) +
               "</td>",
             mae:
-              '<td class="px-4 py-2 text-right font-mono text-red-300">' +
+              '<td data-col-key="mae"' + (_hiddenColSet.mae ? ' style="display:none"' : '') + ' class="px-4 py-2 text-right font-mono text-red-300">' +
               formatExcursionR(excursion && excursion.mae) +
               "</td>",
             tags:
-              '<td class="px-4 py-2 max-w-xs">' +
+              '<td data-col-key="tags"' + (_hiddenColSet.tags ? ' style="display:none"' : '') + ' class="px-4 py-2 max-w-xs">' +
               renderTradeTagsContent(trade) +
               "</td>",
             screenshots:
-              '<td class="px-4 py-2 text-center" onclick="event.stopPropagation(); openModal(\'' +
+              '<td data-col-key="screenshots"' + (_hiddenColSet.screenshots ? ' style="display:none"' : '') + ' class="px-4 py-2 text-center" onclick="event.stopPropagation(); openModal(\'' +
               trade.id +
               "'); document.getElementById('screenshotInput').click();\"><i data-screenshot-trade-id=\"" +
               trade.id +
@@ -10810,7 +10825,7 @@
                 : "text-zinc-700 hover:text-zinc-300") +
               '"></i></td>',
             actions:
-              '<td class="px-4 py-2 text-center" onclick="event.stopPropagation()">' +
+              '<td data-col-key="actions"' + (_hiddenColSet.actions ? ' style="display:none"' : '') + ' class="px-4 py-2 text-center" onclick="event.stopPropagation()">' +
               "<button onclick=\"openManualTradeModal('" +
               trade.id +
               '\')" class="text-zinc-300 hover:text-blue-400 p-1 mr-1"><i class="fas fa-edit text-[11px]"></i></button>' +
@@ -10819,28 +10834,16 @@
               '\', event)" class="text-zinc-300 hover:text-red-400 p-1"><i class="fas fa-trash-alt text-[11px]"></i></button></td>',
           };
 
-          var tr = document.createElement("tr");
-          tr.className =
-            "hover:bg-zinc-900/60 transition-colors cursor-pointer border-b border-zinc-800/40 select-none " +
+          var trClass = "hover:bg-zinc-900/60 transition-colors cursor-pointer border-b border-zinc-800/40 select-none " +
             (isSelected ? "bg-zinc-800/20 " : "") +
             (options.skipAnimation ? "no-row-intro" : "");
-          tr.setAttribute("onclick", 'openModal("' + trade.id + '")');
-          tr.setAttribute("data-trade-id", trade.id);
-          var content = "";
-          var renderedKeys = [];
+          _allRowsHtml += '<tr class="' + trClass + '" onclick="openModal(\'' + trade.id + '\')" data-trade-id="' + trade.id + '">';
           colOrder.forEach(function (k) {
-            if (!cells[k]) return;
-            content += cells[k];
-            renderedKeys.push(k);
+            if (cells[k]) _allRowsHtml += cells[k];
           });
-          tr.innerHTML = content;
-          Array.from(tr.children).forEach(function (cell, index) {
-            var key = renderedKeys[index];
-            cell.setAttribute("data-col-key", key);
-            if (hiddenCols.indexOf(key) >= 0) cell.style.display = "none";
-          });
-          tbody.appendChild(tr);
+          _allRowsHtml += "</tr>";
         });
+        tbody.innerHTML = _allRowsHtml;
 
         var cb = document.getElementById("selectAllCheckbox");
         if (cb) {
@@ -10857,20 +10860,23 @@
       function renderDayChart(dayStats) {
         var canvas = document.getElementById("dagChart");
         if (!canvas) return;
-        if (dagChartInstance) {
-          dagChartInstance.destroy();
-        }
 
         var labels = ["Ma", "Di", "Wo", "Do", "Vr"];
         var data = [1, 2, 3, 4, 5].map(function (d) {
           return dayStats[d] ? dayStats[d].net : 0;
         });
-
         var backgroundColors = data.map(function (val) {
           return val >= 0
             ? "rgba(34, 189, 232, 0.82)"
             : "rgba(216, 58, 46, 0.82)";
         });
+
+        if (dagChartInstance) {
+          dagChartInstance.data.datasets[0].data = data;
+          dagChartInstance.data.datasets[0].backgroundColor = backgroundColors;
+          dagChartInstance.update("none");
+          return;
+        }
 
         dagChartInstance = new Chart(canvas.getContext("2d"), {
           type: "bar",
@@ -10915,9 +10921,6 @@
       function renderHourChart(hourStats) {
         var canvas = document.getElementById("uurChart");
         if (!canvas) return;
-        if (uurChartInstance) {
-          uurChartInstance.destroy();
-        }
 
         var labels = [];
         var data = [];
@@ -10925,12 +10928,18 @@
           labels.push(String(h).padStart(2, "0"));
           data.push(hourStats[h] ? hourStats[h].net : 0);
         }
-
         var backgroundColors = data.map(function (val) {
           return val >= 0
             ? "rgba(34, 189, 232, 0.82)"
             : "rgba(216, 58, 46, 0.82)";
         });
+
+        if (uurChartInstance) {
+          uurChartInstance.data.datasets[0].data = data;
+          uurChartInstance.data.datasets[0].backgroundColor = backgroundColors;
+          uurChartInstance.update("none");
+          return;
+        }
 
         uurChartInstance = new Chart(canvas.getContext("2d"), {
           type: "bar",
@@ -10971,6 +10980,8 @@
         });
       }
 
+      var _pnlChartIsProfitable = null;
+
       function renderChart() {
         var canvas = document.getElementById("pnlChart");
         if (!canvas) return;
@@ -10989,6 +11000,14 @@
           cum += t.pnl - (t.fee || 0);
           return Math.round(cum * 100) / 100;
         });
+        var isProfitable = cum >= 0;
+        if (pnlChartInstance && _pnlChartIsProfitable === isProfitable) {
+          pnlChartInstance.data.labels = labels;
+          pnlChartInstance.data.datasets[0].data = data;
+          pnlChartInstance.update("none");
+          return;
+        }
+        _pnlChartIsProfitable = isProfitable;
         if (pnlChartInstance) pnlChartInstance.destroy();
 
         var ctx = canvas.getContext("2d");
