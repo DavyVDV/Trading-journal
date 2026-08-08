@@ -12548,21 +12548,49 @@
       var tradeExcursionCache = new WeakMap();
 
       function calculateTradeMfeMae(trade) {
-        if (!trade || trade.rrRemoved) return null;
-        var requiredRrValues = [trade.rrEntry, trade.tp, trade.sl, trade.rrStartTime];
-        if (requiredRrValues.some(function (value) { return value === null || value === undefined || value === ""; })) return null;
-        var entryPrice = Number(trade.rrEntry);
-        var targetPrice = Number(trade.tp);
-        var stopPrice = Number(trade.sl);
-        var requestedEntryTime = Number(trade.rrStartTime);
-        if (![entryPrice, targetPrice, stopPrice, requestedEntryTime].every(Number.isFinite)) return null;
+        if (!trade || trade.rrRemoved || !(trade.time instanceof Date) || isNaN(trade.time)) return null;
         var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
+        var chartData = prepareJournalChartDataForTrade(source, trade);
+        if (!chartData || !chartData.length) return null;
+
+        function hasRrNumber(value) {
+          return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+        }
+
+        var entryPrice = hasRrNumber(trade.rrEntry) ? Number(trade.rrEntry) : Number(trade.entry);
+        if (!Number.isFinite(entryPrice)) return null;
+        var side = String(trade.side || "").toLowerCase();
+        var isLong = side.indexOf("buy") >= 0 || side === "long";
+        var isShort = side.indexOf("sell") >= 0 || side === "short";
+        if (!isLong && !isShort) return null;
+
+        var defaultRDistance = Math.max(entryPrice * 0.003, 0.5);
+        var exitPrice = Number(trade.exit);
+        if (Number.isFinite(exitPrice) && Math.abs(exitPrice - entryPrice) > entryPrice * 0.0001) {
+          var exitDistance = Math.abs(exitPrice - entryPrice);
+          if (exitDistance > 0.05) defaultRDistance = exitDistance;
+        }
+        var step = getJournalTradeTickSize(trade, chartData);
+        var stepText = String(step);
+        var decimals = stepText.indexOf(".") >= 0 ? stepText.split(".")[1].length : 0;
+        var stopPrice = hasRrNumber(trade.sl)
+          ? Number(trade.sl)
+          : Number((Math.round((isLong ? entryPrice - defaultRDistance : entryPrice + defaultRDistance) / step) * step).toFixed(Math.max(decimals, 2)));
+        var targetPrice = hasRrNumber(trade.tp)
+          ? Number(trade.tp)
+          : Number((Math.round((isLong ? entryPrice + defaultRDistance : entryPrice - defaultRDistance) / step) * step).toFixed(Math.max(decimals, 2)));
+        var requestedEntryTime = hasRrNumber(trade.rrStartTime)
+          ? Number(trade.rrStartTime)
+          : toChartTimestampFromLocalDate(trade.time);
+        if (![targetPrice, stopPrice, requestedEntryTime].every(Number.isFinite)) return null;
+
         var sourceLast = source && source.length ? source[source.length - 1] : null;
         var cacheSignature = [
           entryPrice,
           targetPrice,
           stopPrice,
           requestedEntryTime,
+          isLong ? "long" : "short",
           source ? source.length : 0,
           sourceLast ? sourceLast.time : "",
         ].join("|");
@@ -12570,19 +12598,14 @@
         if (cachedExcursion && cachedExcursion.source === source && cachedExcursion.signature === cacheSignature) {
           return cachedExcursion.value;
         }
-        var chartData = prepareJournalChartDataForTrade(source, trade);
-        if (!chartData || !chartData.length) return null;
-        var isLong = targetPrice > entryPrice && stopPrice < entryPrice;
-        var isShort = targetPrice < entryPrice && stopPrice > entryPrice;
-        if (!isLong && !isShort) return null;
 
         var risk = Math.abs(entryPrice - stopPrice);
         if (!Number.isFinite(risk) || risk <= 0) return null;
 
         var entryTime = findBestTradeCandleTime(chartData, requestedEntryTime, entryPrice);
-  if (!entryTime) return null;
+    if (!entryTime) return null;
         var startIndex = findJournalChartLowerBound(chartData, entryTime);
-  if (startIndex >= chartData.length) return null;
+    if (startIndex >= chartData.length) return null;
 
         function getRrHits(candle) {
           return {
