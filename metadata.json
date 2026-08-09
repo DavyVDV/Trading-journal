@@ -1,6 +1,0 @@
-{
-  "name": "Quantower Trading Journal",
-  "description": "Quantower Professional Terminal Journal for tracking, backtesting, and analyzing trades.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
