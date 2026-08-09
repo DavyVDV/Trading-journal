@@ -8157,9 +8157,72 @@
         if (el) el.classList.toggle("hidden");
       }
 
+      function closeTradeRowActionMenus(exceptMenu) {
+        document.querySelectorAll(".trade-row-actions-menu").forEach(function (menu) {
+          if (menu !== exceptMenu) menu.classList.add("hidden");
+        });
+      }
+
+      function toggleTradeRowActionsMenu(event, tradeId) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        var trigger = event && event.currentTarget;
+        var menu = trigger && trigger.parentElement
+          ? trigger.parentElement.querySelector(".trade-row-actions-menu")
+          : null;
+        if (!menu) return;
+        var isOpen = !menu.classList.contains("hidden");
+        closeTradeRowActionMenus(isOpen ? null : menu);
+        menu.classList.toggle("hidden", isOpen);
+      }
+
+      function openTradeRowActionsContextMenu(event, tradeId) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        var row = event && (event.currentTarget || (event.target && event.target.closest("tr[data-trade-id]")));
+        var menu = row ? row.querySelector(".trade-row-actions-menu") : null;
+        if (!menu) return;
+        closeTradeRowActionMenus(menu);
+        menu.style.position = "fixed";
+        menu.style.left = Math.max(8, Math.min(event.clientX, window.innerWidth - 178)) + "px";
+        menu.style.top = Math.max(8, Math.min(event.clientY, window.innerHeight - 145)) + "px";
+        menu.classList.remove("hidden");
+      }
+
+      function closeTradeRowActionMenu(event) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        closeTradeRowActionMenus(null);
+      }
+
+      function selectTradeFromRowMenu(event, tradeId) {
+        closeTradeRowActionMenu(event);
+        toggleTradeSelect(tradeId, event);
+      }
+
+      function editTradeFromRowMenu(event, tradeId) {
+        closeTradeRowActionMenu(event);
+        openManualTradeModal(tradeId);
+      }
+
+      function removeTradeFromRowMenu(event, tradeId) {
+        closeTradeRowActionMenu(event);
+        deleteTradeDirect(tradeId, event);
+      }
+
       document.addEventListener("click", function (event) {
         var target = event.target;
         if (!target) return;
+
+        if (!target.closest || !target.closest(".trade-row-actions-menu, .trade-row-actions-trigger")) {
+          closeTradeRowActionMenus(null);
+        }
 
         // 1. Top Right Menu (dataMenuDropdown & dataMenuDropdownMobile)
         var insideDataMenu = target.closest && (
@@ -10962,19 +11025,18 @@
                 : "text-zinc-700 hover:text-zinc-300") +
               '"></i></td>',
             actions:
-              '<td data-col-key="actions"' + (_hiddenColSet.actions ? ' style="display:none"' : '') + ' class="px-4 py-2 text-center" onclick="event.stopPropagation()">' +
-              "<button onclick=\"openManualTradeModal('" +
-              trade.id +
-              '\')" class="text-zinc-300 hover:text-blue-400 p-1 mr-1"><i class="fas fa-edit text-[11px]"></i></button>' +
-              "<button onclick=\"deleteTradeDirect('" +
-              trade.id +
-              '\', event)" class="text-zinc-300 hover:text-red-400 p-1"><i class="fas fa-trash-alt text-[11px]"></i></button></td>',
+              '<td data-col-key="actions"' + (_hiddenColSet.actions ? ' style="display:none"' : '') + ' class="px-4 py-2 text-center relative" onclick="event.stopPropagation()">' +
+              '<div class="trade-row-actions-menu hidden absolute right-2 top-10 z-40 w-[170px] overflow-hidden rounded-[6px] border border-[#303030] bg-[#202020] py-1 text-left text-[12px] text-zinc-200 shadow-2xl" onclick="event.stopPropagation()">' +
+              "<button type=\"button\" class=\"flex h-9 w-full items-center gap-3 px-3 text-left hover:bg-[#343434]\" onclick=\"selectTradeFromRowMenu(event, '" + trade.id + "')\"><i class=\"fas fa-check w-4 text-center text-zinc-300\"></i><span>Select</span></button>" +
+              "<button type=\"button\" class=\"flex h-9 w-full items-center gap-3 px-3 text-left hover:bg-[#343434]\" onclick=\"editTradeFromRowMenu(event, '" + trade.id + "')\"><i class=\"fas fa-pen w-4 text-center text-zinc-300\"></i><span>Edit</span></button>" +
+              "<button type=\"button\" class=\"flex h-9 w-full items-center gap-3 px-3 text-left hover:bg-red-500/15 hover:text-red-300\" onclick=\"removeTradeFromRowMenu(event, '" + trade.id + "')\"><i class=\"far fa-trash-can w-4 text-center\"></i><span>Remove</span></button>" +
+              '</div></td>',
           };
 
           var trClass = "hover:bg-zinc-900/60 transition-colors cursor-pointer border-b border-zinc-800/40 select-none " +
             (isSelected ? "bg-zinc-800/20 " : "") +
             (options.skipAnimation ? "no-row-intro" : "");
-          _allRowsHtml += '<tr class="' + trClass + '" onclick="openModal(\'' + trade.id + '\')" data-trade-id="' + trade.id + '">';
+          _allRowsHtml += '<tr class="' + trClass + '" onclick="openModal(\'' + trade.id + '\')" oncontextmenu="openTradeRowActionsContextMenu(event, \'' + trade.id + '\')" data-trade-id="' + trade.id + '">';
           colOrder.forEach(function (k) {
             if (cells[k]) _allRowsHtml += cells[k];
           });
