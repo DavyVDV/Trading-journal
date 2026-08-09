@@ -1355,35 +1355,22 @@
         main:has(#view-flowchart:not(.hidden)) {
           padding-bottom: 0 !important;
         }
-        #view-calendar:not(.hidden),
         #view-flowchart:not(.hidden) {
           display: flex !important;
           flex-direction: column;
           min-height: calc(100dvh - 126px);
           padding-bottom: 0 !important;
         }
-        #calendarGridWrapper,
         #flowchartWorkspace {
           flex: 1 1 auto;
           min-height: 0;
           overflow-y: auto;
         }
-        #calendarGridWrapper > div {
-          display: flex;
-          flex-direction: column;
-          min-height: 100%;
-        }
-        #calendarGrid {
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          min-height: 0;
-        }
-        #calendarGrid > div {
-          flex: 1 1 0% !important;
-          min-height: 95px;
-        }
+        #view-calendar:not(.hidden) { min-height: 0; }
+        #calendarGridWrapper { flex: 0 0 auto; }
+        #calendarGridWrapper > div { min-height: 0; }
+        #calendarGrid { min-height: 0; }
+        #calendarGrid > div { flex: 0 0 auto !important; }
       }
 
       @media (max-width: 767px) {
