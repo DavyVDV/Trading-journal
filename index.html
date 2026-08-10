@@ -3967,6 +3967,16 @@
                 </button>
                 <button
                   onclick="
+                    exportTradeDataCsv();
+                    toggleDropdown('dataMenuDropdownMobile');
+                  "
+                  class="w-full text-left px-3 py-2 hover:bg-zinc-800 hover:text-white rounded-sm text-xs transition-colors flex items-start"
+                >
+                  <i class="fas fa-file-download w-4 text-center mr-1.5 text-slate-200 mt-0.5 shrink-0"></i>
+                  <span>Export Trade Data</span>
+                </button>
+                <button
+                  onclick="
                     document.getElementById('globalChartDataInput').click();
                     toggleDropdown('dataMenuDropdownMobile');
                   "
@@ -4128,6 +4138,18 @@
                 class="fas fa-file-csv w-4 text-center mr-1.5 text-slate-200 mt-0.5 shrink-0"
               ></i>
               <span>Upload Trade Data</span>
+            </button>
+            <button
+              onclick="
+                exportTradeDataCsv();
+                toggleDropdown('dataMenuDropdown');
+              "
+              class="w-full text-left px-3 py-2 hover:bg-zinc-800 hover:text-white rounded-sm text-xs transition-colors flex items-start"
+            >
+              <i
+                class="fas fa-file-download w-4 text-center mr-1.5 text-slate-200 mt-0.5 shrink-0"
+              ></i>
+              <span>Export Trade Data</span>
             </button>
             <button
               onclick="
@@ -14423,6 +14445,83 @@
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function exportTradeDataCsv() {
+        var sourceTrades = Array.isArray(trades) ? trades : [];
+        var standardColumns = [
+          { key: "id", label: "ID" },
+          { key: "time", label: "Datum / Tijd" },
+          { key: "dateStr", label: "Datum" },
+          { key: "symbol", label: "Symbool" },
+          { key: "side", label: "Richting" },
+          { key: "volume", label: "Grootte" },
+          { key: "entry", label: "Entry" },
+          { key: "exit", label: "Exit" },
+          { key: "fee", label: "Commissie" },
+          { key: "pnl", label: "Bruto PNL" },
+          { key: "netpnl", label: "Netto PNL" },
+          { key: "mfe", label: "MFE" },
+          { key: "mae", label: "MAE" },
+          { key: "tags", label: "TAGS" },
+          { key: "screenshots", label: "Screenshots" },
+        ];
+        var standardKeys = standardColumns.map(function (column) { return column.key; });
+        var extraKeys = [];
+        sourceTrades.forEach(function (trade) {
+          Object.keys(trade || {}).forEach(function (key) {
+            if (standardKeys.indexOf(key) === -1 && extraKeys.indexOf(key) === -1) {
+              extraKeys.push(key);
+            }
+          });
+        });
+        extraKeys.sort();
+        var columns = standardColumns.concat(extraKeys.map(function (key) {
+          return { key: key, label: key };
+        }));
+
+        function csvValue(value) {
+          if (value === null || value === undefined) return "";
+          if (value instanceof Date) return value.toISOString();
+          if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
+            try { value = JSON.stringify(value); } catch (error) { value = String(value); }
+          }
+          var text = String(value);
+          return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+        }
+
+        function tradeValue(trade, key) {
+          if (key === "time") {
+            return trade.time instanceof Date ? trade.time.toISOString() : trade.time;
+          }
+          if (key === "netpnl") return (Number(trade.pnl) || 0) - (Number(trade.fee) || 0);
+          if (key === "mfe" || key === "mae") {
+            var excursion = calculateTradeMfeMae(trade);
+            return formatExcursionR(excursion && excursion[key]);
+          }
+          if (key === "screenshots") {
+            return Array.isArray(trade.screenshots) ? trade.screenshots.length : 0;
+          }
+          return trade[key];
+        }
+
+        var csvRows = [columns.map(function (column) { return csvValue(column.label); })];
+        sourceTrades.forEach(function (trade) {
+          csvRows.push(columns.map(function (column) {
+            return csvValue(tradeValue(trade, column.key));
+          }));
+        });
+        var csv = "\uFEFF" + csvRows.map(function (row) { return row.join(","); }).join("\r\n");
+        var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var anchor = document.createElement("a");
+        var date = new Date().toISOString().slice(0, 10);
+        anchor.href = url;
+        anchor.download = "trade-data-" + date + ".csv";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
         URL.revokeObjectURL(url);
       }
 
