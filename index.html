@@ -14451,14 +14451,11 @@
       function exportTradeDataCsv() {
         var sourceTrades = Array.isArray(trades) ? trades : [];
         var standardColumns = [
-          { key: "id", label: "ID" },
           { key: "time", label: "Datum / Tijd" },
-          { key: "dateStr", label: "Datum" },
           { key: "symbol", label: "Symbool" },
           { key: "side", label: "Richting" },
           { key: "volume", label: "Grootte" },
-          { key: "entry", label: "Entry" },
-          { key: "exit", label: "Exit" },
+          { key: "prices", label: "In- / Uitstap" },
           { key: "fee", label: "Commissie" },
           { key: "pnl", label: "Bruto PNL" },
           { key: "netpnl", label: "Netto PNL" },
@@ -14467,19 +14464,7 @@
           { key: "tags", label: "TAGS" },
           { key: "screenshots", label: "Screenshots" },
         ];
-        var standardKeys = standardColumns.map(function (column) { return column.key; });
-        var extraKeys = [];
-        sourceTrades.forEach(function (trade) {
-          Object.keys(trade || {}).forEach(function (key) {
-            if (standardKeys.indexOf(key) === -1 && extraKeys.indexOf(key) === -1) {
-              extraKeys.push(key);
-            }
-          });
-        });
-        extraKeys.sort();
-        var columns = standardColumns.concat(extraKeys.map(function (key) {
-          return { key: key, label: key };
-        }));
+        var columns = standardColumns;
 
         function csvValue(value) {
           if (value === null || value === undefined) return "";
@@ -14494,6 +14479,13 @@
         function tradeValue(trade, key) {
           if (key === "time") {
             return trade.time instanceof Date ? trade.time.toISOString() : trade.time;
+          }
+          if (key === "side") {
+            var side = String(trade.side || "").toLowerCase();
+            return side.indexOf("buy") >= 0 || side === "long" ? "LONG" : "SHORT";
+          }
+          if (key === "prices") {
+            return Number(trade.entry || 0).toFixed(2) + " -> " + Number(trade.exit || 0).toFixed(2);
           }
           if (key === "netpnl") return (Number(trade.pnl) || 0) - (Number(trade.fee) || 0);
           if (key === "mfe" || key === "mae") {
