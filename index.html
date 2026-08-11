@@ -11573,7 +11573,7 @@
       function renderModalTags() {
         var containerActive = document.getElementById("modalActiveTags");
         containerActive.innerHTML = "";
-        currentEditTags.forEach(function (t) {
+        sortJournalTradeTags(currentEditTags).forEach(function (t) {
           var pill = document.createElement("span");
           pill.className =
             "active-tag px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 select-none border";
