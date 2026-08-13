@@ -15894,6 +15894,7 @@
 
       var SHARED_FOOTPRINT_TEMPLATES_KEY = "qt_shared_footprint_templates_v1";
       var SHARED_LAYOUT_PROFILES_KEY = "qt_shared_layout_profiles_v1";
+      var activeJournalLayoutProfileName = "";
       var SHARED_FOOTPRINT_DEFAULT_KEY = "qt_shared_footprint_default_v1";
       var SHARED_LAYOUT_DEFAULT_KEY = "qt_shared_layout_default_v1";
       var SHARED_FOOTPRINT_ACTIVE_KEY = "qt_shared_footprint_active_v1";
@@ -16646,8 +16647,24 @@
 
       function saveSharedLayoutProfile(source) {
         var input = document.getElementById(source === "backtest" ? "btLayoutProfileName" : "journalLayoutProfileName");
-        saveNamedSharedProfile(SHARED_LAYOUT_PROFILES_KEY, input && input.value, "layout", currentSharedLayout(source));
+        var profileName = input && input.value;
+        saveNamedSharedProfile(SHARED_LAYOUT_PROFILES_KEY, profileName, "layout", currentSharedLayout(source));
+        if (source === "journal" && String(profileName || "").trim()) {
+          activeJournalLayoutProfileName = String(profileName).trim();
+        }
         if (input) input.value = "";
+      }
+
+      function updateActiveJournalLayoutProfile(workspace) {
+        if (!activeJournalLayoutProfileName || !workspace) return;
+        var profiles = readSharedProfiles(SHARED_LAYOUT_PROFILES_KEY);
+        var profileIndex = profiles.findIndex(function (item) {
+          return item && item.name.toLowerCase() === activeJournalLayoutProfileName.toLowerCase();
+        });
+        if (profileIndex < 0) return;
+        profiles[profileIndex].layout = cloneSharedValue(normalizeSharedLayout(workspace));
+        localStorage.setItem(SHARED_LAYOUT_PROFILES_KEY, JSON.stringify(profiles));
+        renderSharedChartProfileLists();
       }
 
       function saveSharedFootprintTemplate(source) {
@@ -16670,6 +16687,7 @@
         var trade = getCurrentJournalChartTrade();
         if (!trade) return;
         var workspace = getJournalChartWorkspace(trade);
+        activeJournalLayoutProfileName = profile.name;
         trade.chartWorkspace = Object.assign({}, layout, { footprint: workspace.footprint });
         journalTradeChartTimeframe = layout.panels[0].timeframe;
         saveData({ skipUpdate: true });
@@ -19039,6 +19057,7 @@
         if (trade) {
           trade.chartWorkspace = state.workspace;
           saveData({ skipUpdate: true });
+          updateActiveJournalLayoutProfile(state.workspace);
         }
         var cells = applyJournalChartWorkspaceGeometry(state.workspace);
         renderJournalChartGridSplitters(state.workspace, cells);
