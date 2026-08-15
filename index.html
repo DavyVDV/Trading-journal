@@ -6910,10 +6910,40 @@
       var sortCol = localStorage.getItem("qt_sortCol") || "time";
       var sortDir = localStorage.getItem("qt_sortDir") || "desc";
       var activeTab = "dashboard";
+      var popupStackZIndex = 1000;
 
       var currentCalendarDate = new Date(); // Added for Calendar View
 
       var colWidths = {};
+
+      function isStackedPopup(element) {
+        if (!element || !element.id) return false;
+        return /(?:Modal|modal|Menu|menu)$/.test(element.id) || element.classList.contains("trade-context-menu");
+      }
+
+      function bringPopupToFront(element) {
+        if (!isStackedPopup(element) || element.classList.contains("hidden")) return;
+        element.style.zIndex = String(++popupStackZIndex);
+      }
+
+      function setupPopupStacking() {
+        var popupObserver = new MutationObserver(function (mutations) {
+          mutations.forEach(function (mutation) {
+            if (mutation.type === "attributes" && mutation.attributeName === "class") {
+              bringPopupToFront(mutation.target);
+              return;
+            }
+            mutation.addedNodes.forEach(function (node) {
+              if (node.nodeType !== 1) return;
+              if (isStackedPopup(node)) bringPopupToFront(node);
+              node.querySelectorAll("[id]").forEach(function (child) { bringPopupToFront(child); });
+            });
+          });
+        });
+        popupObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+        document.querySelectorAll("[id]").forEach(bringPopupToFront);
+      }
+
       function initColResize(e, resizer) {
         var th = resizer.parentElement;
         var startX = e.pageX;
@@ -7055,6 +7085,7 @@
         loadData();
         setupColumnFilterClickHandler();
         setupInteractivePolish();
+        setupPopupStacking();
 
         // Setup initial MC stats
         resetMCStats();
