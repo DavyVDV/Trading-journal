@@ -4087,7 +4087,7 @@
             id="tab-calendar"
             class="py-1 border-b-2 border-transparent transition-colors hover:text-zinc-200 whitespace-nowrap snap-start"
           >
-            Kalender
+            Calendar
           </button>
           <button
             onclick="switchTab('montecarlo')"
@@ -6290,21 +6290,7 @@
         </div>
         <div class="flex-1 overflow-auto bg-zinc-950">
           <table class="w-full text-left font-mono text-[11px] text-slate-200">
-            <thead class="bg-zinc-900/60 sticky top-0 z-10 shadow-md">
-              <tr class="text-[10px] uppercase text-zinc-300 tracking-wider">
-                <th class="px-4 py-2">Tijd</th>
-                <th class="px-4 py-2">Symbool</th>
-                <th class="px-4 py-2">Richting</th>
-                <th class="px-4 py-2 text-right">Volume</th>
-                <th class="px-4 py-2 text-right">In- / Uitstap</th>
-                <th class="px-4 py-2 text-right">PNL</th>
-                <th class="px-4 py-2 text-right">Netto PNL</th>
-                <th class="px-4 py-2">Tags</th>
-                <th class="px-4 py-2 text-center">
-                  <i class="fas fa-camera"></i>
-                </th>
-              </tr>
-            </thead>
+            <thead class="bg-zinc-900/60 sticky top-0 z-10 shadow-md"><tr id="dayTradesModalHeaderRow" class="text-[10px] uppercase text-zinc-300 tracking-wider"></tr></thead>
             <tbody id="dayTradesModalBody"></tbody>
           </table>
         </div>
@@ -10888,10 +10874,10 @@
 
       function renderTable(options) {
         options = options || {};
-        var tbody = document.getElementById("tradeTableBody");
+        var tbody = options.targetBody || document.getElementById("tradeTableBody");
         var searchInput = document.getElementById("searchInput");
         var search = searchInput ? searchInput.value.toLowerCase().trim() : "";
-        var filtered = getFilteredTrades();
+        var filtered = options.sourceTrades || getFilteredTrades();
 
         var display = filtered.filter(function (t) {
           if (!search) return true;
@@ -10924,7 +10910,7 @@
             '<tr><td colspan="' +
             Math.max(1, visibleColumnCount) +
             '" class="px-4 py-6 text-center text-zinc-300 italic">Geen uitvoeringen gevonden binnen deze weergave.</td></tr>';
-          updateBulkActionBar();
+          if (!options.targetBody) updateBulkActionBar();
           return;
         }
 
@@ -11039,7 +11025,7 @@
         });
         tbody.innerHTML = _allRowsHtml;
 
-        var cb = document.getElementById("selectAllCheckbox");
+        var cb = options.targetBody ? null : document.getElementById("selectAllCheckbox");
         if (cb) {
           cb.checked =
             display.length > 0 &&
@@ -11047,7 +11033,7 @@
               return selectedTrades.indexOf(t.id) !== -1;
             });
         }
-        updateBulkActionBar();
+        if (!options.targetBody) updateBulkActionBar();
       }
 
       var dagChartInstance = null;
@@ -12015,6 +12001,49 @@
         }
       }
 
+      var activeDayTradesModalDate = null;
+
+      function renderDayTradesModalHeaders() {
+        var row = document.getElementById("dayTradesModalHeaderRow");
+        if (!row) return;
+        row.innerHTML = "";
+        colOrder.forEach(function (key) {
+          if (hiddenCols.indexOf(key) >= 0) return;
+          var def = COLUMN_DEFS.find(function (column) { return column.key === key; });
+          if (!def) return;
+          var th = document.createElement("th");
+          th.className = "px-4 py-2" + (def.align === "right" ? " text-right" : def.align === "center" ? " text-center" : "");
+          th.setAttribute("data-col-key", key);
+          if (def.sortable) {
+            th.classList.add("cursor-pointer", "hover:text-white");
+            th.onclick = function () {
+              sortBy(key);
+              renderDayTradesModal();
+            };
+          }
+          var indicator = def.sortable && key === sortCol ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+          th.innerHTML = def.label + indicator;
+          row.appendChild(th);
+        });
+      }
+
+      function getCalendarDayTrades(y, m, d) {
+        return getFilteredTrades().filter(function (trade) {
+          var date = trade.time instanceof Date ? trade.time : new Date(trade.time);
+          return date.getFullYear() === y && date.getMonth() === m && date.getDate() === d;
+        });
+      }
+
+      function renderDayTradesModal() {
+        if (!activeDayTradesModalDate) return;
+        renderDayTradesModalHeaders();
+        renderTable({
+          targetBody: document.getElementById("dayTradesModalBody"),
+          sourceTrades: getCalendarDayTrades(activeDayTradesModalDate.year, activeDayTradesModalDate.month, activeDayTradesModalDate.day),
+          skipAnimation: true,
+        });
+      }
+
       function openDayTradesModal(y, m, d) {
         document.getElementById("dayTradesModal").classList.remove("hidden");
         document.addEventListener("keydown", closeDayTradesModalOnEsc);
@@ -12035,94 +12064,8 @@
         document.getElementById("dayTradesModalTitle").innerText =
           "Trades op " + d + " " + monthNames[m] + " " + y;
 
-        var filteredTrades = getFilteredTrades()
-          .filter(function (t) {
-            var dt = t.time instanceof Date ? t.time : new Date();
-            return (
-              dt.getFullYear() === y &&
-              dt.getMonth() === m &&
-              dt.getDate() === d
-            );
-          })
-          .sort(function (a, b) {
-            return a.time - b.time;
-          });
-
-        var tbody = document.getElementById("dayTradesModalBody");
-        tbody.innerHTML = "";
-
-        filteredTrades.forEach(function (trade) {
-          var c = trade.fee || 0;
-          var net = trade.pnl - c;
-          var isLong =
-            trade.side.toLowerCase().indexOf("buy") >= 0 ||
-            trade.side.toLowerCase() === "long";
-          var tDateStr =
-            trade.time instanceof Date ? fmtTimeCore(trade.time) : "";
-
-          var tagsHtml = (trade.tags || [])
-            .map(function (tg) {
-              return (
-                '<span class="trade-tag colored-tag px-1 py-0.5 rounded-sm border uppercase" style="' +
-                getTagBadgeStyle(tg) +
-                '">' +
-                esc(String(tg).replace(/_/g, " ")) +
-                "</span>"
-              );
-            })
-            .join("");
-          var hasScreenshot = trade.screenshots && trade.screenshots.length > 0;
-
-          var tr = document.createElement("tr");
-          tr.className =
-            "hover:bg-zinc-900/60 border-b border-zinc-800/40 cursor-pointer";
-          tr.setAttribute("onclick", 'openModal("' + trade.id + '")');
-          tr.innerHTML =
-            '<td class="px-4 py-2 font-mono text-zinc-300">' +
-            tDateStr +
-            "</td>" +
-            '<td class="px-4 py-2 font-bold text-white uppercase">' +
-            esc(trade.symbol) +
-            "</td>" +
-            '<td class="px-4 py-2 font-bold text-[10px] ' +
-            (isLong ? "text-emerald-500" : "text-red-500") +
-            '">' +
-            (isLong ? "LONG" : "SHORT") +
-            "</td>" +
-            '<td class="px-4 py-2 text-right text-zinc-300">' +
-            trade.volume +
-            "</td>" +
-            '<td class="px-4 py-2 text-right text-[11px] text-zinc-300 font-mono">' +
-            trade.entry.toFixed(2) +
-            " → " +
-            trade.exit.toFixed(2) +
-            "</td>" +
-            '<td class="px-4 py-2 text-right font-mono ' +
-            (trade.pnl >= 0 ? "pnl-profit" : "pnl-loss") +
-            '">' +
-            fmtUSD(trade.pnl) +
-            "</td>" +
-            '<td class="px-4 py-2 text-right font-mono ' +
-            (net >= 0 ? "pnl-profit" : "pnl-loss") +
-            '">' +
-            fmtUSD(net) +
-            "</td>" +
-            '<td class="px-4 py-2 max-w-xs"><div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px">' +
-            tagsHtml +
-            "</div></td>" +
-            '<td class="px-4 py-2 text-center" onclick="event.stopPropagation()">' +
-            "<i onclick=\"openModal('" +
-            trade.id +
-            "'); document.getElementById('screenshotInput').click();\" data-screenshot-trade-id=\"" +
-            trade.id +
-            "\" class=\"fas fa-check-circle cursor-pointer transition-colors " +
-            (hasScreenshot
-              ? "text-emerald-500"
-              : "text-zinc-700 hover:text-zinc-300") +
-            '" title="Voeg screenshot toe"></i>' +
-            "</td>";
-          tbody.appendChild(tr);
-        });
+        activeDayTradesModalDate = { year: y, month: m, day: d };
+        renderDayTradesModal();
       }
       function closeDayTradesModal() {
         document.getElementById("dayTradesModal").classList.add("hidden");
