@@ -9470,6 +9470,8 @@
           return a.time - b.time;
         });
         saveData();
+        updateUI();
+        refreshOpenDayTradesModal();
         closeManualTradeModal();
       }
 
@@ -12086,6 +12088,12 @@
         });
       }
 
+      function refreshOpenDayTradesModal() {
+        var modal = document.getElementById("dayTradesModal");
+        if (!modal || modal.classList.contains("hidden") || !activeDayTradesModalDate) return;
+        renderDayTradesModal();
+      }
+
       function openDayTradesModal(y, m, d) {
         document.getElementById("dayTradesModal").classList.remove("hidden");
         document.addEventListener("keydown", closeDayTradesModalOnEsc);
@@ -12242,6 +12250,7 @@
         }
         trade.tags = currentEditTags.slice();
         updateTradeTagsInRenderedTable(trade);
+        refreshOpenDayTradesModal();
         scheduleSilentTradeSave();
         if (activeTab === "analytics") {
           renderAnalyticsView();
