@@ -16916,7 +16916,6 @@
           var resolvedValue = value == null ? Number(bar.close) : value;
           try { target.chart.setCrosshairPosition(resolvedValue, Number(bar.time), target.series); } catch (error) {}
           if (!target.paneElement || target.chart === sourceChart) return;
-          if (target.siblingChart === sourceChart) { hideJournalSyncLine(target.chart); return; }
           try {
             var coordinateX = target.chart.timeScale().timeToCoordinate(Number(bar.time));
             var coordinateY = !sourceIsCvd && !target.isCvd && target.series && Number.isFinite(resolvedValue) ? target.series.priceToCoordinate(resolvedValue) : null;
@@ -17455,13 +17454,13 @@
         });
         var canvas = document.getElementById("journalChartDrawingCanvas");
         if (canvas) {
-          canvas.style.pointerEvents = "auto";
+          canvas.style.pointerEvents = journalChartTool === "cursor" ? "none" : "auto";
           canvas.style.cursor = journalChartTool === "cursor" ? "default" : "crosshair";
         }
         if (Array.isArray(journalSecondaryCharts)) {
           journalSecondaryCharts.forEach(function (rec) {
             if (rec.drawingCanvas) {
-              rec.drawingCanvas.style.pointerEvents = "auto";
+              rec.drawingCanvas.style.pointerEvents = journalChartTool === "cursor" ? "none" : "auto";
               rec.drawingCanvas.style.cursor = journalChartTool === "cursor" ? "default" : "crosshair";
             }
           });
@@ -23015,7 +23014,6 @@
           backtestCrosshairProgrammaticUntil.set(target.chart, Date.now() + 32);
           try { target.chart.setCrosshairPosition(value, Number(bar.time), target.series); } catch (error) {}
           if (!target.paneElement || target.chart === sourceChart) return;
-          if (target.siblingChart === sourceChart) { hideJournalSyncLine(target.chart); return; }
           try {
             var coordinateX = target.chart.timeScale().timeToCoordinate(Number(bar.time));
             var coordinateY = !sourceIsCvd && !target.isCvd && target.series && Number.isFinite(value) ? target.series.priceToCoordinate(value) : null;
