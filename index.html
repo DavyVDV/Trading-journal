@@ -1891,7 +1891,7 @@
       .journal-sync-crosshair-line {
         position: fixed;
         pointer-events: none;
-        z-index: 999;
+        z-index: 100000;
         display: none;
       }
       .journal-sync-crosshair-vertical {
@@ -2612,10 +2612,12 @@
         touch-action: none;
       }
       html.light-mode #journalCrosshairVertical,
+      html.light-mode .journal-sync-crosshair-vertical,
       html.light-mode #btSharedCrosshairVertical {
         background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .78) 0 3px, transparent 3px 6px) !important;
       }
       html.light-mode #journalCrosshairHorizontal,
+      html.light-mode .journal-sync-crosshair-horizontal,
       html.light-mode #btSharedCrosshairHorizontal {
         background: repeating-linear-gradient(to right, rgba(0, 0, 0, .78) 0 3px, transparent 3px 6px) !important;
       }
