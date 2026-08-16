@@ -6181,7 +6181,10 @@
                         <label><span class="bt-label">Max. waarde (volle kleur)</span><input id="journalFootprintColorIntensityMax" type="number" min="1" step="1" class="bt-input" oninput="updateJournalChartWorkspaceSettings()" /></label>
                         <label><span class="bt-label">Threshold highlight</span><select id="journalFootprintThresholdMetric" class="bt-input" onchange="updateJournalChartWorkspaceSettings()"><option value="none">Uit</option><option value="absoluteDelta">Absolute delta</option><option value="volume">Volume</option></select></label>
                         <label><span class="bt-label">Threshold waarde</span><input id="journalFootprintThresholdValue" type="number" min="0" step="1" class="bt-input" oninput="updateJournalChartWorkspaceSettings()" /></label>
-                        <label><span class="bt-label">Threshold kleur</span><input id="journalFootprintThresholdColor" type="color" class="bt-input !p-1" oninput="updateJournalChartWorkspaceSettings()" /></label>
+                        <label><span class="bt-label">Onder threshold positief</span><input id="journalFootprintThresholdBelowPositiveColor" type="color" class="bt-input !p-1" oninput="updateJournalChartWorkspaceSettings()" /></label>
+                        <label><span class="bt-label">Onder threshold negatief</span><input id="journalFootprintThresholdBelowNegativeColor" type="color" class="bt-input !p-1" oninput="updateJournalChartWorkspaceSettings()" /></label>
+                        <label><span class="bt-label">Boven threshold positief</span><input id="journalFootprintThresholdAbovePositiveColor" type="color" class="bt-input !p-1" oninput="updateJournalChartWorkspaceSettings()" /></label>
+                        <label><span class="bt-label">Boven threshold negatief</span><input id="journalFootprintThresholdAboveNegativeColor" type="color" class="bt-input !p-1" oninput="updateJournalChartWorkspaceSettings()" /></label>
                       </div>
                       <p class="text-[9px] text-zinc-500 leading-snug">Bij "vaste max-intensiteit": elke cel wordt gekleurd op basis van de ingestelde kleurmodus-waarde (bv. delta) t.o.v. deze max. Een waarde gelijk aan of hoger dan deze max krijgt de felste kleur, een kleine waarde (bv. 1) de lichtste tint — vergelijkbaar over alle candles heen i.p.v. per candle herschaald.</p>
                       <details class="shared-profile-library">
@@ -15888,7 +15891,9 @@
           buyColor: "#22bde8", sellColor: "#d83a2e", neutralColor: "#64748b", pocColor: "#facc15",
           showBars: true, showPoc: true, showValueArea: false, showTotals: true, highlightStacked: true,
           colorIntensityFixed: false, colorIntensityMax: 100,
-          thresholdMetric: "none", thresholdValue: 80, thresholdColor: "#facc15",
+          thresholdMetric: "none", thresholdValue: 80,
+          thresholdBelowPositiveColor: "#164e63", thresholdBelowNegativeColor: "#7f1d1d",
+          thresholdAbovePositiveColor: "#22d3ee", thresholdAboveNegativeColor: "#ef4444",
         };
       }
 
@@ -16154,7 +16159,7 @@
         view: ["View", "Visualization", "Primary", "NumberFormat", "FontSize", "ShowBars"],
         data: ["Primary", "Secondary", "Step", "Filter"],
         colors: ["ColorMode", "Opacity", "BuyColor", "SellColor", "NeutralColor", "PocColor"],
-        markers: ["Imbalance", "ImbalanceMin", "ValueArea", "ShowPoc", "ShowValueArea", "ShowTotals", "HighlightStacked", "ThresholdMetric", "ThresholdValue", "ThresholdColor"],
+        markers: ["Imbalance", "ImbalanceMin", "ValueArea", "ShowPoc", "ShowValueArea", "ShowTotals", "HighlightStacked", "ThresholdMetric", "ThresholdValue", "ThresholdBelowPositiveColor", "ThresholdBelowNegativeColor", "ThresholdAbovePositiveColor", "ThresholdAboveNegativeColor"],
       };
 
       function initializeFootprintSettingGroups(kind) {
@@ -16540,7 +16545,10 @@
         document.getElementById("journalFootprintColorIntensityMax").value = fp.colorIntensityMax || 100;
         document.getElementById("journalFootprintThresholdMetric").value = fp.thresholdMetric || "none";
         document.getElementById("journalFootprintThresholdValue").value = Number.isFinite(Number(fp.thresholdValue)) ? fp.thresholdValue : 80;
-        document.getElementById("journalFootprintThresholdColor").value = fp.thresholdColor || "#facc15";
+        document.getElementById("journalFootprintThresholdBelowPositiveColor").value = fp.thresholdBelowPositiveColor || "#164e63";
+        document.getElementById("journalFootprintThresholdBelowNegativeColor").value = fp.thresholdBelowNegativeColor || "#7f1d1d";
+        document.getElementById("journalFootprintThresholdAbovePositiveColor").value = fp.thresholdAbovePositiveColor || "#22d3ee";
+        document.getElementById("journalFootprintThresholdAboveNegativeColor").value = fp.thresholdAboveNegativeColor || "#ef4444";
         var syncChk = document.getElementById("journalWorkspaceCrosshairSync");
         if (syncChk) syncChk.checked = workspace.syncCrosshair !== false;
         renderJournalLayoutPresets(workspace);
@@ -16575,6 +16583,8 @@
         var trade = getCurrentJournalChartTrade();
         if (!trade) return;
         populateJournalFootprintDataTypes();
+        var thresholdMetricInput = document.getElementById("journalFootprintThresholdMetric");
+        if (thresholdMetricInput.value !== "none") document.getElementById("journalFootprintColorIntensityFixed").checked = false;
         var previous = getJournalChartWorkspace(trade);
         var count = previous.count;
         var panels = previous.panels.slice(0, count);
@@ -16604,11 +16614,14 @@
           showValueArea: document.getElementById("journalFootprintShowValueArea").checked,
           showTotals: document.getElementById("journalFootprintShowTotals").checked,
           highlightStacked: document.getElementById("journalFootprintHighlightStacked").checked,
-          colorIntensityFixed: document.getElementById("journalFootprintColorIntensityFixed").checked,
+          colorIntensityFixed: document.getElementById("journalFootprintThresholdMetric").value === "none" && document.getElementById("journalFootprintColorIntensityFixed").checked,
           colorIntensityMax: Math.max(1, Number(document.getElementById("journalFootprintColorIntensityMax").value) || 100),
           thresholdMetric: document.getElementById("journalFootprintThresholdMetric").value,
           thresholdValue: Math.max(0, Number(document.getElementById("journalFootprintThresholdValue").value) || 0),
-          thresholdColor: document.getElementById("journalFootprintThresholdColor").value,
+          thresholdBelowPositiveColor: document.getElementById("journalFootprintThresholdBelowPositiveColor").value,
+          thresholdBelowNegativeColor: document.getElementById("journalFootprintThresholdBelowNegativeColor").value,
+          thresholdAbovePositiveColor: document.getElementById("journalFootprintThresholdAbovePositiveColor").value,
+          thresholdAboveNegativeColor: document.getElementById("journalFootprintThresholdAboveNegativeColor").value,
         };
         trade.chartWorkspace = {
           count: count,
@@ -18785,7 +18798,8 @@
               : settings.thresholdMetric === "volume" ? getJournalFootprintMetric(level, "volume", settings.filter) : 0;
             var thresholdEnabled = settings.thresholdMetric === "absoluteDelta" || settings.thresholdMetric === "volume";
             var thresholdHit = thresholdEnabled && thresholdMetric >= Math.max(0, Number(settings.thresholdValue) || 0);
-            var intensity = thresholdEnabled ? (thresholdHit ? 1 : 0) : settings.colorMode === "none" ? .45 : Math.max(.12, Math.min(1, Math.abs(colorValue) / maxColorValue));
+            var intensity = thresholdEnabled ? 1 : settings.colorMode === "none" ? .45 : Math.max(.12, Math.min(1, Math.abs(colorValue) / maxColorValue));
+            var deltaValue = getJournalFootprintMetric(level, "delta", settings.filter);
             var baseColor = settings.neutralColor;
             if (settings.colorMode === "delta" || (settings.view === "single" && settings.primary === "delta" && settings.colorMode !== "none")) {
               var dVal = (settings.view === "single" && settings.primary === "delta") ? primaryValue : colorValue;
@@ -18793,12 +18807,15 @@
             } else if (settings.colorMode !== "none") baseColor = Number(level.buyVolume) >= Number(level.sellVolume) ? settings.buyColor : settings.sellColor;
             var fillWidth = settings.visualization === "histogram" ? barWidth * Math.min(1, Math.abs(primaryValue) / maxPrimary) : barWidth;
             var fillLeft = settings.visualization === "histogram" ? left + (barWidth - fillWidth) / 2 : left;
+            var thresholdColor = thresholdHit
+              ? (deltaValue >= 0 ? settings.thresholdAbovePositiveColor : settings.thresholdAboveNegativeColor)
+              : (deltaValue >= 0 ? settings.thresholdBelowPositiveColor : settings.thresholdBelowNegativeColor);
             if (intensity > 0) {
-              context.fillStyle = journalHexToRgba(thresholdHit ? settings.thresholdColor : baseColor, thresholdHit ? Math.max(.55, settings.opacity) : settings.opacity * intensity);
+              context.fillStyle = journalHexToRgba(thresholdEnabled ? thresholdColor : baseColor, thresholdEnabled ? Math.max(.55, settings.opacity) : settings.opacity * intensity);
               context.fillRect(fillLeft, top, fillWidth, cellHeight);
             }
             if (thresholdHit) {
-              context.strokeStyle = settings.thresholdColor; context.lineWidth = 1.5;
+              context.strokeStyle = thresholdColor; context.lineWidth = 1.5;
               context.strokeRect(fillLeft + .75, top + .75, Math.max(1, fillWidth - 1.5), Math.max(1, cellHeight - 1.5));
             }
             if (valueArea && level.price >= valueArea.low && level.price <= valueArea.high) {
