@@ -17026,8 +17026,8 @@
               var measuredSecondaryScaleWidth = sourceChart.priceScale("right").width();
               if (Number.isFinite(measuredSecondaryScaleWidth)) secondaryScaleWidth = measuredSecondaryScaleWidth;
             } catch (error) {}
-            var secondaryLocalX = event.clientX - priceRect.left;
-            var secondaryPlotRight = Math.max(0, priceRect.width - secondaryScaleWidth);
+            var secondaryLocalX = event.clientX - sourceRect.left;
+            var secondaryPlotRight = Math.max(0, sourceRect.width - secondaryScaleWidth);
             if (secondaryLocalX < 0 || secondaryLocalX > secondaryPlotRight) return hideJournalSharedCrosshair();
             var secondaryTime = sourceChart.timeScale().coordinateToTime(secondaryLocalX);
             var secondaryPrice = sourceSeries ? sourceSeries.coordinateToPrice(event.clientY - sourceRect.top) : NaN;
