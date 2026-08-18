@@ -2902,7 +2902,6 @@
       .shared-profile-create { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 6px; }
       .shared-profile-list { margin-top: 6px; max-height: 142px; overflow-y: auto; border: 1px solid #35373c; border-radius: 4px; background: #18191c; }
       .shared-profile-list .chart-preset-item { grid-template-columns: minmax(0, 1fr) 28px 28px 28px; }
-      .shared-profile-list .chart-preset-item.default { box-shadow: inset 2px 0 #60a5fa; }
       .shared-profile-list .chart-preset-action { width: 28px; height: 28px; }
       .shared-profile-summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: #d4d4d8; font-size: 9px; font-weight: 700; text-transform: uppercase; }
       .shared-profile-summary::-webkit-details-marker { display: none; }
@@ -8515,7 +8514,7 @@
           load.type = "button"; load.className = "chart-preset-load"; load.textContent = profile.name; load.title = "Filterprofiel laden";
           load.onclick = function () { loadJournalFilterProfile(profile.name); };
           var favorite = document.createElement("button");
-          favorite.type = "button"; favorite.className = "chart-preset-action"; favorite.title = "Als standaard instellen";
+          favorite.type = "button"; favorite.className = "chart-preset-action" + (profile.name === journalDefaultFilterProfile ? " default" : ""); favorite.title = "Als standaard instellen";
           favorite.innerHTML = '<i class="' + (profile.name === journalDefaultFilterProfile ? "fas" : "far") + ' fa-star"></i>';
           favorite.onclick = function () { setJournalFilterProfileDefault(profile.name); };
           var rename = document.createElement("button");
@@ -17040,7 +17039,7 @@
           var row = document.createElement("div"); row.className = "chart-preset-item" + (profile.name === defaultName ? " default" : "");
           var load = document.createElement("button"); load.type = "button"; load.className = "chart-preset-load"; load.textContent = profile.name; load.title = "Profiel laden";
           load.onclick = function () { if (kind === "layout") applySharedLayoutProfile(profile.name, source); else applySharedFootprintTemplate(profile.name, source); };
-          var favorite = document.createElement("button"); favorite.type = "button"; favorite.className = "chart-preset-action"; favorite.title = "Als standaard instellen"; favorite.innerHTML = '<i class="' + (profile.name === defaultName ? 'fas' : 'far') + ' fa-star"></i>'; favorite.onclick = function () { setSharedProfileDefault(kind, profile.name); };
+          var favorite = document.createElement("button"); favorite.type = "button"; favorite.className = "chart-preset-action" + (profile.name === defaultName ? " default" : ""); favorite.title = "Als standaard instellen"; favorite.innerHTML = '<i class="' + (profile.name === defaultName ? 'fas' : 'far') + ' fa-star"></i>'; favorite.onclick = function () { setSharedProfileDefault(kind, profile.name); };
           var rename = document.createElement("button"); rename.type = "button"; rename.className = "chart-preset-action"; rename.title = "Hernoemen"; rename.innerHTML = '<i class="fas fa-pen"></i>'; rename.onclick = function () { renameSharedProfile(kind, profile.name); };
           var remove = document.createElement("button"); remove.type = "button"; remove.className = "chart-preset-action text-red-300"; remove.title = "Verwijderen"; remove.innerHTML = '<i class="fas fa-trash-can"></i>'; remove.onclick = function () { deleteSharedProfile(kind, profile.name); };
           row.append(load, favorite, rename, remove); container.appendChild(row);
