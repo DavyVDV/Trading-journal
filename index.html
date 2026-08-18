@@ -10678,8 +10678,11 @@
           if (!tagFilter.excludeTags) tagFilter.excludeTags = [];
 
           var onHeaderRowChange = function() {
+            activeHeaderFilter = "tags";
             updateUI();
-            populateChoices();
+            requestAnimationFrame(function () {
+              if (activeHeaderFilter === "tags") renderHeaders();
+            });
           };
 
           var selectedGroup = groupSelect ? groupSelect.value : "ALL";
@@ -10769,8 +10772,11 @@
           resetBtn.onclick = function () {
             tagFilter.tags = [];
             tagFilter.excludeTags = [];
+            activeHeaderFilter = "tags";
             updateUI();
-            populateChoices();
+            requestAnimationFrame(function () {
+              if (activeHeaderFilter === "tags") renderHeaders();
+            });
           };
         }
       }
