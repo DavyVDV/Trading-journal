@@ -7032,8 +7032,7 @@
       var analyticsFilterLogic =
         localStorage.getItem("qt_analytics_logic") || "AND";
       var activeHeaderFilter = null;
-      var logbookTagFilterLogic =
-        localStorage.getItem("qt_logbook_tag_filter_logic") || "OR";
+      var logbookTagFilterLogic = "AND";
       var numericColumnFilters = {
         pnl: { mode: "", value: "" },
         netpnl: { mode: "", value: "" },
@@ -8603,6 +8602,8 @@
         Object.keys(numericColumnFilters).forEach(function (key) {
           numericColumnFilters[key].mode = "";
           numericColumnFilters[key].value = "";
+          numericColumnFilters[key].min = "";
+          numericColumnFilters[key].max = "";
         });
 
         activeHeaderFilter = null;
@@ -9081,12 +9082,7 @@
 
         if (tagFilter && tagFilter.tags && tagFilter.tags.length > 0) {
           f = f.filter(function (t) {
-            if (logbookTagFilterLogic === "AND") {
-              return tagFilter.tags.every(function (tag) {
-                return t.tags && t.tags.indexOf(tag) >= 0;
-              });
-            }
-            return tagFilter.tags.some(function (tag) {
+            return tagFilter.tags.every(function (tag) {
               return t.tags && t.tags.indexOf(tag) >= 0;
             });
           });
@@ -9112,6 +9108,12 @@
             if (!Number.isFinite(value)) return false;
             if (filter.mode === "gt") return value > threshold;
             if (filter.mode === "lt") return value < threshold;
+            if (filter.mode === "between") {
+              var minimum = Number(filter.min);
+              var maximum = Number(filter.max);
+              if (!Number.isFinite(minimum) || !Number.isFinite(maximum)) return true;
+              return value >= Math.min(minimum, maximum) && value <= Math.max(minimum, maximum);
+            }
             if (filter.mode === "positive") return value > 0;
             if (filter.mode === "negative") return value < 0;
             return true;
@@ -10460,6 +10462,9 @@
         var options =
           '<button type="button" data-numeric-mode="gt" class="numeric-filter-choice header-filter-option"><span>Groter dan</span><i class="fas fa-angle-right"></i></button>' +
           '<button type="button" data-numeric-mode="lt" class="numeric-filter-choice header-filter-option"><span>Kleiner dan</span><i class="fas fa-angle-left"></i></button>';
+        if (kind === "mfe" || kind === "mae") {
+          options += '<button type="button" data-numeric-mode="between" class="numeric-filter-choice header-filter-option"><span>Tussen</span><i class="fas fa-arrows-left-right"></i></button>';
+        }
         if (isPnl) {
           options +=
             '<button type="button" data-numeric-mode="positive" class="numeric-filter-choice header-filter-option"><span>Positief</span><i class="fas fa-plus"></i></button>' +
@@ -10470,23 +10475,32 @@
           '<div class="header-filter-heading"><span>' + label + '</span><i class="fas fa-filter"></i></div>' +
           '<div class="header-filter-section">' + options + '</div>' +
           '<label class="header-filter-label"><span>' + thresholdLabel + '</span><input type="number" step="any" class="header-filter-input" id="numericFilterValue" placeholder="Voer waarde in"></label>' +
+          ((kind === "mfe" || kind === "mae") ? '<label class="header-filter-label hidden" id="numericFilterMaxRow"><span>Maximum</span><input type="number" step="any" class="header-filter-input" id="numericFilterMax" placeholder="Tot en met"></label>' : '') +
           '<button type="button" id="numericFilterReset" class="header-filter-action">Reset</button>' +
           '</div>';
 
         var input = container.querySelector("#numericFilterValue");
         if (filter && filter.value !== "") input.value = filter.value;
+        var maxInput = container.querySelector("#numericFilterMax");
+        if (maxInput && filter && filter.max !== "") maxInput.value = filter.max;
+        var maxRow = container.querySelector("#numericFilterMaxRow");
+        if (maxRow) maxRow.classList.toggle("hidden", !filter || filter.mode !== "between");
         container.querySelectorAll(".numeric-filter-choice").forEach(function (button) {
           var mode = button.getAttribute("data-numeric-mode");
           if (filter && filter.mode === mode) button.classList.add("is-active");
           button.onclick = function () {
             filter.mode = mode;
             if (mode === "positive" || mode === "negative") filter.value = "";
+            if (mode !== "between") filter.min = "";
+            if (mode === "between") filter.min = filter.value;
+            if (maxRow) maxRow.classList.toggle("hidden", mode !== "between");
             updateUI();
           };
         });
         if (input) {
           input.addEventListener("input", function () {
             filter.value = input.value;
+            if (filter.mode === "between") filter.min = input.value;
           });
           input.addEventListener("change", function () {
             if (input.value === "") filter.mode = "";
@@ -10500,9 +10514,15 @@
             }
           });
         }
+        if (maxInput) {
+          maxInput.addEventListener("input", function () { filter.max = maxInput.value; });
+          maxInput.addEventListener("change", function () { updateUI(); });
+          maxInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") { event.preventDefault(); updateUI(); }
+          });
+        }
         container.querySelector("#numericFilterReset").onclick = function () {
-          filter.mode = "";
-          filter.value = "";
+          filter.mode = ""; filter.value = ""; filter.min = ""; filter.max = "";
           updateUI();
         };
       }
@@ -10596,18 +10616,13 @@
       }
 
       function renderTagsHeaderFilter(container) {
-        var logicLabel = logbookTagFilterLogic === "AND" ? "AND" : "OR";
         container.innerHTML =
           '<div class="header-filter-shell w-full">' +
           '<div class="header-filter-heading flex justify-between items-center pb-1 border-b border-terminal/50">' +
           '<div class="flex items-center gap-1.5"><span class="font-bold">Filter Tags</span><i class="fas fa-tags text-[10px]"></i></div>' +
           '<button type="button" id="closeHeaderFilterBtn" class="text-zinc-400 hover:text-white text-xs px-1">&times;</button>' +
           '</div>' +
-          '<div class="header-filter-section flex items-center justify-between gap-1 py-1">' +
-          '<div class="flex gap-1">' +
-          '<button type="button" data-tag-logic="OR" class="tag-logic-choice header-filter-option text-[10px] px-2 py-0.5">OR</button>' +
-          '<button type="button" data-tag-logic="AND" class="tag-logic-choice header-filter-option text-[10px] px-2 py-0.5">AND</button>' +
-          '</div>' +
+          '<div class="header-filter-section flex items-center justify-end gap-1 py-1">' +
           '<button type="button" id="headerResetTagFilter" class="header-filter-action text-[10px] px-2 py-0.5">Reset</button>' +
           '</div>' +
           '<div class="flex flex-col gap-1.5 my-1">' +
@@ -10632,17 +10647,6 @@
             renderHeaders();
           };
         }
-
-        container.querySelectorAll(".tag-logic-choice").forEach(function (btn) {
-          if (btn.getAttribute("data-tag-logic") === logbookTagFilterLogic) {
-            btn.classList.add("is-active");
-          }
-          btn.onclick = function () {
-            logbookTagFilterLogic = btn.getAttribute("data-tag-logic");
-            localStorage.setItem("qt_logbook_tag_filter_logic", logbookTagFilterLogic);
-            updateUI();
-          };
-        });
 
         var groupSelect = container.querySelector("#headerTagGroupFilter");
         if (groupSelect && Array.isArray(tagGroups)) {
@@ -10694,8 +10698,31 @@
             return targetGroup && Array.isArray(targetGroup.tags) && targetGroup.tags.indexOf(t) >= 0;
           });
 
+          function appendActiveTags(title, tags, colorClass) {
+            if (!tags.length) return;
+            var activeHeader = document.createElement("div");
+            activeHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-400 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full sticky top-0 bg-zinc-950/95 z-20";
+            activeHeader.textContent = title;
+            choices.appendChild(activeHeader);
+            tags.forEach(function (tag) {
+              var activeRow = createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onHeaderRowChange);
+              activeRow.classList.add(colorClass);
+              choices.appendChild(activeRow);
+            });
+          }
+
+          appendActiveTags("Included", tagFilter.tags, "border-l-2 border-emerald-500");
+          appendActiveTags("Excluded", tagFilter.excludeTags, "border-l-2 border-red-500");
+          var activeTagSet = tagFilter.tags.concat(tagFilter.excludeTags);
+          filteredTags = filteredTags.filter(function (tag) { return activeTagSet.indexOf(tag) === -1; });
           if (filteredTags.length === 0) {
-            choices.innerHTML = '<div class="text-[10px] text-zinc-400 italic p-2 text-center">Geen tags gevonden.</div>';
+            if (!tagFilter.tags.length && !tagFilter.excludeTags.length) choices.innerHTML = '<div class="text-[10px] text-zinc-400 italic p-2 text-center">Geen tags gevonden.</div>';
+            else {
+              var noTags = document.createElement("div");
+              noTags.className = "text-[10px] text-zinc-400 italic p-2 text-center";
+              noTags.textContent = "Geen overige tags gevonden.";
+              choices.appendChild(noTags);
+            }
             return;
           }
 
