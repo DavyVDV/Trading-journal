@@ -10680,9 +10680,6 @@
           var onHeaderRowChange = function() {
             activeHeaderFilter = "tags";
             updateUI();
-            requestAnimationFrame(function () {
-              if (activeHeaderFilter === "tags") renderHeaders();
-            });
           };
 
           var selectedGroup = groupSelect ? groupSelect.value : "ALL";
@@ -10774,9 +10771,6 @@
             tagFilter.excludeTags = [];
             activeHeaderFilter = "tags";
             updateUI();
-            requestAnimationFrame(function () {
-              if (activeHeaderFilter === "tags") renderHeaders();
-            });
           };
         }
       }
