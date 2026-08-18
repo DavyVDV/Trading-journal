@@ -4506,19 +4506,23 @@
               <i class="fas fa-filter-circle-xmark text-[10px]"></i>
               <span>RESET FILTERS</span>
             </button>
-            <select id="journalFilterProfileSelect" onchange="loadJournalFilterProfile(this.value)" title="Opgeslagen filterprofiel laden" class="bg-terminal-input border border-terminal text-slate-200 px-2 py-1 rounded-sm max-w-[150px]">
-              <option value="">FILTER PROFIEL</option>
-            </select>
-            <button
-              type="button"
-              id="saveJournalFilterBtn"
-              onclick="saveJournalFilterProfile()"
-              title="Huidige filters opslaan"
-              class="bg-blue-500/20 border border-blue-500/40 text-blue-200 px-2.5 py-1 flex items-center justify-center gap-1.5 hover:bg-blue-500/30 whitespace-nowrap"
-            >
-              <i class="fas fa-bookmark text-[10px]"></i>
-              <span>SAVE FILTER</span>
-            </button>
+            <div class="relative">
+              <button
+                type="button"
+                id="saveJournalFilterBtn"
+                onclick="toggleJournalFilterProfileMenu(event)"
+                title="Filterprofielen beheren"
+                class="bg-blue-500/20 border border-blue-500/40 text-blue-200 px-2.5 py-1 flex items-center justify-center gap-1.5 hover:bg-blue-500/30 whitespace-nowrap"
+              >
+                <i class="fas fa-bookmark text-[10px]"></i>
+                <span>SAVE FILTERS</span>
+                <i class="fas fa-chevron-down text-[8px]"></i>
+              </button>
+              <div id="journalFilterProfileMenu" class="hidden absolute right-0 top-full mt-1 w-72 bg-slate-800 border border-terminal rounded-sm shadow-2xl p-2.5 z-50">
+                <div class="shared-profile-create"><input id="journalFilterProfileName" class="bt-input" maxlength="40" placeholder="Naam filterprofiel" /><button type="button" class="bt-tool" onclick="saveJournalFilterProfile()" title="Huidige filters opslaan"><i class="fas fa-floppy-disk"></i></button></div>
+                <div id="journalFilterProfileList" class="shared-profile-list"></div>
+              </div>
+            </div>
             <button
               id="colDropdownBtn"
               type="button"
@@ -8473,15 +8477,57 @@
         if (defaultProfile) applyJournalFilterState(defaultProfile.filters);
       }
 
+      function toggleJournalFilterProfileMenu(event) {
+        if (event) { event.preventDefault(); event.stopPropagation(); }
+        var menu = document.getElementById("journalFilterProfileMenu");
+        if (!menu) return;
+        if (!window.journalFilterProfileMenuBound) {
+          window.journalFilterProfileMenuBound = true;
+          document.addEventListener("click", function (clickEvent) {
+            var target = clickEvent.target;
+            if (target && (target.closest("#journalFilterProfileMenu") || target.closest("#saveJournalFilterBtn"))) return;
+            var openMenu = document.getElementById("journalFilterProfileMenu");
+            if (openMenu) openMenu.classList.add("hidden");
+          });
+        }
+        menu.classList.toggle("hidden");
+        if (!menu.classList.contains("hidden")) {
+          renderJournalFilterProfiles();
+          var input = document.getElementById("journalFilterProfileName");
+          if (input) input.focus();
+        }
+      }
+
       function renderJournalFilterProfiles() {
-        var select = document.getElementById("journalFilterProfileSelect");
-        if (!select) return;
-        select.innerHTML = '<option value="">FILTER PROFIEL</option>';
+        var container = document.getElementById("journalFilterProfileList");
+        if (!container) return;
+        container.innerHTML = "";
+        if (!journalFilterProfiles.length) {
+          var empty = document.createElement("div");
+          empty.className = "chart-preset-empty";
+          empty.textContent = "Nog geen filterprofielen opgeslagen";
+          container.appendChild(empty);
+          return;
+        }
         journalFilterProfiles.forEach(function (profile) {
-          var option = new Option(profile.name + (profile.name === journalDefaultFilterProfile ? " *" : ""), profile.name);
-          select.add(option);
+          var row = document.createElement("div");
+          row.className = "chart-preset-item" + (profile.name === journalDefaultFilterProfile ? " default" : "");
+          var load = document.createElement("button");
+          load.type = "button"; load.className = "chart-preset-load"; load.textContent = profile.name; load.title = "Filterprofiel laden";
+          load.onclick = function () { loadJournalFilterProfile(profile.name); };
+          var favorite = document.createElement("button");
+          favorite.type = "button"; favorite.className = "chart-preset-action"; favorite.title = "Als standaard instellen";
+          favorite.innerHTML = '<i class="' + (profile.name === journalDefaultFilterProfile ? "fas" : "far") + ' fa-star"></i>';
+          favorite.onclick = function () { setJournalFilterProfileDefault(profile.name); };
+          var rename = document.createElement("button");
+          rename.type = "button"; rename.className = "chart-preset-action"; rename.title = "Hernoemen"; rename.innerHTML = '<i class="fas fa-pen"></i>';
+          rename.onclick = function () { renameJournalFilterProfile(profile.name); };
+          var remove = document.createElement("button");
+          remove.type = "button"; remove.className = "chart-preset-action text-red-300"; remove.title = "Verwijderen"; remove.innerHTML = '<i class="fas fa-trash-can"></i>';
+          remove.onclick = function () { deleteJournalFilterProfile(profile.name); };
+          row.append(load, favorite, rename, remove);
+          container.appendChild(row);
         });
-        select.value = "";
       }
 
       function persistJournalFilterProfiles() {
@@ -8491,22 +8537,51 @@
       }
 
       function saveJournalFilterProfile() {
-        var name = window.prompt("Naam voor dit filterprofiel:", "Mijn filters");
-        if (!name) return;
-        name = name.trim().slice(0, 50);
-        if (!name) return;
-        var existing = journalFilterProfiles.find(function (profile) { return profile.name.toLowerCase() === name.toLowerCase(); });
-        var profile = { name: existing ? existing.name : name, filters: getJournalFilterState() };
-        if (existing) existing.filters = profile.filters;
-        else journalFilterProfiles.push(profile);
-        if (window.confirm("Dit filterprofiel als standaard instellen?")) journalDefaultFilterProfile = profile.name;
+        var input = document.getElementById("journalFilterProfileName");
+        var name = input && input.value ? input.value.trim().slice(0, 40) : "";
+        if (!name) return alert("Geef het filterprofiel eerst een naam.");
+        var existing = journalFilterProfiles.findIndex(function (profile) { return profile.name.toLowerCase() === name.toLowerCase(); });
+        if (existing >= 0 && !confirm('Profiel "' + journalFilterProfiles[existing].name + '" overschrijven?')) return;
+        var record = { name: existing >= 0 ? journalFilterProfiles[existing].name : name, filters: getJournalFilterState() };
+        if (existing >= 0) journalFilterProfiles[existing] = record;
+        else journalFilterProfiles.push(record);
         persistJournalFilterProfiles();
+        if (input) input.value = "";
       }
 
       function loadJournalFilterProfile(name) {
         if (!name) return;
         var profile = journalFilterProfiles.find(function (item) { return item.name === name; });
-        if (profile) applyJournalFilterState(profile.filters);
+        if (profile) {
+          applyJournalFilterState(profile.filters);
+          var menu = document.getElementById("journalFilterProfileMenu");
+          if (menu) menu.classList.add("hidden");
+        }
+      }
+
+      function setJournalFilterProfileDefault(name) {
+        if (!journalFilterProfiles.some(function (profile) { return profile.name === name; })) return;
+        journalDefaultFilterProfile = name;
+        persistJournalFilterProfiles();
+      }
+
+      function renameJournalFilterProfile(name) {
+        var next = prompt("Nieuwe profielnaam:", name);
+        if (next == null || !String(next).trim() || String(next).trim() === name) return;
+        next = String(next).trim().slice(0, 40);
+        if (journalFilterProfiles.some(function (profile) { return profile.name.toLowerCase() === next.toLowerCase(); })) return alert("Die profielnaam bestaat al.");
+        var profile = journalFilterProfiles.find(function (item) { return item.name === name; });
+        if (!profile) return;
+        profile.name = next;
+        if (journalDefaultFilterProfile === name) journalDefaultFilterProfile = next;
+        persistJournalFilterProfiles();
+      }
+
+      function deleteJournalFilterProfile(name) {
+        if (!confirm('Profiel "' + name + '" verwijderen?')) return;
+        journalFilterProfiles = journalFilterProfiles.filter(function (profile) { return profile.name !== name; });
+        if (journalDefaultFilterProfile === name) journalDefaultFilterProfile = "";
+        persistJournalFilterProfiles();
       }
 
       function resetJournalFilters() {
