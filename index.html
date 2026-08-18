@@ -4506,6 +4506,19 @@
               <i class="fas fa-filter-circle-xmark text-[10px]"></i>
               <span>RESET FILTERS</span>
             </button>
+            <select id="journalFilterProfileSelect" onchange="loadJournalFilterProfile(this.value)" title="Opgeslagen filterprofiel laden" class="bg-terminal-input border border-terminal text-slate-200 px-2 py-1 rounded-sm max-w-[150px]">
+              <option value="">FILTER PROFIEL</option>
+            </select>
+            <button
+              type="button"
+              id="saveJournalFilterBtn"
+              onclick="saveJournalFilterProfile()"
+              title="Huidige filters opslaan"
+              class="bg-blue-500/20 border border-blue-500/40 text-blue-200 px-2.5 py-1 flex items-center justify-center gap-1.5 hover:bg-blue-500/30 whitespace-nowrap"
+            >
+              <i class="fas fa-bookmark text-[10px]"></i>
+              <span>SAVE FILTER</span>
+            </button>
             <button
               id="colDropdownBtn"
               type="button"
@@ -7023,6 +7036,10 @@
         mfe: { mode: "", value: "" },
         mae: { mode: "", value: "" },
       };
+      var JOURNAL_FILTER_PROFILES_KEY = "qt_journal_filter_profiles_v1";
+      var JOURNAL_FILTER_DEFAULT_KEY = "qt_journal_filter_default_v1";
+      var journalFilterProfiles = [];
+      var journalDefaultFilterProfile = "";
 
       var COLUMN_DEFS = [
         {
@@ -7090,6 +7107,7 @@
         loadCustomCharts();
         loadAnalyticsMainChartTitle();
         loadAnalyticsTagFilters();
+        loadJournalFilterProfiles();
         loadData();
         setupColumnFilterClickHandler();
         setupInteractivePolish();
@@ -8387,6 +8405,109 @@
         tags: [],
         excludeTags: [],
       };
+
+      function getJournalFilterState() {
+        var valueFor = function (id) {
+          var element = document.getElementById(id);
+          return element ? element.value : "";
+        };
+        return {
+          search: valueFor("searchInput"),
+          headerDateStart: valueFor("headerDateFilterStart"),
+          headerDateEnd: valueFor("headerDateFilterEnd"),
+          dateStart: valueFor("dateFilterStart"),
+          dateEnd: valueFor("dateFilterEnd"),
+          time: { days: timeFilter.days.slice(), startTime: timeFilter.startTime, endTime: timeFilter.endTime },
+          side: { long: sideFilter.long, short: sideFilter.short },
+          tags: { tags: tagFilter.tags.slice(), excludeTags: tagFilter.excludeTags.slice() },
+          numeric: JSON.parse(JSON.stringify(numericColumnFilters)),
+        };
+      }
+
+      function applyJournalFilterState(state) {
+        state = state && typeof state === "object" ? state : {};
+        var setValue = function (id, value) {
+          var element = document.getElementById(id);
+          if (element) element.value = value == null ? "" : String(value);
+        };
+        setValue("searchInput", state.search || "");
+        ["headerDateFilterStart", "headerDateFilterEnd", "dateFilterStart", "dateFilterEnd"].forEach(function (id) {
+          setValue(id, state[id.replace("headerDateFilter", "headerDate").replace("dateFilter", "date")] || "");
+        });
+        var savedTime = state.time || {};
+        timeFilter.days = Array.isArray(savedTime.days) ? savedTime.days.map(Number).filter(function (day) { return day >= 0 && day <= 6; }) : [];
+        timeFilter.startTime = savedTime.startTime || "";
+        timeFilter.endTime = savedTime.endTime || "";
+        var savedSide = state.side || {};
+        sideFilter.long = savedSide.long !== false;
+        sideFilter.short = savedSide.short !== false;
+        var savedTags = state.tags || {};
+        tagFilter.tags = Array.isArray(savedTags.tags) ? savedTags.tags.slice() : [];
+        tagFilter.excludeTags = Array.isArray(savedTags.excludeTags) ? savedTags.excludeTags.slice() : [];
+        if (state.numeric && typeof state.numeric === "object") {
+          Object.keys(numericColumnFilters).forEach(function (key) {
+            var saved = state.numeric[key] || {};
+            numericColumnFilters[key].mode = saved.mode || "";
+            numericColumnFilters[key].value = saved.value == null ? "" : String(saved.value);
+          });
+        }
+        _dateFilterStartEl = null;
+        _dateFilterEndEl = null;
+        activeHeaderFilter = null;
+        removeHeaderFilterDropdowns();
+        closeColumnFilterDropdowns();
+        updateUI();
+      }
+
+      function loadJournalFilterProfiles() {
+        try {
+          var saved = JSON.parse(localStorage.getItem(JOURNAL_FILTER_PROFILES_KEY) || "[]");
+          journalFilterProfiles = Array.isArray(saved) ? saved.filter(function (profile) { return profile && profile.name && profile.filters; }) : [];
+          journalDefaultFilterProfile = localStorage.getItem(JOURNAL_FILTER_DEFAULT_KEY) || "";
+        } catch (error) {
+          journalFilterProfiles = [];
+          journalDefaultFilterProfile = "";
+        }
+        renderJournalFilterProfiles();
+        var defaultProfile = journalFilterProfiles.find(function (profile) { return profile.name === journalDefaultFilterProfile; });
+        if (defaultProfile) applyJournalFilterState(defaultProfile.filters);
+      }
+
+      function renderJournalFilterProfiles() {
+        var select = document.getElementById("journalFilterProfileSelect");
+        if (!select) return;
+        select.innerHTML = '<option value="">FILTER PROFIEL</option>';
+        journalFilterProfiles.forEach(function (profile) {
+          var option = new Option(profile.name + (profile.name === journalDefaultFilterProfile ? " *" : ""), profile.name);
+          select.add(option);
+        });
+        select.value = "";
+      }
+
+      function persistJournalFilterProfiles() {
+        localStorage.setItem(JOURNAL_FILTER_PROFILES_KEY, JSON.stringify(journalFilterProfiles));
+        localStorage.setItem(JOURNAL_FILTER_DEFAULT_KEY, journalDefaultFilterProfile || "");
+        renderJournalFilterProfiles();
+      }
+
+      function saveJournalFilterProfile() {
+        var name = window.prompt("Naam voor dit filterprofiel:", "Mijn filters");
+        if (!name) return;
+        name = name.trim().slice(0, 50);
+        if (!name) return;
+        var existing = journalFilterProfiles.find(function (profile) { return profile.name.toLowerCase() === name.toLowerCase(); });
+        var profile = { name: existing ? existing.name : name, filters: getJournalFilterState() };
+        if (existing) existing.filters = profile.filters;
+        else journalFilterProfiles.push(profile);
+        if (window.confirm("Dit filterprofiel als standaard instellen?")) journalDefaultFilterProfile = profile.name;
+        persistJournalFilterProfiles();
+      }
+
+      function loadJournalFilterProfile(name) {
+        if (!name) return;
+        var profile = journalFilterProfiles.find(function (item) { return item.name === name; });
+        if (profile) applyJournalFilterState(profile.filters);
+      }
 
       function resetJournalFilters() {
         var searchInput = document.getElementById("searchInput");
@@ -14394,6 +14515,8 @@
           analyticsFilterTags: analyticsFilterTags || [],
           analyticsExcludeTags: analyticsExcludeTags || [],
           analyticsFilterLogic: analyticsFilterLogic || "AND",
+          journalFilterProfiles: journalFilterProfiles || [],
+          journalDefaultFilterProfile: journalDefaultFilterProfile || "",
           flowcharts: typeof flowcharts !== "undefined" ? flowcharts : [],
           globalChartData: globalChartData,
           globalChartDataTimeMode: CHART_TIME_MODE,
@@ -14655,6 +14778,12 @@
                 if (typeof setAnalyticsLogic === "function") {
                   setAnalyticsLogic(importedData.analyticsFilterLogic || "AND");
                 }
+              }
+
+              if (importedData && Array.isArray(importedData.journalFilterProfiles)) {
+                journalFilterProfiles = importedData.journalFilterProfiles.filter(function (profile) { return profile && profile.name && profile.filters; });
+                journalDefaultFilterProfile = typeof importedData.journalDefaultFilterProfile === "string" ? importedData.journalDefaultFilterProfile : "";
+                persistJournalFilterProfiles();
               }
 
               if (importedData && importedData.flowcharts) {
