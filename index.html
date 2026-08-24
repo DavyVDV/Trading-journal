@@ -17749,6 +17749,18 @@
           deleteSelectedJournalChartDrawing();
           return;
         }
+        if (
+          event.key === "Delete" &&
+          !isEditable &&
+          noteModal &&
+          !noteModal.classList.contains("hidden") &&
+          journalRrSelected &&
+          currentRiskRewardTrade
+        ) {
+          event.preventDefault();
+          removeJournalRrTool();
+          return;
+        }
         if (event.key === "Control" && !journalChartMagnet) {
           var button = document.getElementById("journalMagnetButton"); if (button) button.classList.add("active");
         }
@@ -23624,8 +23636,19 @@
         var replayTime = backtestBars[backtestReplayIndex] ? Math.floor(backtestBars[backtestReplayIndex].timestamp.getTime() / 1000) : Infinity;
         backtestSecondaryCharts.forEach(function (record) {
           var range = record.chart && record.chart.timeScale().getVisibleLogicalRange ? record.chart.timeScale().getVisibleLogicalRange() : null;
+          var previousData = record.data || [];
           record.data = record.allData.filter(function (bar) { return Number(bar.time) <= replayTime; });
-          record.series.setData(record.data);
+          var canUpdateLast = record.data.length >= previousData.length && previousData.length > 0 &&
+            record.data.slice(0, Math.max(0, previousData.length - 1)).every(function (bar, index) {
+              return Number(bar.time) === Number(previousData[index].time);
+            });
+          if (canUpdateLast) {
+            for (var dataIndex = Math.max(0, previousData.length - 1); dataIndex < record.data.length; dataIndex++) {
+              record.series.update(record.data[dataIndex]);
+            }
+          } else {
+            record.series.setData(record.data);
+          }
           if (record.cvdSeries) { record.cvdData = buildBacktestPanelCvdData(record.data); record.cvdSeries.setData(record.cvdData); }
           if (range && record.data.length) {
             record.chart.timeScale().setVisibleLogicalRange(range);
@@ -27210,7 +27233,7 @@
           qbtSetRangeInputs(); qbtBars = []; qbtIndex = 0; qbtTrades = []; qbtOpen = null; qbtRender();
         } catch (error) { qbtSetStatus(error.message || "Dit CSV-bestand kon niet worden gelezen.", true); }
       }
-      function qbtStep(direction) { if (!qbtBars.length) return; if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true); qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction)); qbtRender(); qbtSyncWorkspace(); window.requestAnimationFrame(function () { window.requestAnimationFrame(qbtScrollWorkspaceToEnd); }); if (qbtIndex >= qbtBars.length - 1 && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); } }
+      function qbtStep(direction) { if (!qbtBars.length) return; if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true); qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction)); qbtRender(); qbtSyncWorkspace(); if (qbtIndex >= qbtBars.length - 1 && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); } }
       function qbtEnter(side) { if (!qbtBars.length || qbtOpen) return; var bar = qbtBars[qbtIndex], qty = Math.max(1, Number(document.getElementById("qbtQty").value) || 1); qbtOpen = {side:side,qty:qty,entry:bar.close,entryTime:qbtTime(bar),entryIndex:qbtIndex}; qbtRender(); qbtSyncWorkspace(); }
       function qbtExit() { if (!qbtOpen || !qbtBars.length) return; var bar = qbtBars[qbtIndex]; if (qbtIndex <= qbtOpen.entryIndex) return qbtSetStatus("Ga minstens één bar vooruit om de trade te sluiten.", true); var exit = bar.close, pnl = (qbtOpen.side === "Long" ? exit - qbtOpen.entry : qbtOpen.entry - exit) * qbtOpen.qty; qbtTrades.push({id:"qbt-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),side:qbtOpen.side,qty:qbtOpen.qty,entry:qbtOpen.entry,exit:exit,entryTime:qbtOpen.entryTime,exitTime:qbtTime(bar),pnl:pnl}); qbtOpen = null; qbtRender(); qbtSyncWorkspace(); }
       function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
@@ -27256,8 +27279,20 @@
         var sourceData = qbtJournalCandles(qbtIndex + 1);
         var preparedData = prepareJournalChartDataForTrade(sourceData, trade);
         var workspace = getJournalChartWorkspace(trade);
+        var previousJournalChartData = currentJournalChartData;
         currentJournalChartData = aggregateJournalChartData(preparedData, workspace.panels[0].timeframe);
-        currentLwSeries.setData(currentJournalChartData);
+        var canUpdateJournalSeries = previousJournalChartData.length > 0 && currentJournalChartData.length >= previousJournalChartData.length &&
+          currentJournalChartData.slice(0, Math.max(0, previousJournalChartData.length - 1)).every(function (bar, index) {
+            return Number(bar.time) === Number(previousJournalChartData[index].time);
+          });
+        if (canUpdateJournalSeries) {
+          for (var journalDataIndex = Math.max(0, previousJournalChartData.length - 1); journalDataIndex < currentJournalChartData.length; journalDataIndex++) {
+            currentLwSeries.update(currentJournalChartData[journalDataIndex]);
+          }
+        } else {
+          currentLwSeries.setData(currentJournalChartData);
+        }
+        applyJournalVwapToChart(currentLwChart, currentJournalChartData, 0);
         if (currentTradeCvdSeries) {
           var cvdData = buildJournalCvdData(currentJournalChartData);
           currentTradeCvdSeries.setData(cvdData.length ? cvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; }));
@@ -27286,6 +27321,14 @@
         var nextRange = { from: Math.max(0, rightEdge - span), to: rightEdge };
         timeScale.setVisibleLogicalRange(nextRange);
         if (currentTradeCvdChart) currentTradeCvdChart.timeScale().setVisibleLogicalRange(nextRange);
+        journalSecondaryCharts.forEach(function (record) {
+          if (!record.chart || !record.data || !record.data.length) return;
+          var panelTo = record.data.length - 1;
+          var panelRightEdge = panelTo + span * (offset / Math.max(.01, 1 - offset));
+          var panelRange = { from: Math.max(0, panelRightEdge - span), to: panelRightEdge };
+          record.chart.timeScale().setVisibleLogicalRange(panelRange);
+          if (record.cvdChart) record.cvdChart.timeScale().setVisibleLogicalRange(panelRange);
+        });
       }
       function qbtOpenWorkspace(sourceTrade) {
         if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true);
