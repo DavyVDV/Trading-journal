@@ -18648,6 +18648,43 @@
       function aggregateBarsByTickCount(sourceBars, tickCount, getTime) {
         if (!Array.isArray(sourceBars) || !sourceBars.length) return [];
         tickCount = Math.max(1, Math.round(Number(tickCount) || 1));
+        var hasRawTicks = sourceBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; });
+        if (hasRawTicks) {
+          var exactBars = [], exact = null, previousTime = null, rawTickIndex = 0;
+          function beginExact(bar, tick) {
+            var time = getTime(bar, tick);
+            if (previousTime !== null) {
+              if (time instanceof Date && time.getTime() <= previousTime.getTime()) time = new Date(previousTime.getTime() + 1000);
+              else if (!(time instanceof Date) && Number(time) <= Number(previousTime)) time = Number(previousTime) + 1;
+            }
+            previousTime = time;
+            exact = { time: time, open: Number(tick[1]), high: Number(tick[1]), low: Number(tick[1]), close: Number(tick[1]), volume: 0, delta: 0, deltaHigh: 0, deltaLow: 0, footprintMap: {}, sourceCount: 0, _tickStart: rawTickIndex, _ticks: [] };
+            exactBars.push(exact);
+          }
+          sourceBars.forEach(function (bar) {
+            (Array.isArray(bar.ticks) ? bar.ticks : []).forEach(function (tick) {
+              if (!exact || exact.sourceCount >= tickCount) beginExact(bar, tick);
+              var price = Number(tick[1]);
+              var volume = Math.max(0, Number(tick[2]) || 0);
+              var delta = Number(tick[3]) || 0;
+              var side = Number(tick[4]) || 0;
+              exact.high = Math.max(exact.high, price); exact.low = Math.min(exact.low, price); exact.close = price; exact.volume += volume;
+              exact.delta += delta; exact.deltaHigh = Math.max(exact.deltaHigh, exact.delta); exact.deltaLow = Math.min(exact.deltaLow, exact.delta);
+              var key = price.toFixed(8);
+              var level = exact.footprintMap[key] || (exact.footprintMap[key] = { price: price, buyVolume: 0, sellVolume: 0, neutralVolume: 0, buyTrades: 0, sellTrades: 0, neutralTrades: 0, maxTrade: 0 });
+              if (side > 0) { level.buyVolume += volume; level.buyTrades += 1; }
+              else if (side < 0) { level.sellVolume += volume; level.sellTrades += 1; }
+              else { level.neutralVolume += volume; level.neutralTrades += 1; }
+              level.maxTrade = Math.max(level.maxTrade, volume); exact.sourceCount += 1;
+              exact._ticks.push(tick); rawTickIndex += 1; exact._tickEnd = rawTickIndex;
+            });
+          });
+          exactBars.forEach(function (bar) {
+            bar.cvdSource = "tick"; bar.footprint = Object.keys(bar.footprintMap).map(function (key) { return bar.footprintMap[key]; }).sort(function (a, b) { return a.price - b.price; }); bar.footprintSource = "tick";
+            delete bar.footprintMap; delete bar.sourceCount;
+          });
+          return exactBars;
+        }
         var aggregated = [], current = null;
         sourceBars.forEach(function (bar) {
           if (!current || current.sourceCount >= tickCount) {
@@ -18674,7 +18711,7 @@
       }
 
       function journalPanelAggregation(data, panel) {
-        return panel && panel.timeframeMode === "ticks" ? aggregateBarsByTickCount(data, panel.tickCount, function (bar) { return Number(bar.time); }) : aggregateJournalChartData(data, panel && panel.timeframe);
+        return panel && panel.timeframeMode === "ticks" ? aggregateBarsByTickCount(data, panel.tickCount, function (bar, tick) { return tick ? toChartTimestampFromLocalDate(new Date(Number(tick[0]))) : Number(bar.time); }) : aggregateJournalChartData(data, panel && panel.timeframe);
       }
 
       function aggregateJournalChartData(chartData, timeframeSeconds) {
@@ -18836,6 +18873,8 @@
           var button = document.createElement("button"); button.type = "button"; button.className = "journal-timeframe-button";
           button.dataset.journalTimeframe = String(seconds); button.dataset.journalCustomTimeframe = "true"; button.textContent = formatJournalCustomTimeframe(seconds);
           button.onclick = function () { changeJournalTradeChartTimeframe(seconds); };
+          button.title = "Rechtsklik om dit timeframe te verwijderen";
+          button.oncontextmenu = function (event) { event.preventDefault(); removeJournalChartTimeframe(seconds, "time"); };
           bar.insertBefore(button, divider);
           var selector = document.getElementById("journalTradeChartTimeframe");
           if (selector && !Array.from(selector.options).some(function (option) { return Number(option.value) === seconds; })) selector.add(new Option(formatJournalCustomTimeframe(seconds), String(seconds)));
@@ -18844,7 +18883,20 @@
           var button = document.createElement("button"); button.type = "button"; button.className = "journal-timeframe-button";
           button.dataset.journalTickCount = String(ticks); button.dataset.journalCustomTickframe = "true"; button.textContent = ticks + "t";
           button.onclick = function () { setJournalTickChart(ticks); };
+          button.title = "Rechtsklik om dit tickframe te verwijderen";
+          button.oncontextmenu = function (event) { event.preventDefault(); removeJournalChartTimeframe(ticks, "ticks"); };
           bar.insertBefore(button, divider);
+        });
+      }
+
+      function removeJournalChartTimeframe(value, mode) {
+        var label = mode === "ticks" ? value + "t" : formatJournalCustomTimeframe(value);
+        showConfirm(label + " uit de timeframebalk verwijderen?", function () {
+          var key = mode === "ticks" ? "qt_journal_tickframes_v1" : "qt_journal_timeframes_v1";
+          var values = mode === "ticks" ? getJournalCustomTickframes() : getJournalCustomTimeframes();
+          localStorage.setItem(key, JSON.stringify(values.filter(function (item) { return Number(item) !== Number(value); })));
+          renderJournalCustomTimeframes();
+          syncJournalTradeChartTimeframeButtons();
         });
       }
 
@@ -18914,6 +18966,11 @@
         var count = Math.max(1, Math.min(100000, Math.round(Number(tickCount) || 100)));
         var trade = getCurrentJournalChartTrade();
         if (!trade) return;
+        var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
+        if (source && source.length && !source.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; })) {
+          alert("Deze opgeslagen data bevat geen ruwe tickvolgorde. Importeer de originele tick-CSV opnieuw om exacte tickcharts te gebruiken.");
+          return;
+        }
         var workspace = getJournalChartWorkspace(trade);
         var panel = workspace.panels[journalActivePanelIndex] || workspace.panels[0];
         panel.timeframeMode = "ticks";
@@ -20382,7 +20439,7 @@
             return {
               time: toChartTimestampFromLocalDate(bar.timestamp),
               open: bar.open, high: bar.high, low: bar.low, close: bar.close,
-              volume: bar.volume, tickCount: bar.tickCount, delta: bar.delta, deltaHigh: bar.deltaHigh, deltaLow: bar.deltaLow,
+              volume: bar.volume, tickCount: bar.tickCount, ticks: bar.ticks, delta: bar.delta, deltaHigh: bar.deltaHigh, deltaLow: bar.deltaLow,
               cvdSource: "tick", footprint: bar.footprint, footprintSource: bar.footprintSource,
             };
           }),
@@ -22130,6 +22187,10 @@
           var ticks = document.querySelector('[data-bt-layout-ticks="' + index + '"]');
           if (mode) panel.timeframeMode = mode.value === "ticks" ? "ticks" : "time";
           if (ticks) panel.tickCount = Math.max(1, Math.min(100000, Math.round(Number(ticks.value) || 100)));
+          if (panel.timeframeMode === "ticks" && backtestSourceBars.length && !backtestSourceBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; })) {
+            panel.timeframeMode = "time";
+            setBacktestError("Deze dataset bevat geen ruwe tickvolgorde. Importeer de originele tick-CSV opnieuw voor exacte tickcharts.");
+          }
           if (type) panel.type = type.value === "footprint" ? "footprint" : "candles";
         });
         var layout = { count: count, showCvd: true, syncCrosshair: document.getElementById("btSyncCrosshair").checked, panels: panels };
@@ -22440,6 +22501,7 @@
               cvdClose: cvd,
               volumeTotal: volume,
               tickCount: 1,
+              ticks: [],
               footprintMap: {},
             };
           } else {
@@ -22462,6 +22524,7 @@
           var isBuy = aggressor === "buy" || aggressor === "buyer" || aggressor === "ask" || (!aggressor && deltaChange > 0);
           var isSell = aggressor === "sell" || aggressor === "seller" || aggressor === "bid" || (!aggressor && deltaChange < 0);
           var classifiedVolume = Math.max(0, Number(volume) || Math.abs(deltaChange) || 0);
+          current.ticks.push([timestamp, price, classifiedVolume, deltaChange, isBuy ? 1 : isSell ? -1 : 0]);
           if (isBuy) {
             footprintLevel.buyVolume += classifiedVolume;
             footprintLevel.buyTrades += 1;
@@ -22839,6 +22902,7 @@
               deltaHigh: bar.deltaHigh,
               deltaLow: bar.deltaLow,
               tickCount: bar.tickCount,
+              ticks: Array.isArray(bar.ticks) ? bar.ticks : undefined,
               footprint: Array.isArray(bar.footprint) ? bar.footprint : undefined,
               footprintSource: bar.footprintSource || undefined,
             };
@@ -22863,6 +22927,7 @@
             deltaHigh: Number.isFinite(Number(bar.deltaHigh)) ? Number(bar.deltaHigh) : Math.max(0, Number(bar.delta) || 0),
             deltaLow: Number.isFinite(Number(bar.deltaLow)) ? Number(bar.deltaLow) : Math.min(0, Number(bar.delta) || 0),
             tickCount: Math.max(1, Math.round(Number(bar.tickCount) || 1)),
+            ticks: Array.isArray(bar.ticks) ? bar.ticks : undefined,
             footprint: Array.isArray(bar.footprint) ? bar.footprint : undefined,
             footprintSource: bar.footprintSource || undefined,
           };
@@ -23192,7 +23257,7 @@
 
       function backtestPanelAggregation(sourceBars, panel) {
         if (!panel || panel.timeframeMode !== "ticks") return aggregateBacktestBars(sourceBars, panel && panel.timeframe);
-        return aggregateBarsByTickCount(sourceBars, panel.tickCount, function (bar) { return new Date(bar.timestamp); }).map(function (bar) {
+        return aggregateBarsByTickCount(sourceBars, panel.tickCount, function (bar, tick) { return tick ? new Date(Number(tick[0])) : new Date(bar.timestamp); }).map(function (bar) {
           bar.timestamp = bar.time;
           delete bar.time;
           return bar;
@@ -23749,19 +23814,15 @@
         backtestSecondaryCharts.forEach(function (record) {
           var range = record.chart && record.chart.timeScale().getVisibleLogicalRange ? record.chart.timeScale().getVisibleLogicalRange() : null;
           var previousData = record.data || [];
-          record.data = record.allData.filter(function (bar) { return Number(bar.time) <= replayTime; });
-          var canUpdateLast = record.data.length >= previousData.length && previousData.length > 0 &&
-            record.data.slice(0, Math.max(0, previousData.length - 1)).every(function (bar, index) {
-              return Number(bar.time) === Number(previousData[index].time);
-            });
-          if (canUpdateLast) {
-            for (var dataIndex = Math.max(0, previousData.length - 1); dataIndex < record.data.length; dataIndex++) {
-              record.series.update(record.data[dataIndex]);
-            }
-          } else {
-            record.series.setData(record.data);
+          var low = 0, high = record.allData.length;
+          while (low < high) { var middle = Math.floor((low + high) / 2); if (Number(record.allData[middle].time) <= replayTime) low = middle + 1; else high = middle; }
+          record.data = record.allData.slice(0, low);
+          qbtUpdateReplaySeries(record.series, record.data, previousData);
+          if (record.cvdSeries) {
+            var previousCvdData = record.cvdData || [];
+            record.cvdData = buildBacktestPanelCvdData(record.data);
+            qbtUpdateReplaySeries(record.cvdSeries, record.cvdData, previousCvdData);
           }
-          if (record.cvdSeries) { record.cvdData = buildBacktestPanelCvdData(record.data); record.cvdSeries.setData(record.cvdData); }
           if (range && record.data.length) {
             record.chart.timeScale().setVisibleLogicalRange(range);
             if (record.cvdChart) record.cvdChart.timeScale().setVisibleLogicalRange(range);
@@ -27153,6 +27214,7 @@
       /* Minimal replay layer. It deliberately hands completed trades to the existing
          journal modal instead of maintaining a second chart/modal implementation. */
       var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES";
+      var qbtReplayAggregationCache = null;
       var QBT_DATA_KEY = "qt_minimal_backtest_datasets_v1";
 
       function qbtText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
@@ -27186,6 +27248,7 @@
         qbtRiskInstrument = document.getElementById("qbtRiskInstrument").value || "ES";
         if (!Number.isFinite(qbtRiskAmount) || qbtRiskAmount <= 0) return qbtSetStatus("Vul een risico per trade in.", true);
         qbtBars = qbtSourceBars.filter(function (bar) { return qbtTime(bar) >= start && qbtTime(bar) <= end; });
+        qbtReplayAggregationCache = null;
         if (qbtBars.length < 2) return qbtSetStatus("Het gekozen tijdsbereik bevat minder dan twee bars.", true);
         backtestSourceBars = qbtBars;
         backtestSourceBars.deltaSource = qbtSourceBars.deltaSource || "missing";
@@ -27353,8 +27416,39 @@
       function qbtStep(direction) { if (!qbtBars.length) return; if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true); qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction)); qbtRender(); qbtSyncWorkspace(); if (qbtIndex >= qbtBars.length - 1 && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); } }
       function qbtEnter(side) { if (!qbtBars.length || qbtOpen) return; var bar = qbtBars[qbtIndex], qty = Math.max(1, Number(document.getElementById("qbtQty").value) || 1); qbtOpen = {side:side,qty:qty,entry:bar.close,entryTime:qbtTime(bar),entryIndex:qbtIndex}; qbtRender(); qbtSyncWorkspace(); }
       function qbtExit() { if (!qbtOpen || !qbtBars.length) return; var bar = qbtBars[qbtIndex]; if (qbtIndex <= qbtOpen.entryIndex) return qbtSetStatus("Ga minstens één bar vooruit om de trade te sluiten.", true); var exit = bar.close, pnl = (qbtOpen.side === "Long" ? exit - qbtOpen.entry : qbtOpen.entry - exit) * qbtOpen.qty; qbtTrades.push({id:"qbt-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),side:qbtOpen.side,qty:qbtOpen.qty,entry:qbtOpen.entry,exit:exit,entryTime:qbtOpen.entryTime,exitTime:qbtTime(bar),pnl:pnl}); qbtOpen = null; qbtRender(); qbtSyncWorkspace(); }
-      function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
+      function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
       function qbtJournalCandles(limit) { return qbtJournalCandlesFromBars(qbtBars, limit); }
+      function qbtReplayPanelData(trade, panel, panelIndex, visiblePreparedData) {
+        if (!panel || panel.timeframeMode !== "ticks" || !qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; })) return journalPanelAggregation(visiblePreparedData, panel);
+        if (!qbtReplayAggregationCache || qbtReplayAggregationCache.source !== qbtBars) {
+          var running = 0;
+          qbtReplayAggregationCache = {
+            source: qbtBars,
+            prefixTicks: qbtBars.map(function (bar) { running += Array.isArray(bar.ticks) ? bar.ticks.length : Math.max(1, Number(bar.tickCount) || 1); return running; }),
+            panels: {},
+          };
+        }
+        var key = panelIndex + ":" + panel.tickCount + ":" + String(trade && trade.id || "");
+        var cached = qbtReplayAggregationCache.panels[key];
+        if (!cached) {
+          var fullSource = prepareJournalChartDataForTrade(qbtJournalCandlesFromBars(qbtBars), trade);
+          cached = qbtReplayAggregationCache.panels[key] = journalPanelAggregation(fullSource, panel);
+        }
+        var visibleTicks = qbtReplayAggregationCache.prefixTicks[Math.min(qbtIndex, qbtReplayAggregationCache.prefixTicks.length - 1)] || 0;
+        var low = 0, high = cached.length;
+        while (low < high) {
+          var middle = Math.floor((low + high) / 2);
+          if (Number(cached[middle]._tickEnd) <= visibleTicks) low = middle + 1; else high = middle;
+        }
+        var visible = cached.slice(0, low);
+        var pending = cached[low];
+        if (pending && visibleTicks > Number(pending._tickStart)) {
+          var count = visibleTicks - Number(pending._tickStart);
+          var partial = aggregateBarsByTickCount([{ ticks: pending._ticks.slice(0, count) }], panel.tickCount, function (bar, tick) { return toChartTimestampFromLocalDate(new Date(Number(tick[0]))); })[0];
+          if (partial) visible.push(partial);
+        }
+        return visible;
+      }
       function qbtJournalDayCandles(value) {
         var date = qbtTime({ timestamp: value });
         if (!(date instanceof Date) || isNaN(date.getTime())) return [];
@@ -27411,41 +27505,43 @@
         }
         return null;
       }
+      function qbtUpdateReplaySeries(series, nextData, previousData) {
+        if (!series) return;
+        previousData = Array.isArray(previousData) ? previousData : [];
+        var prefixUnchanged = previousData.length > 0 && nextData.length >= previousData.length &&
+          Number(nextData[0] && nextData[0].time) === Number(previousData[0] && previousData[0].time) &&
+          (previousData.length < 2 || Number(nextData[previousData.length - 2] && nextData[previousData.length - 2].time) === Number(previousData[previousData.length - 2] && previousData[previousData.length - 2].time));
+        if (!prefixUnchanged) return series.setData(nextData);
+        for (var index = Math.max(0, previousData.length - 1); index < nextData.length; index++) series.update(nextData[index]);
+      }
       function qbtSyncWorkspace() {
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         if (!trade) return;
         var active = qbtBars[qbtIndex], source = qbtOpen || qbtTrades[qbtTrades.length - 1];
-        trade.chartData = qbtJournalCandles(qbtIndex + 1);
+        var sourceData = qbtJournalCandles(qbtIndex + 1);
+        trade.chartData = sourceData;
         if (source) { trade.time = source.entryTime; trade.exitTime = source.exitTime || qbtTime(active); trade.side = source.side === "Long" ? "Buy" : "Sell"; trade.volume = source.qty; trade.entry = source.entry; trade.exit = source.exit == null ? active.close : source.exit; trade.pnl = Number(source.pnl) || 0; }
         if (currentRiskRewardTrade !== trade || !currentLwSeries) return;
-        var sourceData = qbtJournalCandles(qbtIndex + 1);
         var preparedData = prepareJournalChartDataForTrade(sourceData, trade);
         var workspace = getJournalChartWorkspace(trade);
         var previousJournalChartData = currentJournalChartData;
-        currentJournalChartData = journalPanelAggregation(preparedData, workspace.panels[0]);
-        var canUpdateJournalSeries = previousJournalChartData.length > 0 && currentJournalChartData.length >= previousJournalChartData.length &&
-          currentJournalChartData.slice(0, Math.max(0, previousJournalChartData.length - 1)).every(function (bar, index) {
-            return Number(bar.time) === Number(previousJournalChartData[index].time);
-          });
-        if (canUpdateJournalSeries) {
-          for (var journalDataIndex = Math.max(0, previousJournalChartData.length - 1); journalDataIndex < currentJournalChartData.length; journalDataIndex++) {
-            currentLwSeries.update(currentJournalChartData[journalDataIndex]);
-          }
-        } else {
-          currentLwSeries.setData(currentJournalChartData);
-        }
+        currentJournalChartData = qbtReplayPanelData(trade, workspace.panels[0], 0, preparedData);
+        qbtUpdateReplaySeries(currentLwSeries, currentJournalChartData, previousJournalChartData);
         applyJournalVwapToChart(currentLwChart, currentJournalChartData, 0);
         if (currentTradeCvdSeries) {
           var cvdData = buildJournalCvdData(currentJournalChartData);
-          currentTradeCvdSeries.setData(cvdData.length ? cvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; }));
+          var nextCvdData = cvdData.length ? cvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; });
+          qbtUpdateReplaySeries(currentTradeCvdSeries, nextCvdData, buildJournalCvdData(previousJournalChartData));
         }
         journalSecondaryCharts.forEach(function (record) {
-          var data = journalPanelAggregation(preparedData, record.config);
+          var previousData = record.data || [];
+          var previousCvdData = record.cvdData || [];
+          var data = qbtReplayPanelData(trade, record.config, record.panelIndex, preparedData);
           record.data = data;
-          record.series.setData(data);
+          qbtUpdateReplaySeries(record.series, data, previousData);
           if (record.cvdSeries) {
             record.cvdData = buildJournalCvdData(data);
-            record.cvdSeries.setData(record.cvdData.length ? record.cvdData : data.map(function (bar) { return { time: Number(bar.time) }; }));
+            qbtUpdateReplaySeries(record.cvdSeries, record.cvdData.length ? record.cvdData : data.map(function (bar) { return { time: Number(bar.time) }; }), previousCvdData);
           }
         });
         scheduleJournalFootprintRender();
@@ -27546,7 +27642,7 @@
         saveData({ skipUpdate:true });
         closeJournalRrContextMenu();
       }
-      async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
+      async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
       function qbtSaveDataset() { if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true); var suggestedName = (document.getElementById("qbtSymbol").value || "Backtest data") + " " + new Date().toLocaleDateString("nl-BE"); openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName); }
       async function qbtLoadDatasets() { try { qbtDatasets = await localforage.getItem(QBT_DATA_KEY) || []; qbtRenderDatasets(); } catch (error) { qbtSetStatus("Opgeslagen datasets konden niet worden geladen.", true); } }
       function qbtRenderDatasets() { var select = document.getElementById("qbtDataset"); if (!select) return; select.innerHTML = '<option value="">Opgeslagen data…</option>' + qbtDatasets.map(function (set) { return '<option value="' + set.id + '">' + String(set.name).replace(/</g,"&lt;") + '</option>'; }).join(""); }
