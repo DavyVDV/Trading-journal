@@ -27211,7 +27211,19 @@
       function qbtStep(direction) { if (!qbtBars.length) return; if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true); qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction)); qbtRender(); qbtSyncWorkspace(); window.requestAnimationFrame(function () { window.requestAnimationFrame(qbtScrollWorkspaceToEnd); }); if (qbtIndex >= qbtBars.length - 1 && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); } }
       function qbtEnter(side) { if (!qbtBars.length || qbtOpen) return; var bar = qbtBars[qbtIndex], qty = Math.max(1, Number(document.getElementById("qbtQty").value) || 1); qbtOpen = {side:side,qty:qty,entry:bar.close,entryTime:qbtTime(bar),entryIndex:qbtIndex}; qbtRender(); qbtSyncWorkspace(); }
       function qbtExit() { if (!qbtOpen || !qbtBars.length) return; var bar = qbtBars[qbtIndex]; if (qbtIndex <= qbtOpen.entryIndex) return qbtSetStatus("Ga minstens één bar vooruit om de trade te sluiten.", true); var exit = bar.close, pnl = (qbtOpen.side === "Long" ? exit - qbtOpen.entry : qbtOpen.entry - exit) * qbtOpen.qty; qbtTrades.push({id:"qbt-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),side:qbtOpen.side,qty:qbtOpen.qty,entry:qbtOpen.entry,exit:exit,entryTime:qbtOpen.entryTime,exitTime:qbtTime(bar),pnl:pnl}); qbtOpen = null; qbtRender(); qbtSyncWorkspace(); }
-      function qbtJournalCandles(limit) { return qbtBars.slice(0, limit || qbtBars.length).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
+      function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
+      function qbtJournalCandles(limit) { return qbtJournalCandlesFromBars(qbtBars, limit); }
+      function qbtJournalDayCandles(value) {
+        var date = qbtTime({ timestamp: value });
+        if (!(date instanceof Date) || isNaN(date.getTime())) return [];
+        var start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 1, 0, 0);
+        var end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 22, 0, 0, 0);
+        var source = qbtSourceBars.length ? qbtSourceBars : qbtBars;
+        return qbtJournalCandlesFromBars(source.filter(function (bar) {
+          var timestamp = qbtTime(bar);
+          return timestamp >= start && timestamp <= end;
+        }));
+      }
       function qbtSyncWorkspace() {
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         if (!trade) return;
@@ -27300,7 +27312,7 @@
           return;
         }
         var entry = Number(source.rrEntry), target = Number(source.tp), stop = Number(source.sl);
-        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, time:source.time, exitTime:source.time, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, pnl:0, tp:target, sl:stop, rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest." });
+        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:source.time, exitTime:source.time, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, pnl:0, tp:target, sl:stop, rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest.", chartData:qbtJournalDayCandles(source.time), chartDataTimeMode:CHART_TIME_MODE });
         delete copied.__backtestSession;
         trades.push(copied);
         saveData({ skipUpdate:true });
@@ -27310,7 +27322,9 @@
         var id = document.getElementById("editTradeId").value;
         var trade = trades.find(function (item) { return item.id === id; });
         if (!trade || !trade.__backtestSession) return;
-        delete trade.__backtestSession; qbtWorkspaceTradeId = null;
+        trade.chartData = qbtJournalDayCandles(trade.time);
+        trade.chartDataTimeMode = CHART_TIME_MODE;
+        delete trade.__backtestSession; delete trade.__backtestReplayActive; qbtWorkspaceTradeId = null;
         if (!Array.isArray(trade.tags)) trade.tags = [];
         if (trade.tags.indexOf("Backtest") < 0) trade.tags.push("Backtest");
         saveData({ skipUpdate:true });
