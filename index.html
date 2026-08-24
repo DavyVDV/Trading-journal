@@ -21639,6 +21639,7 @@
         journalTradeChartTimeframe = workspace.panels[0].timeframe;
         var chartDataToUse = aggregateJournalChartData(preparedChartData, journalTradeChartTimeframe);
         currentJournalChartData = chartDataToUse;
+        var preserveReplayViewport = !!(trade && trade.__backtestSession && trade.__backtestReplayActive);
         var timeframeSelector = document.getElementById("journalTradeChartTimeframe");
         if (timeframeSelector) timeframeSelector.value = String(journalTradeChartTimeframe);
         syncJournalTradeChartTimeframeButtons();
@@ -21828,7 +21829,7 @@
            exitCandleTime = entryCandleTime;
         }
 
-        zoomChartToTrade(trade);
+        if (!preserveReplayViewport) zoomChartToTrade(trade);
         setJournalActivePanel(journalActivePanelIndex || 0);
         requestAnimationFrame(function () {
           if (currentLwChart && currentTradeCvdChart) {
@@ -23631,9 +23632,14 @@
       function updateBacktestSecondaryChartData() {
         var replayTime = backtestBars[backtestReplayIndex] ? Math.floor(backtestBars[backtestReplayIndex].timestamp.getTime() / 1000) : Infinity;
         backtestSecondaryCharts.forEach(function (record) {
+          var range = record.chart && record.chart.timeScale().getVisibleLogicalRange ? record.chart.timeScale().getVisibleLogicalRange() : null;
           record.data = record.allData.filter(function (bar) { return Number(bar.time) <= replayTime; });
           record.series.setData(record.data);
           if (record.cvdSeries) { record.cvdData = buildBacktestPanelCvdData(record.data); record.cvdSeries.setData(record.cvdData); }
+          if (range && record.data.length) {
+            record.chart.timeScale().setVisibleLogicalRange(range);
+            if (record.cvdChart) record.cvdChart.timeScale().setVisibleLogicalRange(range);
+          }
         });
         scheduleBacktestFootprintRender();
       }
@@ -27214,7 +27220,7 @@
         if (!currentLwChart || !currentJournalChartData.length) return;
         var timeScale = currentLwChart.timeScale();
         var range = timeScale.getVisibleLogicalRange ? timeScale.getVisibleLogicalRange() : null;
-        var span = range ? Math.max(20, range.to - range.from) : Math.min(80, currentJournalChartData.length);
+        var span = range ? Math.min(80, Math.max(20, range.to - range.from)) : Math.min(80, currentJournalChartData.length);
         var to = Math.max(0, currentJournalChartData.length - 1);
         var offset = getBacktestRightOffset() / 100;
         var rightEdge = to + span * (offset / Math.max(.01, 1 - offset));
@@ -27227,7 +27233,7 @@
         var activeBar = qbtBars[qbtIndex];
         var source = sourceTrade || qbtOpen || { side:"Long", qty:Math.max(1, Number(document.getElementById("qbtQty").value) || 1), entry:activeBar.close, exit:activeBar.close, entryTime:qbtTime(activeBar), exitTime:qbtTime(activeBar), pnl:0 };
         if (qbtWorkspaceTradeId) trades = trades.filter(function (trade) { return trade.id !== qbtWorkspaceTradeId; });
-        var workspaceTrade = { id:"backtest-workspace-" + Date.now(), __backtestSession:true, backtestTradeId:source.id || null, dateStr:fmtDateCore(source.entryTime), time:source.entryTime, exitTime:source.exitTime || qbtTime(activeBar), symbol:(document.getElementById("qbtSymbol").value || "BACKTEST").trim().toUpperCase(), side:source.side === "Long" ? "Buy" : "Sell", volume:source.qty, entry:Number(source.entry), exit:Number(source.exit == null ? activeBar.close : source.exit), pnl:Number(source.pnl) || 0, fee:0, tags:["Backtest"], notes:"Gesimuleerd in Backtest.", screenshots:[], chartData:qbtJournalCandles(), chartDataTimeMode:CHART_TIME_MODE };
+        var workspaceTrade = { id:"backtest-workspace-" + Date.now(), __backtestSession:true, __backtestReplayActive:true, backtestTradeId:source.id || null, dateStr:fmtDateCore(source.entryTime), time:source.entryTime, exitTime:source.exitTime || qbtTime(activeBar), symbol:(document.getElementById("qbtSymbol").value || "BACKTEST").trim().toUpperCase(), side:source.side === "Long" ? "Buy" : "Sell", volume:source.qty, entry:Number(source.entry), exit:Number(source.exit == null ? activeBar.close : source.exit), pnl:Number(source.pnl) || 0, fee:0, tags:["Backtest"], notes:"Gesimuleerd in Backtest.", screenshots:[], chartData:qbtJournalCandles(qbtIndex + 1), chartDataTimeMode:CHART_TIME_MODE };
         trades.push(workspaceTrade); qbtWorkspaceTradeId = workspaceTrade.id; openModal(workspaceTrade.id); qbtSetWorkspaceMode(true);
         document.getElementById("noteModalTitle").innerText = "BACKTEST WORKSPACE // " + fmtDateCore(workspaceTrade.time);
         [0, 100, 260].forEach(function (delay) { window.setTimeout(qbtScrollWorkspaceToEnd, delay); });
