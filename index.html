@@ -2112,6 +2112,22 @@
         padding-right: 0;
         border-right: 0;
       }
+      #noteModal.qbt-workspace-mode {
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+      #noteModal.qbt-workspace-mode > div {
+        width: 100vw;
+        max-width: none;
+        height: 100vh;
+        max-height: none;
+        border-width: 0;
+        border-radius: 0;
+      }
+      #noteModal.qbt-workspace-mode #tradeModalChartSection {
+        height: 100%;
+      }
       #noteModalSidebarToggleBtn.active {
         border-color: #60a5fa;
         background: #1e3a5f;
@@ -5199,7 +5215,7 @@
         <div class="mx-auto max-w-[1800px] space-y-3 font-mono">
           <div class="flex flex-wrap items-center justify-between gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <div class="min-w-0"><div class="text-[10px] font-bold uppercase tracking-widest text-zinc-200">Backtest</div><div id="qbtStatus" class="mt-0.5 truncate text-[9px] text-zinc-500">Upload tickdata of OHLC CSV.</div></div>
-            <div class="flex items-center gap-1.5"><button onclick="document.getElementById('qbtFile').click()" class="bt-control !h-8"><i class="fas fa-upload"></i> CSV</button><button onclick="qbtSaveDataset()" class="bt-control !h-8" title="Huidige data lokaal opslaan"><i class="fas fa-floppy-disk"></i></button><span class="flex items-center"><select id="qbtDataset" onchange="qbtHandleDatasetSelection(this.value)" class="bt-input !h-8 !w-44"><option value="">Opgeslagen data…</option></select><button id="qbtDeleteDatasetButton" type="button" onclick="qbtDeleteSelectedDataset()" class="bt-tool !h-8 !w-7 ml-1 text-red-300" title="Geselecteerde dataset verwijderen" disabled><i class="fas fa-xmark"></i></button></span><input id="qbtFile" type="file" accept=".csv" class="hidden" onchange="qbtLoadFile(this.files[0]); this.value=''" /></div>
+            <div class="flex items-center gap-1.5"><button onclick="document.getElementById('qbtFile').click()" class="bt-control !h-8"><i class="fas fa-upload"></i> CSV</button><button onclick="qbtSaveDataset()" class="bt-control !h-8" title="Huidige backtest opslaan"><i class="fas fa-floppy-disk"></i></button><span class="flex items-center"><select id="qbtDataset" onchange="qbtHandleDatasetSelection(this.value)" class="bt-input !h-8 !w-44"><option value="">Opgeslagen backtests…</option></select><button id="qbtDeleteDatasetButton" type="button" onclick="qbtDeleteSelectedDataset()" class="bt-tool !h-8 !w-7 ml-1 text-red-300" title="Geselecteerde save verwijderen" disabled><i class="fas fa-xmark"></i></button></span><input id="qbtFile" type="file" accept=".csv" class="hidden" onchange="qbtLoadFile(this.files[0]); this.value=''" /></div>
           </div>
           <div class="flex flex-wrap items-end gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <label class="min-w-[210px] flex-1"><span class="bt-label">Beginnen vanaf</span><input id="qbtStartDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
@@ -6061,6 +6077,7 @@
                     </select>
                   </div>
                   <div id="qbtPopupControls" class="hidden items-center gap-1 shrink-0">
+                    <button id="qbtPopupSave" type="button" class="bt-tool" onclick="qbtSaveDataset()" title="Huidige backtest opslaan" aria-label="Huidige backtest opslaan"><i class="fas fa-floppy-disk"></i></button>
                     <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
                     <button id="qbtPopupFollow" type="button" class="bt-tool active" onclick="qbtToggleFollow()" title="Nieuwe candles volgen" aria-label="Nieuwe candles volgen" aria-pressed="true"><i class="fas fa-location-arrow"></i></button>
                     <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
@@ -27886,12 +27903,21 @@
         saveData({ skipUpdate:true });
         closeJournalRrContextMenu();
       }
-      async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
+      function qbtSerializeBar(bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }
+      function qbtSerializeTrade(trade) { return Object.assign({}, trade, { entryTime: trade.entryTime instanceof Date ? trade.entryTime.toISOString() : trade.entryTime, exitTime: trade.exitTime instanceof Date ? trade.exitTime.toISOString() : trade.exitTime }); }
+      async function qbtSaveDatasetWithName(name) {
+        var dataset = { id:"qbt-data-"+Date.now()+"-"+Math.random().toString(36).slice(2,7), name:name, savedAt:new Date().toISOString(), replayIndex:qbtIndex, replayVisibleTicks:qbtReplayVisibleTicks, riskAmount:qbtRiskAmount, riskInstrument:qbtRiskInstrument, symbol:(document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value) || "BACKTEST", qty:(document.getElementById("qbtQty") && Number(document.getElementById("qbtQty").value)) || 1, openTrade:qbtOpen ? qbtSerializeTrade(qbtOpen) : null, trades:qbtTrades.map(qbtSerializeTrade), bars:qbtBars.map(qbtSerializeBar) };
+        qbtDatasets.push(dataset);
+        await localforage.setItem(QBT_DATA_KEY,qbtDatasets);
+        qbtLoadedDatasetId = dataset.id;
+        qbtRenderDatasets();
+        qbtSetStatus("Backtest opgeslagen op bar " + (qbtIndex + 1) + ".");
+      }
       function qbtSaveDataset() { if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true); var suggestedName = (document.getElementById("qbtSymbol").value || "Backtest data") + " " + new Date().toLocaleDateString("nl-BE"); openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName); }
       async function qbtLoadDatasets() { try { qbtDatasets = await localforage.getItem(QBT_DATA_KEY) || []; qbtRenderDatasets(); } catch (error) { qbtSetStatus("Opgeslagen datasets konden niet worden geladen.", true); } }
       function qbtRenderDatasets() {
         var select = document.getElementById("qbtDataset"); if (!select) return;
-        select.innerHTML = '<option value="">Opgeslagen data…</option>' + qbtDatasets.map(function (set) { return '<option value="' + set.id + '">' + String(set.name).replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</option>'; }).join("");
+        select.innerHTML = '<option value="">Opgeslagen backtests…</option>' + qbtDatasets.map(function (set) { var suffix = set.replayIndex != null ? " · bar " + (Number(set.replayIndex) + 1) : ""; return '<option value="' + set.id + '">' + String(set.name).replace(/&/g,"&amp;").replace(/</g,"&lt;") + suffix + '</option>'; }).join("");
         select.value = qbtDatasets.some(function (set) { return set.id === qbtLoadedDatasetId; }) ? qbtLoadedDatasetId : "";
         var removeButton = document.getElementById("qbtDeleteDatasetButton"); if (removeButton) removeButton.disabled = !select.value;
       }
@@ -27913,7 +27939,30 @@
           qbtRenderDatasets();
         });
       }
-      function qbtLoadDataset(id) { var set = qbtDatasets.find(function (item) { return item.id === id; }); if (!set) return; qbtLoadedDatasetId = id; qbtSourceBars = set.bars.map(function (bar) { return Object.assign({},bar,{timestamp:new Date(bar.timestamp)}); }); qbtReplayVisibleTicks = null; qbtReplayAggregationCache = null; qbtSetRangeInputs(); qbtBars = []; qbtIndex = 0; qbtTrades=[]; qbtOpen=null; qbtRender(); qbtRenderDatasets(); }
+      function qbtLoadDataset(id) {
+        var set = qbtDatasets.find(function (item) { return item.id === id; });
+        if (!set) return;
+        qbtLoadedDatasetId = id;
+        qbtSourceBars = (set.bars || []).map(function (bar) { return Object.assign({},bar,{timestamp:new Date(bar.timestamp)}); });
+        qbtSourceBars.deltaSource = set.deltaSource || "missing";
+        qbtReplayAggregationCache = null;
+        var isReplaySave = set.replayIndex != null;
+        qbtBars = isReplaySave ? qbtSourceBars.slice() : [];
+        qbtReplayVisibleTicks = isReplaySave && Number.isFinite(Number(set.replayVisibleTicks)) ? Number(set.replayVisibleTicks) : null;
+        qbtIndex = isReplaySave ? Math.max(0, Math.min(qbtBars.length - 1, Number(set.replayIndex) || 0)) : 0;
+        qbtRiskAmount = Number(set.riskAmount) || qbtRiskAmount;
+        qbtRiskInstrument = set.riskInstrument || qbtRiskInstrument;
+        if (document.getElementById("qbtRiskAmount")) document.getElementById("qbtRiskAmount").value = qbtRiskAmount;
+        if (document.getElementById("qbtRiskInstrument")) document.getElementById("qbtRiskInstrument").value = qbtRiskInstrument;
+        if (document.getElementById("qbtSymbol")) document.getElementById("qbtSymbol").value = set.symbol || "BACKTEST";
+        if (document.getElementById("qbtQty")) document.getElementById("qbtQty").value = Number(set.qty) || 1;
+        qbtTrades = isReplaySave ? (set.trades || []).map(function (trade) { return Object.assign({}, trade, { entryTime: trade.entryTime ? new Date(trade.entryTime) : trade.entryTime, exitTime: trade.exitTime ? new Date(trade.exitTime) : trade.exitTime }); }) : [];
+        qbtOpen = isReplaySave && set.openTrade ? Object.assign({}, set.openTrade, { entryTime: set.openTrade.entryTime ? new Date(set.openTrade.entryTime) : set.openTrade.entryTime, exitTime: set.openTrade.exitTime ? new Date(set.openTrade.exitTime) : set.openTrade.exitTime }) : null;
+        qbtSetRangeInputs();
+        qbtRender();
+        qbtRenderDatasets();
+        if (isReplaySave && qbtBars.length) qbtOpenWorkspace(qbtOpen || qbtTrades[qbtTrades.length - 1]);
+      }
       document.addEventListener("DOMContentLoaded", function () { qbtLoadDatasets(); window.addEventListener("resize", qbtResize); });
     </script>
   </body>
