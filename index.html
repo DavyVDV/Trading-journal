@@ -27269,6 +27269,31 @@
         }
         return trade.time ? qbtTime({ timestamp: trade.time }) : null;
       }
+      function qbtFindRrOutcome(trade, entryTime) {
+        if (!trade || !qbtBars.length) return null;
+        var direction = String(trade.side || "Long").toLowerCase().indexOf("short") >= 0 || String(trade.side || "").toLowerCase().indexOf("sell") >= 0 ? "SHORT" : "LONG";
+        var startIndex = 0;
+        var entryTimestamp = entryTime ? qbtChartTimestamp({ timestamp: entryTime }) : Number(trade.rrStartTime);
+        if (Number.isFinite(entryTimestamp)) {
+          while (startIndex < qbtBars.length && qbtChartTimestamp(qbtBars[startIndex]) < entryTimestamp) startIndex++;
+        }
+        for (var index = startIndex + 1; index <= Math.min(qbtIndex, qbtBars.length - 1); index++) {
+          var bar = qbtBars[index];
+          var targetHit = direction === "LONG" ? bar.high >= Number(trade.tp) : bar.low <= Number(trade.tp);
+          var stopHit = direction === "LONG" ? bar.low <= Number(trade.sl) : bar.high >= Number(trade.sl);
+          if (!targetHit && !stopHit) continue;
+          if (targetHit && stopHit) {
+            var referencePrice = Number.isFinite(Number(bar.open)) ? Number(bar.open) : Number(trade.rrEntry);
+            return Math.abs(referencePrice - Number(trade.tp)) <= Math.abs(referencePrice - Number(trade.sl))
+              ? { index: index, price: Number(trade.tp), type: "tp" }
+              : { index: index, price: Number(trade.sl), type: "sl" };
+          }
+          return targetHit
+            ? { index: index, price: Number(trade.tp), type: "tp" }
+            : { index: index, price: Number(trade.sl), type: "sl" };
+        }
+        return null;
+      }
       function qbtSyncWorkspace() {
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         if (!trade) return;
@@ -27377,7 +27402,9 @@
         }
         var entry = Number(source.rrEntry), target = Number(source.tp), stop = Number(source.sl);
         var entryTime = qbtFirstRrEntryTouchTime(source) || qbtTime({ timestamp: source.time });
-        var exitTime = source.exitTime && qbtTime({ timestamp: source.exitTime }) > entryTime ? qbtTime({ timestamp: source.exitTime }) : qbtTime(qbtBars[qbtIndex]);
+        var rrOutcome = qbtFindRrOutcome(source, entryTime);
+        var outcomeBar = rrOutcome ? qbtBars[rrOutcome.index] : null;
+        var exitTime = outcomeBar ? qbtTime(outcomeBar) : source.exitTime && qbtTime({ timestamp: source.exitTime }) > entryTime ? qbtTime({ timestamp: source.exitTime }) : qbtTime(qbtBars[qbtIndex]);
         var specification = qbtGetInstrumentSpecification();
         var riskAmount = Math.max(0.01, Number(qbtRiskAmount) || Number(document.getElementById("qbtRiskAmount").value) || 0);
         var stopRiskPerContract = Math.abs(entry - stop) / specification.tickSize * specification.tickValue;
@@ -27388,13 +27415,10 @@
         var grossLoss = contracts * specification.tickValue * stopTicks;
         var commission = qbtGetCommissionPerContract() * contracts;
         var side = String(source.side || "Long").toLowerCase().indexOf("short") >= 0 || String(source.side || "").toLowerCase().indexOf("sell") >= 0 ? "Sell" : "Buy";
-        var exitPrice = Number(source.exit);
+        var exitPrice = rrOutcome ? rrOutcome.price : Number(source.exit);
         if (!Number.isFinite(exitPrice)) exitPrice = Number(qbtBars[qbtIndex].close);
-        var targetHit = side === "Buy" ? exitPrice >= target : exitPrice <= target;
-        var stopHit = side === "Buy" ? exitPrice <= stop : exitPrice >= stop;
         var sourcePnl = Number(source.pnl);
-        var hasSourceOutcome = Number.isFinite(sourcePnl) && Math.abs(sourcePnl) > 0.000001;
-        var tradeWasLoss = hasSourceOutcome ? sourcePnl < 0 : stopHit && !targetHit;
+        var tradeWasLoss = rrOutcome ? rrOutcome.type === "sl" : Number.isFinite(sourcePnl) && sourcePnl < 0;
         var grossPnl = tradeWasLoss ? -grossLoss : grossWin;
         var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:entryTime, exitTime:exitTime, side:side, entry:entry, exit:exitPrice, volume:contracts, fee:commission, pnl:grossPnl, riskAmount:riskAmount, potentialWin:grossWin, potentialLoss:grossLoss, potentialWinNet:grossWin - commission, potentialLossNet:grossLoss + commission, tp:target, sl:stop, rrStartTime:qbtChartTimestamp({ timestamp:entryTime }), rrEndTime:qbtChartTimestamp({ timestamp:exitTime }), rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest. Risico $" + riskAmount.toFixed(2) + " | " + contracts + " contract(en) | Win $" + (grossWin - commission).toFixed(2) + " | Verlies $" + (grossLoss + commission).toFixed(2) + " | Commissie $" + commission.toFixed(2), chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
         delete copied.__backtestSession;
