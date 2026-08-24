@@ -27214,7 +27214,28 @@
         var active = qbtBars[qbtIndex], source = qbtOpen || qbtTrades[qbtTrades.length - 1];
         trade.chartData = qbtJournalCandles(qbtIndex + 1);
         if (source) { trade.time = source.entryTime; trade.exitTime = source.exitTime || qbtTime(active); trade.side = source.side === "Long" ? "Buy" : "Sell"; trade.volume = source.qty; trade.entry = source.entry; trade.exit = source.exit == null ? active.close : source.exit; trade.pnl = Number(source.pnl) || 0; }
-        if (currentRiskRewardTrade === trade) requestAnimationFrame(function () { renderLightweightChart(trade); });
+        if (currentRiskRewardTrade !== trade || !currentLwSeries) return;
+        var sourceData = qbtJournalCandles(qbtIndex + 1);
+        var preparedData = prepareJournalChartDataForTrade(sourceData, trade);
+        var workspace = getJournalChartWorkspace(trade);
+        currentJournalChartData = aggregateJournalChartData(preparedData, workspace.panels[0].timeframe);
+        currentLwSeries.setData(currentJournalChartData);
+        if (currentTradeCvdSeries) {
+          var cvdData = buildJournalCvdData(currentJournalChartData);
+          currentTradeCvdSeries.setData(cvdData.length ? cvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; }));
+        }
+        journalSecondaryCharts.forEach(function (record) {
+          var data = aggregateJournalChartData(preparedData, record.config.timeframe);
+          record.data = data;
+          record.series.setData(data);
+          if (record.cvdSeries) {
+            record.cvdData = buildJournalCvdData(data);
+            record.cvdSeries.setData(record.cvdData.length ? record.cvdData : data.map(function (bar) { return { time: Number(bar.time) }; }));
+          }
+        });
+        scheduleJournalFootprintRender();
+        renderJournalChartDrawings();
+        requestAnimationFrame(qbtScrollWorkspaceToEnd);
       }
       function qbtScrollWorkspaceToEnd() {
         if (!currentLwChart || !currentJournalChartData.length) return;
