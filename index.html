@@ -16170,6 +16170,10 @@
       var journalContextPanelIndex = 0;
       var journalActivePanelIndex = 0;
       var journalFootprintRenderFrame = null;
+      var journalDrawingRenderFrame = null;
+      var journalCrosshairMoveFramePending = false;
+      var journalPriceScaleSyncFrame = null;
+      var currentJournalCvdData = [];
       var journalWorkspaceRenderFrame = null;
       var journalWorkspaceResizeObserver = null;
       var JOURNAL_CHART_UP_COLOR = "#22bde8";
@@ -17159,11 +17163,12 @@
 
       function getJournalCrosshairTargets() {
         var targets = [];
+        var workspace = currentJournalRenderableWorkspace || getJournalChartWorkspace();
         if (currentLwChart && currentLwSeries) targets.push({ chart: currentLwChart, series: currentLwSeries, data: currentJournalChartData, isCvd: false, paneElement: document.getElementById("tradePriceChartPane"), siblingChart: currentTradeCvdChart });
-        if (currentTradeCvdChart && currentTradeCvdSeries) targets.push({ chart: currentTradeCvdChart, series: currentTradeCvdSeries, data: buildJournalCvdData(currentJournalChartData), isCvd: true, paneElement: document.getElementById("tradeCvdPane"), siblingChart: currentLwChart });
+        if (workspace.showCvd && workspace.panels[0].showCvd !== false && currentTradeCvdChart && currentTradeCvdSeries) targets.push({ chart: currentTradeCvdChart, series: currentTradeCvdSeries, data: currentJournalCvdData, isCvd: true, paneElement: document.getElementById("tradeCvdPane"), siblingChart: currentLwChart });
         journalSecondaryCharts.forEach(function (panel) {
           targets.push({ chart: panel.chart, series: panel.series, data: panel.data, isCvd: false, paneElement: panel.priceElement, siblingChart: panel.cvdChart });
-          if (panel.cvdChart && panel.cvdSeries) targets.push({ chart: panel.cvdChart, series: panel.cvdSeries, data: panel.cvdData || buildJournalCvdData(panel.data), isCvd: true, paneElement: panel.cvdElement, siblingChart: panel.chart });
+          if (panel.config.showCvd !== false && panel.cvdChart && panel.cvdSeries) targets.push({ chart: panel.cvdChart, series: panel.cvdSeries, data: panel.cvdData || [], isCvd: true, paneElement: panel.cvdElement, siblingChart: panel.chart });
         });
         return targets;
       }
@@ -17342,6 +17347,11 @@
         });
         container.addEventListener("pointermove", function (event) {
           if (!currentLwChart || !currentLwSeries) return;
+          if (currentRiskRewardTrade && currentRiskRewardTrade.__backtestSession) {
+            if (journalCrosshairMoveFramePending) return;
+            journalCrosshairMoveFramePending = true;
+            requestAnimationFrame(function () { journalCrosshairMoveFramePending = false; });
+          }
           var hoveredSecondary = journalSecondaryCharts.find(function (panel) {
             var bounds = panel.element.getBoundingClientRect();
             return event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
@@ -18313,6 +18323,14 @@
         }
       }
 
+      function scheduleJournalChartDrawings() {
+        if (journalDrawingRenderFrame) return;
+        journalDrawingRenderFrame = requestAnimationFrame(function () {
+          journalDrawingRenderFrame = null;
+          renderJournalChartDrawings();
+        });
+      }
+
       function finishJournalChartDrawing(drawing, panelIndex) {
         var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
         pushJournalChartHistory();
@@ -19028,6 +19046,7 @@
         var unavailable = document.getElementById("tradeCvdUnavailable");
         if (!cvdDiv || !unavailable) return;
         var cvdData = buildJournalCvdData(chartData);
+        currentJournalCvdData = cvdData;
         unavailable.classList.toggle("hidden", cvdData.length > 0);
         unavailable.classList.toggle("flex", cvdData.length === 0);
         unavailable.textContent = "Geen betrouwbare CVD-data beschikbaar. Upload tickdata met Cumulative Delta of Aggressor flag + Volume.";
@@ -19047,7 +19066,7 @@
             priceFormat: { type: "volume" },
           });
           currentTradeCvdChart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
-            syncJournalChartPriceScales();
+            scheduleJournalChartPriceScaleSync();
             if (!range || !currentLwChart || tradeChartRangeSyncing) return;
             tradeChartRangeSyncing = true;
             currentLwChart.timeScale().setVisibleLogicalRange(range);
@@ -19939,21 +19958,21 @@
               cvdSeries.setData(cvdData.length ? cvdData : data.map(function (bar) { return { time: Number(bar.time) }; }));
               var secondaryRangeSyncing = false;
               chart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
-                syncJournalChartPriceScales();
+                scheduleJournalChartPriceScaleSync();
                 if (range && !secondaryRangeSyncing) { secondaryRangeSyncing = true; cvdChart.timeScale().setVisibleLogicalRange(range); secondaryRangeSyncing = false; }
                 scheduleJournalFootprintRender();
-                renderJournalChartDrawings();
+                scheduleJournalChartDrawings();
               });
               cvdChart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
-                syncJournalChartPriceScales();
+                scheduleJournalChartPriceScaleSync();
                 if (range && !secondaryRangeSyncing) { secondaryRangeSyncing = true; chart.timeScale().setVisibleLogicalRange(range); secondaryRangeSyncing = false; }
               });
               record.cvdChart = cvdChart; record.cvdSeries = cvdSeries; record.cvdData = cvdData;
             } else {
               chart.timeScale().subscribeVisibleLogicalRangeChange(function () {
-                syncJournalChartPriceScales();
+                scheduleJournalChartPriceScaleSync();
                 scheduleJournalFootprintRender();
-                renderJournalChartDrawings();
+                scheduleJournalChartDrawings();
               });
             }
             journalSecondaryCharts.push(record);
@@ -20071,6 +20090,14 @@
             syncJournalChartPriceScales();
           });
         }
+      }
+
+      function scheduleJournalChartPriceScaleSync() {
+        if (journalPriceScaleSyncFrame) return;
+        journalPriceScaleSyncFrame = requestAnimationFrame(function () {
+          journalPriceScaleSyncFrame = null;
+          syncJournalChartPriceScales();
+        });
       }
 
       function resizeJournalTradeChartPanes() {
@@ -21838,9 +21865,9 @@
           });
           currentLwChart.timeScale().subscribeVisibleLogicalRangeChange(function () {
             scheduleRiskRewardOverlayRender();
-            renderJournalChartDrawings();
+            scheduleJournalChartDrawings();
             scheduleJournalFootprintRender();
-            syncJournalChartPriceScales();
+            scheduleJournalChartPriceScaleSync();
             var mainTimeScale = currentLwChart.timeScale();
             var range = typeof mainTimeScale.getVisibleLogicalRange === "function" ? mainTimeScale.getVisibleLogicalRange() : null;
             if (range && currentTradeCvdChart && !tradeChartRangeSyncing) {
@@ -21854,7 +21881,7 @@
 
           function syncOverlayDuringChartInteraction() {
             scheduleRiskRewardOverlayRender();
-            renderJournalChartDrawings();
+            scheduleJournalChartDrawings();
             if (chartInteractionActive) {
               chartInteractionFrame = requestAnimationFrame(
                 syncOverlayDuringChartInteraction,
@@ -21872,7 +21899,7 @@
           function stopChartInteractionSync() {
             chartInteractionActive = false;
             scheduleRiskRewardOverlayRender();
-            renderJournalChartDrawings();
+            scheduleJournalChartDrawings();
           }
 
           chartDiv.addEventListener("pointerdown", startChartInteractionSync);
@@ -21932,8 +21959,9 @@
         applyJournalVwapToChart(currentLwChart, chartDataToUse, 0);
         if (workspace.showCvd && workspace.panels[0].showCvd !== false) {
           renderTradeCvdChart(chartDataToUse);
-        } else if (currentTradeCvdSeries) {
-          currentTradeCvdSeries.setData([]);
+        } else {
+          if (currentTradeCvdSeries) currentTradeCvdSeries.setData([]);
+          currentJournalCvdData = [];
         }
         renderJournalChartWorkspace(trade, preparedChartData);
         bindJournalSharedCrosshair();
@@ -27029,11 +27057,21 @@
         // Menus no longer close by clicking outside
       });
       document.addEventListener("keydown", function (event) {
-        if (activeTab !== "backtest") return;
         var noteModal = document.getElementById("noteModal");
-        if (noteModal && !noteModal.classList.contains("hidden") && noteModal.classList.contains("qbt-workspace-mode") && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
+        var qbtWorkspaceOpen = noteModal && !noteModal.classList.contains("hidden") && noteModal.classList.contains("qbt-workspace-mode");
         var target = event.target;
         if (target && (/INPUT|SELECT|TEXTAREA/.test(target.tagName) || target.isContentEditable)) return;
+        if (qbtWorkspaceOpen && (event.code === "Space" || event.key === " ") && !event.repeat) {
+          event.preventDefault();
+          qbtTogglePlayback();
+          return;
+        }
+        if (qbtWorkspaceOpen && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+          event.preventDefault();
+          qbtStep(event.key === "ArrowRight" ? 1 : -1);
+          return;
+        }
+        if (activeTab !== "backtest") return;
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
           event.preventDefault();
           undoBacktestDrawing();
@@ -27301,6 +27339,9 @@
       var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES", qbtAutoFollow = localStorage.getItem("qt_qbt_auto_follow_v1") !== "false";
       var qbtReplayAggregationCache = null;
       var qbtReplayVisibleTicks = null;
+      var qbtPrimaryCvdData = [];
+      var qbtJournalSourceCache = { source: null, data: [] };
+      var qbtJournalVisibleCache = { source: null, data: [] };
       var qbtLoadedDatasetId = "";
       var QBT_DATA_KEY = "qt_minimal_backtest_datasets_v1";
 
@@ -27482,11 +27523,12 @@
         qbtSetPlaybackIcon(true);
         qbtPlaybackTimer = window.setTimeout(qbtPlaybackTick, qbtPlaybackDelay());
       }
-      function qbtRender() {
+      function qbtRender(progressOnly) {
         var legacy = document.getElementById("qbtLegacySurface");
         if (legacy && !legacy.classList.contains("hidden")) { qbtCreateChart(); if (qbtSeries) qbtSeries.setData(qbtChartData()); }
         var current = qbtBars[qbtIndex];
         qbtSetStatus(qbtBars.length ? ((qbtIndex + 1).toLocaleString("nl-BE") + " / " + qbtBars.length.toLocaleString("nl-BE") + " bars · " + formatBacktestTime(qbtTime(current))) : "Upload tickdata of OHLC CSV.");
+        if (progressOnly) return;
         qbtText("qbtCount", qbtTrades.length);
         var position = document.getElementById("qbtPosition");
         if (position) position.innerHTML = qbtOpen ? '<div class="flex justify-between"><strong class="' + (qbtOpen.side === "Long" ? "text-cyan-300" : "text-red-300") + '">' + qbtOpen.side.toUpperCase() + ' ' + qbtOpen.qty + 'x</strong><span class="text-zinc-500">OPEN</span></div><div class="mt-1 text-zinc-400">Entry ' + qbtOpen.entry.toFixed(2) + '</div>' : "Geen open positie";
@@ -27527,28 +27569,48 @@
           qbtReplayVisibleTicks = null;
           qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction));
         }
-        qbtRender(); qbtSyncWorkspace();
+        qbtRender(true); qbtSyncWorkspace();
         if (!qbtHasNextReplayStep() && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); }
       }
       function qbtEnter(side) { if (!qbtBars.length || qbtOpen) return; var bar = qbtBars[qbtIndex], qty = Math.max(1, Number(document.getElementById("qbtQty").value) || 1); qbtOpen = {side:side,qty:qty,entry:bar.close,entryTime:qbtTime(bar),entryIndex:qbtIndex}; qbtRender(); qbtSyncWorkspace(); }
       function qbtExit() { if (!qbtOpen || !qbtBars.length) return; var bar = qbtBars[qbtIndex]; if (qbtIndex <= qbtOpen.entryIndex) return qbtSetStatus("Ga minstens één bar vooruit om de trade te sluiten.", true); var exit = bar.close, pnl = (qbtOpen.side === "Long" ? exit - qbtOpen.entry : qbtOpen.entry - exit) * qbtOpen.qty; qbtTrades.push({id:"qbt-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),side:qbtOpen.side,qty:qbtOpen.qty,entry:qbtOpen.entry,exit:exit,entryTime:qbtOpen.entryTime,exitTime:qbtTime(bar),pnl:pnl}); qbtOpen = null; qbtRender(); qbtSyncWorkspace(); }
       function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
-      function qbtJournalCandles(limit) { return qbtJournalCandlesFromBars(qbtBars, limit); }
+      function qbtJournalCandles(limit) {
+        if (qbtJournalSourceCache.source !== qbtBars) {
+          qbtJournalSourceCache = { source: qbtBars, data: qbtJournalCandlesFromBars(qbtBars) };
+        }
+        if (qbtJournalVisibleCache.source !== qbtBars) qbtJournalVisibleCache = { source: qbtBars, data: [] };
+        var targetLength = Math.max(0, Math.min(Number(limit) || qbtJournalSourceCache.data.length, qbtJournalSourceCache.data.length));
+        if (qbtJournalVisibleCache.data.length > targetLength) qbtJournalVisibleCache.data.length = targetLength;
+        while (qbtJournalVisibleCache.data.length < targetLength) qbtJournalVisibleCache.data.push(qbtJournalSourceCache.data[qbtJournalVisibleCache.data.length]);
+        return qbtJournalVisibleCache.data;
+      }
       function qbtActiveTickPanel() {
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         var panel = trade && getJournalChartWorkspace(trade).panels[0];
         return panel && panel.timeframeMode === "ticks" && qbtBars.length && qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; }) ? panel : null;
       }
-      function qbtTickTotalThrough(index) {
-        var total = 0;
-        for (var barIndex = 0; barIndex <= Math.min(index, qbtBars.length - 1); barIndex++) total += qbtBars[barIndex].ticks.length;
-        return total;
+      function qbtEnsureTickPrefixCache() {
+        if (qbtReplayAggregationCache && qbtReplayAggregationCache.source === qbtBars && Array.isArray(qbtReplayAggregationCache.prefixTicks) && qbtReplayAggregationCache.prefixTicks.length === qbtBars.length) return qbtReplayAggregationCache.prefixTicks;
+        var running = 0;
+        var panels = qbtReplayAggregationCache && qbtReplayAggregationCache.source === qbtBars ? qbtReplayAggregationCache.panels || {} : {};
+        qbtReplayAggregationCache = {
+          source: qbtBars,
+          prefixTicks: qbtBars.map(function (bar) { running += Array.isArray(bar.ticks) ? bar.ticks.length : Math.max(1, Number(bar.tickCount) || 1); return running; }),
+          panels: panels,
+        };
+        return qbtReplayAggregationCache.prefixTicks;
       }
-      function qbtTotalTicks() { return qbtTickTotalThrough(qbtBars.length - 1); }
+      function qbtTickTotalThrough(index) {
+        var prefix = qbtEnsureTickPrefixCache();
+        return prefix[Math.max(0, Math.min(Number(index) || 0, prefix.length - 1))] || 0;
+      }
+      function qbtTotalTicks() { var prefix = qbtEnsureTickPrefixCache(); return prefix[prefix.length - 1] || 0; }
       function qbtSourceIndexForTickLimit(limit) {
-        var total = 0;
-        for (var index = 0; index < qbtBars.length; index++) { total += qbtBars[index].ticks.length; if (total >= limit) return index; }
-        return Math.max(0, qbtBars.length - 1);
+        var prefix = qbtEnsureTickPrefixCache();
+        var low = 0, high = prefix.length;
+        while (low < high) { var middle = Math.floor((low + high) / 2); if (prefix[middle] < limit) low = middle + 1; else high = middle; }
+        return Math.max(0, Math.min(low, qbtBars.length - 1));
       }
       function qbtInitializeTickReplay(panel) {
         if (!panel) { qbtReplayVisibleTicks = null; return; }
@@ -27562,15 +27624,30 @@
         return panel ? Number(qbtReplayVisibleTicks) < qbtTotalTicks() : qbtIndex < qbtBars.length - 1;
       }
       function qbtReplayPanelData(trade, panel, panelIndex, visiblePreparedData) {
-        if (!panel || panel.timeframeMode !== "ticks" || !qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; })) return journalPanelAggregation(visiblePreparedData, panel);
-        if (!qbtReplayAggregationCache || qbtReplayAggregationCache.source !== qbtBars) {
-          var running = 0;
-          qbtReplayAggregationCache = {
-            source: qbtBars,
-            prefixTicks: qbtBars.map(function (bar) { running += Array.isArray(bar.ticks) ? bar.ticks.length : Math.max(1, Number(bar.tickCount) || 1); return running; }),
-            panels: {},
-          };
+        if (!panel) return visiblePreparedData;
+        if (panel.timeframeMode !== "ticks") {
+          if (!qbtReplayAggregationCache || qbtReplayAggregationCache.source !== qbtBars) qbtReplayAggregationCache = { source: qbtBars, prefixTicks: [], panels: {} };
+          var timeKey = "time:" + panelIndex + ":" + panel.timeframe + ":" + String(trade && trade.id || "");
+          var timeCached = qbtReplayAggregationCache.panels[timeKey];
+          var canAppend = timeCached && visiblePreparedData.length >= timeCached.sourceLength && timeCached.firstTime === Number(visiblePreparedData[0] && visiblePreparedData[0].time);
+          if (!canAppend || !visiblePreparedData.length) {
+            var rebuilt = journalPanelAggregation(visiblePreparedData, panel);
+            qbtReplayAggregationCache.panels[timeKey] = { sourceLength: visiblePreparedData.length, firstTime: Number(visiblePreparedData[0] && visiblePreparedData[0].time), data: rebuilt };
+            return rebuilt;
+          }
+          var timeframe = Math.max(30, Number(panel.timeframe) || 30);
+          var lastTime = Number(visiblePreparedData[visiblePreparedData.length - 1].time);
+          var bucket = Math.floor(lastTime / timeframe) * timeframe;
+          var tailStart = visiblePreparedData.length - 1;
+          while (tailStart > 0 && Math.floor(Number(visiblePreparedData[tailStart - 1].time) / timeframe) * timeframe === bucket) tailStart--;
+          var prefix = timeCached.data.slice();
+          if (prefix.length && Number(prefix[prefix.length - 1].time) === bucket) prefix.pop();
+          var nextData = prefix.concat(journalPanelAggregation(visiblePreparedData.slice(tailStart), panel));
+          qbtReplayAggregationCache.panels[timeKey] = { sourceLength: visiblePreparedData.length, firstTime: Number(visiblePreparedData[0] && visiblePreparedData[0].time), data: nextData };
+          return nextData;
         }
+        if (!qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; })) return journalPanelAggregation(visiblePreparedData, panel);
+        qbtEnsureTickPrefixCache();
         var key = panelIndex + ":" + panel.tickCount + ":" + String(trade && trade.id || "");
         var cached = qbtReplayAggregationCache.panels[key];
         if (!cached) {
@@ -27657,6 +27734,26 @@
         if (!prefixUnchanged) return series.setData(nextData);
         for (var index = Math.max(0, previousData.length - 1); index < nextData.length; index++) series.update(nextData[index]);
       }
+      function qbtBuildIncrementalCvdData(chartData, previousData) {
+        chartData = Array.isArray(chartData) ? chartData : [];
+        previousData = Array.isArray(previousData) ? previousData : [];
+        var prefixUnchanged = previousData.length > 0 && chartData.length >= previousData.length &&
+          Number(chartData[0] && chartData[0].time) === Number(previousData[0] && previousData[0].time) &&
+          (previousData.length < 2 || Number(chartData[previousData.length - 2] && chartData[previousData.length - 2].time) === Number(previousData[previousData.length - 2] && previousData[previousData.length - 2].time));
+        if (!prefixUnchanged) return buildJournalCvdData(chartData);
+        var start = Math.max(0, previousData.length - 1);
+        var tail = chartData.slice(start);
+        if (!tail.every(function (bar) { return bar && bar.cvdSource === "tick" && [bar.delta, bar.deltaHigh, bar.deltaLow].every(function (value) { return Number.isFinite(Number(value)); }); })) return buildJournalCvdData(chartData);
+        var cumulative = start > 0 ? Number(previousData[start - 1].close) || 0 : 0;
+        var result = previousData.slice(0, start);
+        tail.forEach(function (bar) {
+          var delta = Number(bar.delta);
+          var open = cumulative;
+          cumulative += delta;
+          result.push({ time: Number(bar.time), open: open, high: open + Number(bar.deltaHigh), low: open + Number(bar.deltaLow), close: cumulative });
+        });
+        return result;
+      }
       function qbtSyncWorkspace() {
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         if (!trade) return;
@@ -27670,11 +27767,15 @@
         var previousJournalChartData = currentJournalChartData;
         currentJournalChartData = qbtReplayPanelData(trade, workspace.panels[0], 0, preparedData);
         qbtUpdateReplaySeries(currentLwSeries, currentJournalChartData, previousJournalChartData);
-        applyJournalVwapToChart(currentLwChart, currentJournalChartData, 0);
-        if (currentTradeCvdSeries) {
-          var cvdData = buildJournalCvdData(currentJournalChartData);
-          var nextCvdData = cvdData.length ? cvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; });
-          qbtUpdateReplaySeries(currentTradeCvdSeries, nextCvdData, buildJournalCvdData(previousJournalChartData));
+        if (getJournalVwapSettings(0).enabled) applyJournalVwapToChart(currentLwChart, currentJournalChartData, 0);
+        if (workspace.showCvd && workspace.panels[0].showCvd !== false && currentTradeCvdSeries) {
+          var nextCvdData = qbtBuildIncrementalCvdData(currentJournalChartData, qbtPrimaryCvdData);
+          qbtUpdateReplaySeries(currentTradeCvdSeries, nextCvdData.length ? nextCvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; }), qbtPrimaryCvdData);
+          qbtPrimaryCvdData = nextCvdData;
+          currentJournalCvdData = nextCvdData;
+        } else {
+          qbtPrimaryCvdData = [];
+          currentJournalCvdData = [];
         }
         journalSecondaryCharts.forEach(function (record) {
           var previousData = record.data || [];
@@ -27683,12 +27784,12 @@
           record.data = data;
           qbtUpdateReplaySeries(record.series, data, previousData);
           if (record.cvdSeries) {
-            record.cvdData = buildJournalCvdData(data);
+            record.cvdData = qbtBuildIncrementalCvdData(data, previousCvdData);
             qbtUpdateReplaySeries(record.cvdSeries, record.cvdData.length ? record.cvdData : data.map(function (bar) { return { time: Number(bar.time) }; }), previousCvdData);
           }
         });
-        scheduleJournalFootprintRender();
-        renderJournalChartDrawings();
+        if (workspace.panels.some(function (panel) { return panel.type === "footprint"; })) scheduleJournalFootprintRender();
+        scheduleJournalChartDrawings();
         if (qbtAutoFollow) requestAnimationFrame(qbtScrollWorkspaceToEnd);
       }
       function qbtScrollWorkspaceToEnd() {
