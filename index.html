@@ -5204,6 +5204,8 @@
           <div class="flex flex-wrap items-end gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <label class="min-w-[210px] flex-1"><span class="bt-label">Beginnen vanaf</span><input id="qbtStartDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
             <label class="min-w-[210px] flex-1"><span class="bt-label">Eindigen op</span><input id="qbtEndDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
+            <label class="w-36"><span class="bt-label">Risico per trade ($)</span><input id="qbtRiskAmount" type="number" min="0.01" step="0.01" value="100" class="bt-input !h-8 w-full" /></label>
+            <label class="w-28"><span class="bt-label">Instrument</span><select id="qbtRiskInstrument" class="bt-input !h-8 w-full"><option value="ES">ES</option><option value="MES">MES</option></select></label>
             <button id="qbtStartButton" type="button" onclick="qbtStartBacktest()" class="bt-control !h-8" disabled><i class="fas fa-play"></i> Start backtest</button>
           </div>
           <div id="qbtLegacySurface" class="hidden grid min-h-[680px] grid-cols-1 border border-terminal bg-[#10151c] lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -5220,7 +5222,7 @@
               <div class="border-t border-terminal pt-3"><div class="mb-2 flex items-center justify-between"><span class="text-[9px] uppercase tracking-wider text-zinc-500">Gesloten trades</span><span id="qbtCount" class="text-[10px] text-zinc-300">0</span></div><div id="qbtTrades" class="max-h-[360px] space-y-1 overflow-y-auto"></div></div>
             </aside>
           </div>
-          <p class="text-[9px] text-zinc-600">Na het laden opent de volledige backtest-workspace automatisch. Een trade wordt pas opgeslagen wanneer je op <em class="not-italic text-zinc-400">Toevoegen aan journal</em> klikt.</p>
+          <p class="text-[9px] text-zinc-600">Na het laden opent de volledige backtest-workspace automatisch. RR-plannen kunnen vanuit de workspace naar het journal worden gekopieerd.</p>
         </div>
       </div>
 
@@ -5923,15 +5925,6 @@
               <button type="button" onclick="qbtEnter('Short')" class="h-7 px-2 text-[9px] font-bold text-red-300 hover:bg-red-400/10">SHORT</button>
               <button type="button" onclick="qbtExit()" class="h-7 px-2 text-[9px] text-zinc-300 hover:bg-white/10">SLUIT</button>
             </span>
-            <button
-              id="backtestCommitToJournalBtn"
-              type="button"
-              onclick="qbtCommitWorkspaceTrade()"
-              class="hidden h-7 border border-cyan-400/50 bg-cyan-400/10 px-2 text-[9px] font-bold uppercase tracking-wide text-cyan-200 hover:bg-cyan-400/20"
-              title="Deze gesimuleerde trade permanent aan het journal toevoegen"
-            >
-              Toevoegen aan journal
-            </button>
             <button
               onclick="closeModal()"
               class="text-zinc-300 hover:text-zinc-200 text-base leading-none ml-2"
@@ -12265,8 +12258,6 @@
           trades = trades.filter(function (trade) { return trade.id !== closingTrade.id; });
           saveData({ skipUpdate: true });
         }
-        var backtestCommit = document.getElementById("backtestCommitToJournalBtn");
-        if (backtestCommit) backtestCommit.classList.add("hidden");
         if (chartToRemove) {
           runWhenPageIsIdle(function () {
             chartToRemove.remove();
@@ -27026,7 +27017,7 @@
     <script>
       /* Minimal replay layer. It deliberately hands completed trades to the existing
          journal modal instead of maintaining a second chart/modal implementation. */
-      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false;
+      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 100, qbtRiskInstrument = "ES";
       var QBT_DATA_KEY = "qt_minimal_backtest_datasets_v1";
 
       function qbtText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
@@ -27056,6 +27047,9 @@
         var start = qbtParseDateTimeInput(document.getElementById("qbtStartDateTime").value);
         var end = qbtParseDateTimeInput(document.getElementById("qbtEndDateTime").value);
         if (!start || !end || start >= end) return qbtSetStatus("Kies een geldig begin- en eindtijdstip.", true);
+        qbtRiskAmount = Number(document.getElementById("qbtRiskAmount").value);
+        qbtRiskInstrument = document.getElementById("qbtRiskInstrument").value || "ES";
+        if (!Number.isFinite(qbtRiskAmount) || qbtRiskAmount <= 0) return qbtSetStatus("Vul een risico per trade in.", true);
         qbtBars = qbtSourceBars.filter(function (bar) { return qbtTime(bar) >= start && qbtTime(bar) <= end; });
         if (qbtBars.length < 2) return qbtSetStatus("Het gekozen tijdsbereik bevat minder dan twee bars.", true);
         backtestSourceBars = qbtBars;
@@ -27063,6 +27057,16 @@
         qbtIndex = Math.min(80, qbtBars.length - 1); qbtTrades = []; qbtOpen = null;
         qbtSetStatus(qbtBars.length.toLocaleString("nl-BE") + " bars geselecteerd");
         qbtRender(); qbtOpenWorkspace();
+      }
+      function qbtGetInstrumentSpecification() {
+        var symbol = String(qbtRiskInstrument || document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value || "ES").trim().toUpperCase();
+        var match = Object.keys(BACKTEST_INSTRUMENTS).find(function (key) { return symbol.indexOf(key) === 0; });
+        return BACKTEST_INSTRUMENTS[match || "ES"];
+      }
+      function qbtGetCommissionPerContract() {
+        var symbol = qbtGetInstrumentSpecification().symbol;
+        var matching = commissionRules.filter(function (rule) { return symbol.indexOf(String(rule.prefix || "").toUpperCase()) === 0; }).sort(function (a, b) { return String(b.prefix || "").length - String(a.prefix || "").length; });
+        return matching.length ? Math.max(0, Number(matching[0].rate) || 0) : 0;
       }
       function qbtChartData() { return qbtBars.slice(0, qbtIndex + 1).map(function (bar) { return { time: Math.floor(qbtTime(bar).getTime() / 1000), open: bar.open, high: bar.high, low: bar.low, close: bar.close }; }); }
       function qbtSetStatus(message, error) { var el = document.getElementById("qbtStatus"); if (!el) return; el.textContent = message; el.className = "mt-0.5 truncate text-[9px] " + (error ? "text-red-300" : "text-zinc-500"); }
@@ -27092,7 +27096,6 @@
         var rrLongTool = document.getElementById("backtestRrLongToolButton");
         var rrShortTool = document.getElementById("backtestRrShortToolButton");
         var copyAction = document.getElementById("backtestCopyRrToJournalBtn");
-        var commit = document.getElementById("backtestCommitToJournalBtn");
         if (modal) modal.classList.toggle("qbt-workspace-mode", enabled);
         if (!enabled) {
           qbtPendingRrDirection = null;
@@ -27106,7 +27109,6 @@
           popupControls.classList.toggle("flex", enabled);
         }
         if (controls) { controls.classList.add("hidden"); controls.classList.remove("flex"); }
-        if (commit) commit.classList.add("hidden");
         [rrLongTool, rrShortTool].forEach(function (element) { if (element) element.classList.toggle("hidden", !enabled); });
         if (copyAction) { copyAction.classList.toggle("hidden", !enabled); copyAction.classList.toggle("flex", enabled); }
         setTradeModalSidebarHidden(enabled ? true : localStorage.getItem("qt_trade_modal_sidebar_hidden_v1") === "true", false);
@@ -27183,7 +27185,7 @@
         qbtText("qbtCount", qbtTrades.length);
         var position = document.getElementById("qbtPosition");
         if (position) position.innerHTML = qbtOpen ? '<div class="flex justify-between"><strong class="' + (qbtOpen.side === "Long" ? "text-cyan-300" : "text-red-300") + '">' + qbtOpen.side.toUpperCase() + ' ' + qbtOpen.qty + 'x</strong><span class="text-zinc-500">OPEN</span></div><div class="mt-1 text-zinc-400">Entry ' + qbtOpen.entry.toFixed(2) + '</div>' : "Geen open positie";
-        var list = document.getElementById("qbtTrades"); if (list) list.innerHTML = qbtTrades.length ? qbtTrades.slice().reverse().map(function (trade) { return '<div class="border border-terminal bg-black/10 p-2"><div class="flex justify-between gap-2"><span class="' + (trade.pnl >= 0 ? "text-cyan-300" : "text-red-300") + '">' + (trade.pnl >= 0 ? "+" : "") + trade.pnl.toFixed(2) + '</span><span class="text-zinc-500">' + trade.side + '</span></div><button onclick="qbtAddToJournal(\'' + trade.id + '\')" class="mt-2 w-full border border-zinc-600 py-1 text-[9px] text-zinc-300 hover:border-zinc-300">Toevoegen aan journal</button></div>'; }).join("") : '<div class="py-3 text-center text-[9px] text-zinc-600">Nog geen trades</div>';
+        var list = document.getElementById("qbtTrades"); if (list) list.innerHTML = qbtTrades.length ? qbtTrades.slice().reverse().map(function (trade) { return '<div class="border border-terminal bg-black/10 p-2"><div class="flex justify-between gap-2"><span class="' + (trade.pnl >= 0 ? "text-cyan-300" : "text-red-300") + '">' + (trade.pnl >= 0 ? "+" : "") + trade.pnl.toFixed(2) + '</span><span class="text-zinc-500">' + trade.side + '</span></div><button onclick="qbtOpenTradeWorkspace(\'' + trade.id + '\')" class="mt-2 w-full border border-zinc-600 py-1 text-[9px] text-zinc-300 hover:border-zinc-300">Openen</button></div>'; }).join("") : '<div class="py-3 text-center text-[9px] text-zinc-600">Nog geen trades</div>';
       }
       async function qbtLoadFile(file) {
         if (!file) return;
@@ -27294,9 +27296,8 @@
         trades.push(workspaceTrade); qbtWorkspaceTradeId = workspaceTrade.id; openModal(workspaceTrade.id); qbtSetWorkspaceMode(true);
         document.getElementById("noteModalTitle").innerText = "BACKTEST WORKSPACE // " + fmtDateCore(workspaceTrade.time);
         [0, 100, 260].forEach(function (delay) { window.setTimeout(qbtScrollWorkspaceToEnd, delay); });
-        var commit = document.getElementById("backtestCommitToJournalBtn"); if (commit) { commit.textContent = "Toevoegen aan journal"; commit.disabled = false; commit.className = "h-7 border border-cyan-400/50 bg-cyan-400/10 px-2 text-[9px] font-bold uppercase tracking-wide text-cyan-200 hover:bg-cyan-400/20"; }
       }
-      function qbtAddToJournal(id) { var trade = qbtTrades.find(function (item) { return item.id === id; }); if (trade) qbtOpenWorkspace(trade); }
+      function qbtOpenTradeWorkspace(id) { var trade = qbtTrades.find(function (item) { return item.id === id; }); if (trade) qbtOpenWorkspace(trade); }
       function qbtPlaceRrTool(direction) {
         qbtPendingRrDirection = direction === "Short" ? "Short" : "Long";
         qbtSetRrButtonState(qbtPendingRrDirection);
@@ -27333,27 +27334,19 @@
         }
         var entry = Number(source.rrEntry), target = Number(source.tp), stop = Number(source.sl);
         var entryTime = qbtFirstRrEntryTouchTime(source) || qbtTime({ timestamp: source.time });
-        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:entryTime, exitTime:entryTime, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, pnl:0, tp:target, sl:stop, rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest.", chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
+        var exitTime = source.exitTime && qbtTime({ timestamp: source.exitTime }) > entryTime ? qbtTime({ timestamp: source.exitTime }) : qbtTime(qbtBars[qbtIndex]);
+        var specification = qbtGetInstrumentSpecification();
+        var riskAmount = Math.max(0.01, Number(qbtRiskAmount) || Number(document.getElementById("qbtRiskAmount").value) || 0);
+        var stopRiskPerContract = Math.abs(entry - stop) / specification.tickSize * specification.tickValue;
+        var contracts = stopRiskPerContract > 0 ? Math.max(1, Math.floor(riskAmount / stopRiskPerContract)) : 0;
+        var grossWin = Math.abs(target - entry) * specification.pointValue * contracts;
+        var grossLoss = Math.abs(entry - stop) * specification.pointValue * contracts;
+        var commission = qbtGetCommissionPerContract() * contracts;
+        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:entryTime, exitTime:exitTime, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, volume:contracts, fee:commission, pnl:0, riskAmount:riskAmount, potentialWin:grossWin, potentialLoss:grossLoss, potentialWinNet:grossWin - commission, potentialLossNet:grossLoss + commission, tp:target, sl:stop, rrStartTime:qbtChartTimestamp({ timestamp:entryTime }), rrEndTime:qbtChartTimestamp({ timestamp:exitTime }), rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest. Risico $" + riskAmount.toFixed(2) + " | " + contracts + " contract(en) | Win $" + (grossWin - commission).toFixed(2) + " | Verlies $" + (grossLoss + commission).toFixed(2) + " | Commissie $" + commission.toFixed(2), chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
         delete copied.__backtestSession;
         trades.push(copied);
         saveData({ skipUpdate:true });
         closeJournalRrContextMenu();
-      }
-      function qbtCommitWorkspaceTrade() {
-        var id = document.getElementById("editTradeId").value;
-        var trade = trades.find(function (item) { return item.id === id; });
-        if (!trade || !trade.__backtestSession) return;
-        var entryTime = qbtFirstRrEntryTouchTime(trade) || qbtTime({ timestamp: trade.time });
-        trade.time = entryTime;
-        trade.exitTime = entryTime;
-        trade.chartData = qbtJournalDayCandles(entryTime);
-        trade.chartDataTimeMode = CHART_TIME_MODE;
-        delete trade.__backtestSession; delete trade.__backtestReplayActive; qbtWorkspaceTradeId = null;
-        if (!Array.isArray(trade.tags)) trade.tags = [];
-        if (trade.tags.indexOf("Backtest") < 0) trade.tags.push("Backtest");
-        saveData({ skipUpdate:true });
-        var button = document.getElementById("backtestCommitToJournalBtn");
-        if (button) { button.textContent = "Toegevoegd"; button.disabled = true; button.classList.remove("text-cyan-200"); button.classList.add("text-emerald-300"); }
       }
       async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
       function qbtSaveDataset() { if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true); var suggestedName = (document.getElementById("qbtSymbol").value || "Backtest data") + " " + new Date().toLocaleDateString("nl-BE"); openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName); }
