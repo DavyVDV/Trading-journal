@@ -27224,6 +27224,26 @@
           return timestamp >= start && timestamp <= end;
         }));
       }
+      function qbtChartTimestamp(bar) {
+        var date = qbtTime(bar);
+        return Math.floor(date.getTime() / 1000 - date.getTimezoneOffset() * 60);
+      }
+      function qbtFirstRrEntryTouchTime(trade) {
+        if (!trade || !Number.isFinite(Number(trade.rrEntry))) return trade && trade.time ? qbtTime({ timestamp: trade.time }) : null;
+        var startTime = Number(trade.rrStartTime);
+        var startIndex = 0;
+        if (Number.isFinite(startTime)) {
+          while (startIndex < qbtBars.length && qbtChartTimestamp(qbtBars[startIndex]) < startTime) startIndex++;
+        }
+        var lastIndex = Math.min(qbtIndex, qbtBars.length - 1);
+        for (var index = startIndex; index <= lastIndex; index++) {
+          var bar = qbtBars[index];
+          if (bar && Number(bar.low) <= Number(trade.rrEntry) && Number(bar.high) >= Number(trade.rrEntry)) {
+            return qbtTime(bar);
+          }
+        }
+        return trade.time ? qbtTime({ timestamp: trade.time }) : null;
+      }
       function qbtSyncWorkspace() {
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         if (!trade) return;
@@ -27312,7 +27332,8 @@
           return;
         }
         var entry = Number(source.rrEntry), target = Number(source.tp), stop = Number(source.sl);
-        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:source.time, exitTime:source.time, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, pnl:0, tp:target, sl:stop, rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest.", chartData:qbtJournalDayCandles(source.time), chartDataTimeMode:CHART_TIME_MODE });
+        var entryTime = qbtFirstRrEntryTouchTime(source) || qbtTime({ timestamp: source.time });
+        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:entryTime, exitTime:entryTime, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, pnl:0, tp:target, sl:stop, rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest.", chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
         delete copied.__backtestSession;
         trades.push(copied);
         saveData({ skipUpdate:true });
@@ -27322,7 +27343,10 @@
         var id = document.getElementById("editTradeId").value;
         var trade = trades.find(function (item) { return item.id === id; });
         if (!trade || !trade.__backtestSession) return;
-        trade.chartData = qbtJournalDayCandles(trade.time);
+        var entryTime = qbtFirstRrEntryTouchTime(trade) || qbtTime({ timestamp: trade.time });
+        trade.time = entryTime;
+        trade.exitTime = entryTime;
+        trade.chartData = qbtJournalDayCandles(entryTime);
         trade.chartDataTimeMode = CHART_TIME_MODE;
         delete trade.__backtestSession; delete trade.__backtestReplayActive; qbtWorkspaceTradeId = null;
         if (!Array.isArray(trade.tags)) trade.tags = [];
