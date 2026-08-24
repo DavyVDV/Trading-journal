@@ -5204,7 +5204,7 @@
           <div class="flex flex-wrap items-end gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <label class="min-w-[210px] flex-1"><span class="bt-label">Beginnen vanaf</span><input id="qbtStartDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
             <label class="min-w-[210px] flex-1"><span class="bt-label">Eindigen op</span><input id="qbtEndDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
-            <label class="w-36"><span class="bt-label">Risico per trade ($)</span><input id="qbtRiskAmount" type="number" min="0.01" step="0.01" value="100" class="bt-input !h-8 w-full" /></label>
+            <label class="w-36"><span class="bt-label">Risico per trade ($)</span><input id="qbtRiskAmount" type="number" min="0.01" step="0.01" value="200" class="bt-input !h-8 w-full" /></label>
             <label class="w-28"><span class="bt-label">Instrument</span><select id="qbtRiskInstrument" class="bt-input !h-8 w-full"><option value="ES">ES</option><option value="MES">MES</option></select></label>
             <button id="qbtStartButton" type="button" onclick="qbtStartBacktest()" class="bt-control !h-8" disabled><i class="fas fa-play"></i> Start backtest</button>
           </div>
@@ -27040,7 +27040,7 @@
     <script>
       /* Minimal replay layer. It deliberately hands completed trades to the existing
          journal modal instead of maintaining a second chart/modal implementation. */
-      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 100, qbtRiskInstrument = "ES";
+      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES";
       var QBT_DATA_KEY = "qt_minimal_backtest_datasets_v1";
 
       function qbtText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
@@ -27387,7 +27387,7 @@
         var grossWin = contracts * specification.tickValue * targetTicks;
         var grossLoss = contracts * specification.tickValue * stopTicks;
         var commission = qbtGetCommissionPerContract() * contracts;
-        var side = target >= entry ? "Buy" : "Sell";
+        var side = String(source.side || "Long").toLowerCase().indexOf("short") >= 0 || String(source.side || "").toLowerCase().indexOf("sell") >= 0 ? "Sell" : "Buy";
         var exitPrice = Number(source.exit);
         if (!Number.isFinite(exitPrice)) exitPrice = Number(qbtBars[qbtIndex].close);
         var targetHit = side === "Buy" ? exitPrice >= target : exitPrice <= target;
