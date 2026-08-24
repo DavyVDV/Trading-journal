@@ -22029,6 +22029,7 @@
       var backtestReplayChart = null;
       var backtestReplaySeries = null;
       var backtestSecondaryCharts = [];
+      var backtestPrimaryFootprintCache = { source: null, index: -1, data: [] };
       var backtestCrosshairSyncing = false;
       var backtestCrosshairActiveChart = null;
       var backtestCrosshairProgrammaticUntil = new WeakMap();
@@ -23502,6 +23503,27 @@
         });
       }
 
+      function updateBacktestPanelCvdData(data, previousData) {
+        data = Array.isArray(data) ? data : [];
+        previousData = Array.isArray(previousData) ? previousData : [];
+        var prefixUnchanged = previousData.length > 0 && data.length >= previousData.length &&
+          Number(data[0] && data[0].time) === Number(previousData[0] && previousData[0].time) &&
+          Number(data[previousData.length - 1] && data[previousData.length - 1].time) === Number(previousData[previousData.length - 1] && previousData[previousData.length - 1].time);
+        if (!prefixUnchanged) return buildBacktestPanelCvdData(data);
+        var start = Math.max(0, previousData.length - 1);
+        var cumulative = start > 0 ? Number(previousData[start - 1].close) || 0 : 0;
+        var result = previousData.slice(0, start);
+        for (var index = start; index < data.length; index++) {
+          var bar = data[index];
+          var delta = Number.isFinite(Number(bar.delta)) ? Number(bar.delta) : 0;
+          var open = cumulative;
+          var close = open + delta;
+          result.push({ time: Number(bar.time), open: open, high: open + (Number.isFinite(Number(bar.deltaHigh)) ? Number(bar.deltaHigh) : Math.max(0, delta)), low: open + (Number.isFinite(Number(bar.deltaLow)) ? Number(bar.deltaLow) : Math.min(0, delta)), close: close });
+          cumulative = close;
+        }
+        return result;
+      }
+
       function getBacktestLayoutCells(count, width, height) {
         var columns = count <= 1 ? 1 : count <= 4 ? 2 : count <= 6 ? 3 : 4;
         var rows = Math.ceil(count / columns);
@@ -23594,7 +23616,16 @@
           var primaryCanvas = document.getElementById("btPrimaryFootprintCanvas");
           if (primaryCanvas) {
             primaryCanvas.classList.toggle("hidden", layout.panels[0].type !== "footprint");
-            if (layout.panels[0].type === "footprint") renderJournalFootprintCanvas(primaryCanvas, backtestReplayChart, backtestReplaySeries, backtestBars.slice(0, backtestReplayIndex + 1).map(toBacktestDetailedChartBar), getBacktestFootprintSettings(), null);
+            if (layout.panels[0].type === "footprint") {
+              if (backtestPrimaryFootprintCache.source !== backtestBars || backtestReplayIndex < backtestPrimaryFootprintCache.index) {
+                backtestPrimaryFootprintCache = { source: backtestBars, index: -1, data: [] };
+              }
+              while (backtestPrimaryFootprintCache.index < backtestReplayIndex) {
+                backtestPrimaryFootprintCache.index++;
+                backtestPrimaryFootprintCache.data.push(toBacktestDetailedChartBar(backtestBars[backtestPrimaryFootprintCache.index]));
+              }
+              renderJournalFootprintCanvas(primaryCanvas, backtestReplayChart, backtestReplaySeries, backtestPrimaryFootprintCache.data, getBacktestFootprintSettings(), null);
+            }
           }
           backtestSecondaryCharts.forEach(function (record) {
             record.footprintCanvas.classList.toggle("hidden", record.config.type !== "footprint");
@@ -23822,7 +23853,7 @@
           qbtUpdateReplaySeries(record.series, record.data, previousData);
           if (record.cvdSeries) {
             var previousCvdData = record.cvdData || [];
-            record.cvdData = buildBacktestPanelCvdData(record.data);
+            record.cvdData = updateBacktestPanelCvdData(record.data, previousCvdData);
             qbtUpdateReplaySeries(record.cvdSeries, record.cvdData, previousCvdData);
           }
           if (range && record.data.length) {
@@ -25686,8 +25717,8 @@
             var textPoint = backtestPointToCoordinates(drawing.point);
             if (textPoint && Math.abs(x - textPoint.x) <= 55 && Math.abs(y - textPoint.y) <= 16) return i;
           } else {
-            var start = backtestPointToCoordinates(drawing.start);
-            var end = backtestPointToCoordinates(drawing.end);
+            var start = backtestPointToCoordinates(drawing.start, drawing.type === "fib");
+            var end = backtestPointToCoordinates(drawing.end, drawing.type === "fib");
             if (!start || !end) continue;
             if (drawing.type === "fib") {
               var fibHitStyle = Object.assign(getBacktestToolStyle("fib"), drawing.style || {});
@@ -25718,8 +25749,8 @@
 
       function getBacktestRectangleHandlePoints(drawing) {
         if (!drawing || (drawing.type !== "rectangle" && drawing.type !== "fib")) return [];
-        var start = backtestPointToCoordinates(drawing.start);
-        var end = backtestPointToCoordinates(drawing.end);
+        var start = backtestPointToCoordinates(drawing.start, drawing.type === "fib");
+        var end = backtestPointToCoordinates(drawing.end, drawing.type === "fib");
         if (!start || !end) return [];
         if (drawing.type === "fib") return [
           { key: "start", x: start.x, y: start.y },
@@ -25811,9 +25842,11 @@
 
       function backtestPointToCoordinates(point) {
         if (!point || !backtestReplayChart || !backtestReplaySeries) return null;
-        var x = Number.isFinite(point.logical)
-          ? backtestReplayChart.timeScale().logicalToCoordinate(point.logical)
-          : backtestReplayChart.timeScale().timeToCoordinate(point.time);
+        var x = arguments.length > 1 && arguments[1] && Number.isFinite(point.time)
+          ? backtestReplayChart.timeScale().timeToCoordinate(point.time)
+          : Number.isFinite(point.logical)
+            ? backtestReplayChart.timeScale().logicalToCoordinate(point.logical)
+            : backtestReplayChart.timeScale().timeToCoordinate(point.time);
         var y = backtestReplaySeries.priceToCoordinate(point.price);
         return x == null || y == null ? null : { x: x, y: y };
       }
@@ -26974,7 +27007,7 @@
         var noteModal = document.getElementById("noteModal");
         if (noteModal && !noteModal.classList.contains("hidden") && noteModal.classList.contains("qbt-workspace-mode") && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
         var target = event.target;
-        if (target && /INPUT|SELECT|TEXTAREA/.test(target.tagName)) return;
+        if (target && (/INPUT|SELECT|TEXTAREA/.test(target.tagName) || target.isContentEditable)) return;
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
           event.preventDefault();
           undoBacktestDrawing();
@@ -26992,7 +27025,7 @@
         } else if (event.key === "ArrowLeft") {
           event.preventDefault();
           stepBacktestBar(-1);
-        } else if (event.code === "Space") {
+        } else if (event.code === "Space" && !event.repeat) {
           event.preventDefault();
           toggleBacktestPlayback();
         }
