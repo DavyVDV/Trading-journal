@@ -5206,6 +5206,7 @@
             <label class="min-w-[210px] flex-1"><span class="bt-label">Eindigen op</span><input id="qbtEndDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
             <label class="w-36"><span class="bt-label">Risico per trade ($)</span><input id="qbtRiskAmount" type="number" min="0.01" step="0.01" value="200" class="bt-input !h-8 w-full" /></label>
             <label class="w-28"><span class="bt-label">Instrument</span><select id="qbtRiskInstrument" class="bt-input !h-8 w-full"><option value="ES">ES</option><option value="MES">MES</option></select></label>
+            <label class="w-32"><span class="bt-label">Chart bars</span><span class="flex gap-1"><button type="button" class="bt-control !h-8 flex-1" onclick="setBacktestTimeframe(30)">Time</button><input id="qbtTickCount" type="number" min="1" max="100000" step="1" value="100" class="bt-input !h-8 w-20" onchange="setBacktestTickChart(this.value)" title="Ticks per bar" /></span></label>
             <button id="qbtStartButton" type="button" onclick="qbtStartBacktest()" class="bt-control !h-8" disabled><i class="fas fa-play"></i> Start backtest</button>
           </div>
           <div id="qbtLegacySurface" class="hidden grid min-h-[680px] grid-cols-1 border border-terminal bg-[#10151c] lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -6045,6 +6046,7 @@
                       <button type="button" class="journal-timeframe-button" data-journal-timeframe="900" onclick="changeJournalTradeChartTimeframe(900)">15m</button>
                       <button type="button" class="journal-timeframe-button" data-journal-timeframe="1800" onclick="changeJournalTradeChartTimeframe(1800)">30m</button>
                       <button type="button" class="journal-timeframe-button" data-journal-timeframe="3600" onclick="changeJournalTradeChartTimeframe(3600)">1h</button>
+                      <button type="button" class="journal-timeframe-button" data-journal-ticks="true" onclick="setJournalTickChart(prompt('Aantal ticks per bar:', '100'))">Ticks</button>
                       <span class="w-px h-3.5 bg-white/10 mx-1 shrink-0"></span>
                       <button id="journalTimeframeAddButton" type="button" onclick="event.stopPropagation(); addJournalChartTimeframe()" title="Timeframe toevoegen"><i class="fas fa-plus"></i></button>
                       <button id="journalChartLayoutButton" type="button" onclick="event.stopPropagation(); openJournalChartWorkspaceSettings()" title="Chart layout en footprint instellingen"><i class="fas fa-table-cells-large"></i></button>
@@ -16302,6 +16304,8 @@
           var panel = Array.isArray(layout.panels) ? layout.panels[index] : null;
           panels.push({
             timeframe: Math.max(30, Number(panel && panel.timeframe) || (index === 0 ? 30 : [60, 300, 900, 1800, 3600, 14400, 86400][(index - 1) % 7])),
+            timeframeMode: panel && panel.timeframeMode === "ticks" ? "ticks" : "time",
+            tickCount: Math.max(1, Math.min(100000, Math.round(Number(panel && panel.tickCount) || 100))),
             type: panel && panel.type === "footprint" ? "footprint" : "candles",
             autoScale: !panel || panel.autoScale !== false,
             showCvd: !panel || panel.showCvd !== false,
@@ -16363,6 +16367,8 @@
           var savedPanel = Array.isArray(stored.panels) ? stored.panels[index] : null;
           panels.push({
             timeframe: Math.max(30, Number(savedPanel && savedPanel.timeframe) || Number(defaults.panels[index] && defaults.panels[index].timeframe) || (index === 0 ? journalTradeChartTimeframe : [60, 300, 900, 1800, 3600, 14400, 86400][(index - 1) % 7])),
+            timeframeMode: savedPanel && savedPanel.timeframeMode === "ticks" ? "ticks" : (defaults.panels[index] && defaults.panels[index].timeframeMode === "ticks" ? "ticks" : "time"),
+            tickCount: Math.max(1, Math.min(100000, Math.round(Number(savedPanel && savedPanel.tickCount) || Number(defaults.panels[index] && defaults.panels[index].tickCount) || 100))),
             type: savedPanel ? (savedPanel.type === "footprint" ? "footprint" : "candles") : (defaults.panels[index] && defaults.panels[index].type === "footprint" ? "footprint" : "candles"),
             autoScale: savedPanel ? savedPanel.autoScale !== false : !(defaults.panels[index] && defaults.panels[index].autoScale === false),
             showCvd: savedPanel ? savedPanel.showCvd !== false : !(defaults.panels[index] && defaults.panels[index].showCvd === false),
@@ -16732,11 +16738,15 @@
                 return '<option value="' + item[0] + '"' + (Number(panel.timeframe) === item[0] ? ' selected' : '') + '>' + item[1] + '</option>';
               }).join("") +
             '</select>' +
+            '<select class="bt-input" aria-label="Modus grafiek ' + (index + 1) + '"><option value="time"' + (panel.timeframeMode !== "ticks" ? ' selected' : '') + '>Tijd</option><option value="ticks"' + (panel.timeframeMode === "ticks" ? ' selected' : '') + '>Ticks</option></select>' +
+            '<input class="bt-input !w-20" type="number" min="1" max="100000" step="1" value="' + panel.tickCount + '" aria-label="Ticks per bar grafiek ' + (index + 1) + '" />' +
             '<select class="bt-input" aria-label="Weergave grafiek ' + (index + 1) + '"><option value="candles"' + (panel.type === "candles" ? ' selected' : '') + '>Candles</option><option value="footprint"' + (panel.type === "footprint" ? ' selected' : '') + '>Footprint</option></select>';
           (function (panelIndex) {
             var selects = row.querySelectorAll("select");
             selects[0].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "timeframe", this.value); });
-            selects[1].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "type", this.value); });
+            selects[1].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "timeframeMode", this.value); });
+            row.querySelector("input").addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "tickCount", this.value); });
+            selects[2].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "type", this.value); });
           })(index);
           list.appendChild(row);
         }
@@ -16868,7 +16878,7 @@
         if (!trade) return;
         var workspace = getJournalChartWorkspace(trade);
         if (!workspace.panels[index]) return;
-        workspace.panels[index][key] = key === "timeframe" ? Math.max(30, Number(value) || 30) : key === "showCvd" ? Boolean(value) : (value === "footprint" ? "footprint" : "candles");
+        workspace.panels[index][key] = key === "timeframe" ? Math.max(30, Number(value) || 30) : key === "tickCount" ? Math.max(1, Math.min(100000, Math.round(Number(value) || 100))) : key === "timeframeMode" ? (value === "ticks" ? "ticks" : "time") : key === "showCvd" ? Boolean(value) : (value === "footprint" ? "footprint" : "candles");
         trade.chartWorkspace = workspace;
         if (index === 0) journalTradeChartTimeframe = workspace.panels[0].timeframe;
         saveData({ skipUpdate: true });
@@ -18633,6 +18643,38 @@
         return levels.length > 0;
       }
 
+      function aggregateBarsByTickCount(sourceBars, tickCount, getTime) {
+        if (!Array.isArray(sourceBars) || !sourceBars.length) return [];
+        tickCount = Math.max(1, Math.round(Number(tickCount) || 1));
+        var aggregated = [], current = null;
+        sourceBars.forEach(function (bar) {
+          if (!current || current.sourceCount >= tickCount) {
+            current = { time: getTime(bar), open: Number(bar.open), high: Number(bar.high), low: Number(bar.low), close: Number(bar.close), volume: Number(bar.volume) || 0, delta: 0, deltaHigh: 0, deltaLow: 0, cvdComplete: true, footprintMap: {}, footprintComplete: false, sourceCount: 0 };
+            aggregated.push(current);
+          } else {
+            current.high = Math.max(current.high, Number(bar.high)); current.low = Math.min(current.low, Number(bar.low)); current.close = Number(bar.close); current.volume += Number(bar.volume) || 0;
+          }
+          var delta = Number(bar.delta);
+          if (Number.isFinite(delta)) {
+            var pathHigh = Number.isFinite(Number(bar.deltaHigh)) ? Number(bar.deltaHigh) : Math.max(0, delta);
+            var pathLow = Number.isFinite(Number(bar.deltaLow)) ? Number(bar.deltaLow) : Math.min(0, delta);
+            current.deltaHigh = Math.max(current.deltaHigh, current.delta + pathHigh); current.deltaLow = Math.min(current.deltaLow, current.delta + pathLow); current.delta += delta;
+          } else current.cvdComplete = false;
+          if (mergeJournalFootprintLevels(current.footprintMap, bar.footprint)) current.footprintComplete = true;
+          current.sourceCount += 1;
+        });
+        aggregated.forEach(function (bar) {
+          if (bar.cvdComplete) bar.cvdSource = "tick"; else { bar.cvdSource = "unverified"; delete bar.delta; delete bar.deltaHigh; delete bar.deltaLow; }
+          if (bar.footprintComplete) { bar.footprint = Object.keys(bar.footprintMap).map(function (key) { return bar.footprintMap[key]; }).sort(function (a, b) { return a.price - b.price; }); bar.footprintSource = "tick"; }
+          delete bar.footprintMap; delete bar.footprintComplete; delete bar.cvdComplete; delete bar.sourceCount;
+        });
+        return aggregated;
+      }
+
+      function journalPanelAggregation(data, panel) {
+        return panel && panel.timeframeMode === "ticks" ? aggregateBarsByTickCount(data, panel.tickCount, function (bar) { return Number(bar.time); }) : aggregateJournalChartData(data, panel && panel.timeframe);
+      }
+
       function aggregateJournalChartData(chartData, timeframeSeconds) {
         if (!Array.isArray(chartData) || !chartData.length) return [];
         timeframeSeconds = Math.max(30, Number(timeframeSeconds) || 30);
@@ -18725,7 +18767,7 @@
 
         var labelEl = document.getElementById("journalActivePanelLabel");
         if (labelEl) {
-          labelEl.textContent = "Grafiek " + (index + 1) + " (" + formatJournalTradeTimeframe(tfSec) + ")";
+          labelEl.textContent = "Grafiek " + (index + 1) + " (" + (panelConfig.timeframeMode === "ticks" ? panelConfig.tickCount + " ticks" : formatJournalTradeTimeframe(tfSec)) + ")";
         }
 
         var primaryPricePane = document.getElementById("tradePriceChartPane");
@@ -18758,10 +18800,11 @@
           : journalTradeChartTimeframe;
 
         document.querySelectorAll("[data-journal-timeframe]").forEach(function (button) {
-          var active = Number(button.dataset.journalTimeframe) === currentPanelTf;
+          var active = currentPanelTf && workspace && workspace.panels[journalActivePanelIndex] && workspace.panels[journalActivePanelIndex].timeframeMode !== "ticks" && Number(button.dataset.journalTimeframe) === currentPanelTf;
           button.classList.toggle("active", active);
           button.setAttribute("aria-pressed", active ? "true" : "false");
         });
+        document.querySelectorAll("[data-journal-ticks]").forEach(function (button) { button.classList.toggle("active", workspace && workspace.panels[journalActivePanelIndex] && workspace.panels[journalActivePanelIndex].timeframeMode === "ticks"); });
       }
 
       function formatJournalCustomTimeframe(seconds) {
@@ -18827,6 +18870,7 @@
             journalActivePanelIndex = 0;
           }
           workspace.panels[journalActivePanelIndex].timeframe = seconds;
+          workspace.panels[journalActivePanelIndex].timeframeMode = "time";
           trade.chartWorkspace = workspace;
           saveData({ skipUpdate: true });
           if (journalActivePanelIndex === 0) {
@@ -18844,6 +18888,20 @@
         } else {
           syncJournalTradeChartTimeframeButtons();
         }
+      }
+
+      function setJournalTickChart(tickCount) {
+        var count = Math.max(1, Math.min(100000, Math.round(Number(tickCount) || 100)));
+        var trade = getCurrentJournalChartTrade();
+        if (!trade) return;
+        var workspace = getJournalChartWorkspace(trade);
+        var panel = workspace.panels[journalActivePanelIndex] || workspace.panels[0];
+        panel.timeframeMode = "ticks";
+        panel.tickCount = count;
+        trade.chartWorkspace = workspace;
+        saveData({ skipUpdate: true });
+        renderLightweightChart(trade);
+        setJournalActivePanel(journalActivePanelIndex);
       }
 
       function buildJournalCvdData(chartData) {
@@ -19736,7 +19794,7 @@
             var cell = cells[index];
             if (!cell || cell.hidden) return;
             var config = workspace.panels[index];
-            var data = aggregateJournalChartData(sourceData, config.timeframe);
+            var data = journalPanelAggregation(sourceData, config);
             var panelShowsCvd = workspace.showCvd && config.showCvd !== false;
             var cvdHeight = panelShowsCvd ? getJournalCvdPanelHeight(cell.height, workspace, index) : 0;
             var priceHeight = cell.height - cvdHeight;
@@ -21641,7 +21699,7 @@
         var preparedChartData = prepareJournalChartDataForTrade(sourceChartData, trade);
         var workspace = getJournalChartWorkspace(trade);
         journalTradeChartTimeframe = workspace.panels[0].timeframe;
-        var chartDataToUse = aggregateJournalChartData(preparedChartData, journalTradeChartTimeframe);
+        var chartDataToUse = journalPanelAggregation(preparedChartData, workspace.panels[0]);
         currentJournalChartData = chartDataToUse;
         var preserveReplayViewport = !!(trade && trade.__backtestSession && trade.__backtestReplayActive);
         var timeframeSelector = document.getElementById("journalTradeChartTimeframe");
@@ -21935,6 +21993,8 @@
           var panel = Array.isArray(stored.panels) ? stored.panels[index] : null;
           panels.push({
             timeframe: Math.max(30, Number(panel && panel.timeframe) || (index === 0 ? Number(document.getElementById("btTimeframe") && document.getElementById("btTimeframe").value) || 30 : [60, 300, 900, 1800, 3600, 14400, 86400][(index - 1) % 7])),
+            timeframeMode: panel && panel.timeframeMode === "ticks" ? "ticks" : "time",
+            tickCount: Math.max(1, Math.min(100000, Math.round(Number(panel && panel.tickCount) || 100))),
             type: panel && panel.type === "footprint" ? "footprint" : "candles",
             autoScale: !panel || panel.autoScale !== false,
             showCvd: !panel || panel.showCvd !== false,
@@ -22014,6 +22074,8 @@
           options.sort(function (a, b) { return a - b; });
           return '<div class="bt-layout-panel-row"><span class="text-center text-[9px] text-zinc-500">' + (index + 1) + '</span>' +
             '<select class="bt-input !h-8" data-bt-layout-timeframe="' + index + '" onchange="updateBacktestLayoutFromMenu()">' + options.map(function (seconds) { return '<option value="' + seconds + '"' + (seconds === panel.timeframe ? ' selected' : '') + '>' + formatBacktestTimeframeLabel(seconds) + '</option>'; }).join("") + '</select>' +
+            '<select class="bt-input !h-8" data-bt-layout-mode="' + index + '" onchange="updateBacktestLayoutFromMenu()"><option value="time"' + (panel.timeframeMode !== "ticks" ? ' selected' : '') + '>Tijd</option><option value="ticks"' + (panel.timeframeMode === "ticks" ? ' selected' : '') + '>Ticks</option></select>' +
+            '<input class="bt-input !h-8 !w-20" data-bt-layout-ticks="' + index + '" type="number" min="1" max="100000" value="' + panel.tickCount + '" onchange="updateBacktestLayoutFromMenu()" />' +
             '<select class="bt-input !h-8" data-bt-layout-type="' + index + '" onchange="updateBacktestLayoutFromMenu()"><option value="candles"' + (panel.type === "candles" ? ' selected' : '') + '>Candles</option><option value="footprint"' + (panel.type === "footprint" ? ' selected' : '') + '>Footprint</option></select></div>';
         }).join("");
         var button = document.getElementById("btLayoutButton");
@@ -22044,6 +22106,10 @@
           var timeframe = document.querySelector('[data-bt-layout-timeframe="' + index + '"]');
           var type = document.querySelector('[data-bt-layout-type="' + index + '"]');
           if (timeframe) panel.timeframe = Math.max(30, Number(timeframe.value) || 30);
+          var mode = document.querySelector('[data-bt-layout-mode="' + index + '"]');
+          var ticks = document.querySelector('[data-bt-layout-ticks="' + index + '"]');
+          if (mode) panel.timeframeMode = mode.value === "ticks" ? "ticks" : "time";
+          if (ticks) panel.tickCount = Math.max(1, Math.min(100000, Math.round(Number(ticks.value) || 100)));
           if (type) panel.type = type.value === "footprint" ? "footprint" : "candles";
         });
         var layout = { count: count, showCvd: true, syncCrosshair: document.getElementById("btSyncCrosshair").checked, panels: panels };
@@ -23100,6 +23166,15 @@
         return aggregated;
       }
 
+      function backtestPanelAggregation(sourceBars, panel) {
+        if (!panel || panel.timeframeMode !== "ticks") return aggregateBacktestBars(sourceBars, panel && panel.timeframe);
+        return aggregateBarsByTickCount(sourceBars, panel.tickCount, function (bar) { return new Date(bar.timestamp); }).map(function (bar) {
+          bar.timestamp = bar.time;
+          delete bar.time;
+          return bar;
+        });
+      }
+
       function formatBacktestDateInput(date) {
         var year = date.getFullYear();
         var month = String(date.getMonth() + 1).padStart(2, "0");
@@ -23238,15 +23313,28 @@
 
       function setBacktestTimeframe(seconds) {
         var select = document.getElementById("btTimeframe");
-        select.value = String(seconds);
+        if (select) select.value = String(seconds);
         var layout = getBacktestChartLayout();
         if (layout.panels[0]) {
+          layout.panels[0].timeframeMode = "time";
           layout.panels[0].timeframe = Number(seconds);
           saveBacktestChartLayout(layout);
         }
         document.querySelectorAll("[data-bt-timeframe]").forEach(function (button) {
           button.classList.toggle("active", button.dataset.btTimeframe === String(seconds));
         });
+        applyBacktestTimeframe();
+      }
+
+      function setBacktestTickChart(tickCount) {
+        var count = Math.max(1, Math.min(100000, Math.round(Number(tickCount) || 100)));
+        var input = document.getElementById("qbtTickCount");
+        if (input) input.value = String(count);
+        var layout = getBacktestChartLayout();
+        if (!layout.panels[0]) return;
+        layout.panels[0].timeframeMode = "ticks";
+        layout.panels[0].tickCount = count;
+        saveBacktestChartLayout(layout);
         applyBacktestTimeframe();
       }
 
@@ -23281,9 +23369,11 @@
           return;
         }
         setBacktestError("");
-        var timeframeSeconds = Number(document.getElementById("btTimeframe").value) || 30;
-        backtestBars = aggregateBacktestBars(filteredBars, timeframeSeconds);
-        var timeframeLabel = document.getElementById("btTimeframe").selectedOptions[0].textContent;
+        var layout = getBacktestChartLayout();
+        var primaryPanel = layout.panels[0] || { timeframe: 30, timeframeMode: "time" };
+        var timeframeSeconds = Number(document.getElementById("btTimeframe") && document.getElementById("btTimeframe").value) || primaryPanel.timeframe || 30;
+        backtestBars = backtestPanelAggregation(filteredBars, primaryPanel);
+        var timeframeLabel = primaryPanel.timeframeMode === "ticks" ? primaryPanel.tickCount + " ticks" : (document.getElementById("btTimeframe") && document.getElementById("btTimeframe").selectedOptions[0] ? document.getElementById("btTimeframe").selectedOptions[0].textContent : formatBacktestTimeframeLabel(timeframeSeconds));
         document.getElementById("btDataStatus").textContent =
           backtestLoadedFileName + " // " + timeframeLabel + ": " +
           backtestBars.length.toLocaleString("nl-BE") + " bars // " +
@@ -23553,7 +23643,7 @@
             scheduleBacktestDrawingRender();
           });
           var series = chart.addCandlestickSeries({ upColor: "#23b7d9", downColor: "#d83a2e", borderVisible: false, wickUpColor: "#23b7d9", wickDownColor: "#d83a2e", lastValueVisible: config.type !== "footprint", priceLineVisible: false, priceFormat: { type: "price", precision: 2, minMove: .25 } });
-          var allPanelBars = aggregateBacktestBars(filtered, config.timeframe).map(toBacktestDetailedChartBar);
+          var allPanelBars = backtestPanelAggregation(filtered, config).map(toBacktestDetailedChartBar);
           var panelBars = allPanelBars.filter(function (bar) { return Number(bar.time) * 1000 <= replayTime; });
           series.setData(panelBars);
           var record = { panelIndex: index, element: panel, priceElement: host, cvdElement: cvdHost, chart: chart, series: series, allData: allPanelBars, data: panelBars, config: config, footprintCanvas: footprint, unavailable: unavailable, autoButton: auto, cvdChart: null, cvdSeries: null, cvdData: [], cellHeight: cell.height };
@@ -27310,7 +27400,7 @@
         var preparedData = prepareJournalChartDataForTrade(sourceData, trade);
         var workspace = getJournalChartWorkspace(trade);
         var previousJournalChartData = currentJournalChartData;
-        currentJournalChartData = aggregateJournalChartData(preparedData, workspace.panels[0].timeframe);
+        currentJournalChartData = journalPanelAggregation(preparedData, workspace.panels[0]);
         var canUpdateJournalSeries = previousJournalChartData.length > 0 && currentJournalChartData.length >= previousJournalChartData.length &&
           currentJournalChartData.slice(0, Math.max(0, previousJournalChartData.length - 1)).every(function (bar, index) {
             return Number(bar.time) === Number(previousJournalChartData[index].time);
@@ -27328,7 +27418,7 @@
           currentTradeCvdSeries.setData(cvdData.length ? cvdData : currentJournalChartData.map(function (bar) { return { time: Number(bar.time) }; }));
         }
         journalSecondaryCharts.forEach(function (record) {
-          var data = aggregateJournalChartData(preparedData, record.config.timeframe);
+          var data = journalPanelAggregation(preparedData, record.config);
           record.data = data;
           record.series.setData(data);
           if (record.cvdSeries) {
