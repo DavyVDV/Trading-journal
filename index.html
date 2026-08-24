@@ -22153,6 +22153,13 @@
           .replace(/[\s_\-()]/g, "");
       }
 
+      function isBacktestCumulativeDeltaHeader(header) {
+        var normalized = normalizeBacktestHeader(header);
+        return normalized === "cvd" || /^cvd(open|high|low|close)?$/.test(normalized) ||
+          normalized === "cumulativedelta" || /^cumulativedelta(open|high|low|close)$/.test(normalized) ||
+          normalized === "cumulativevolumedelta" || /^cumulativevolumedelta(open|high|low|close)$/.test(normalized);
+      }
+
       function parseBacktestTimestamp(value, utcOffset) {
         var text = String(value || "").trim();
         if (!text) return null;
@@ -22302,7 +22309,7 @@
               timestamp: headers.findIndex(function (header) { return ["timestamp", "datetime", "dateandtime", "time", "timeleft"].indexOf(header) >= 0; }),
               utc: headers.findIndex(function (header) { return ["utc", "utcoffset", "timezone", "timezoneoffset"].indexOf(header) >= 0; }),
               last: headers.findIndex(function (header) { return ["last", "price", "tradeprice"].indexOf(header) >= 0; }),
-              cumulative: headers.findIndex(function (header) { return header.indexOf("cumulativedelta") === 0; }),
+              cumulative: headers.findIndex(isBacktestCumulativeDeltaHeader),
               aggressor: headers.findIndex(function (header) { return ["aggressor", "aggressorflag", "side", "tradeside"].indexOf(header) >= 0; }),
               volume: headers.findIndex(function (header) { return ["volume", "size", "quantity", "tradevolume"].indexOf(header) >= 0; }),
             };
@@ -22463,7 +22470,7 @@
 
         var cumulativeDeltaIndexes = [];
         headers.forEach(function (header, index) {
-          if (header.indexOf("cumulativedelta") === 0) cumulativeDeltaIndexes.push(index);
+          if (isBacktestCumulativeDeltaHeader(header)) cumulativeDeltaIndexes.push(index);
         });
 
         var bars = [];
@@ -22590,7 +22597,7 @@
           var sample = await file.slice(0, 4096).text();
           var firstLine = sample.split(/\r?\n/, 1)[0] || "";
           var sampleHeaders = parseBacktestCsvLine(firstLine, detectBacktestCsvDelimiter(firstLine)).map(normalizeBacktestHeader);
-          var hasTickDelta = sampleHeaders.some(function (header) { return header.indexOf("cumulativedelta") === 0; }) ||
+          var hasTickDelta = sampleHeaders.some(isBacktestCumulativeDeltaHeader) ||
             (sampleHeaders.indexOf("aggressorflag") >= 0 && sampleHeaders.indexOf("volume") >= 0);
           var isTickData = (sampleHeaders.indexOf("last") >= 0 || sampleHeaders.indexOf("price") >= 0) &&
             hasTickDelta &&
@@ -27169,7 +27176,7 @@
           var firstLine = sample.split(/\r?\n/, 1)[0] || "";
           var headers = parseBacktestCsvLine(firstLine, detectBacktestCsvDelimiter(firstLine)).map(normalizeBacktestHeader);
           var hasTickVolume = headers.some(function (header) { return ["volume", "size", "quantity", "tradevolume"].indexOf(header) >= 0; });
-          var hasTickDelta = headers.some(function (header) { return header.indexOf("cumulativedelta") === 0; }) ||
+          var hasTickDelta = headers.some(isBacktestCumulativeDeltaHeader) ||
             (hasTickVolume && headers.some(function (header) { return ["aggressor", "aggressorflag", "side", "tradeside"].indexOf(header) >= 0; }));
           var isTickData = (headers.indexOf("last") >= 0 || headers.indexOf("price") >= 0) && hasTickDelta && headers.indexOf("open") < 0;
           if (isTickData) {
