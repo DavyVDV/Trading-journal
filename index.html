@@ -2487,16 +2487,41 @@
         overflow: hidden !important;
       }
       #qbtPopupSpeed {
-        width: 84px !important;
-        min-height: 28px !important;
-        padding: 0 9px !important;
-        padding-right: 24px !important;
-        line-height: 26px;
+        width: 72px !important;
+        height: 18px !important;
+        min-height: 18px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        accent-color: #3b82f6;
+        cursor: pointer;
+      }
+      #qbtPopupSpeed::-webkit-slider-runnable-track {
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, .35);
+      }
+      #qbtPopupSpeed::-webkit-slider-thumb {
+        width: 9px;
+        height: 9px;
+        margin-top: -3px;
+        border: 0;
+        border-radius: 50%;
+        background: #3b82f6;
         appearance: none;
-        background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%) !important;
-        background-position: calc(100% - 12px) 11px, calc(100% - 8px) 11px;
-        background-size: 4px 4px, 4px 4px;
-        background-repeat: no-repeat;
+        -webkit-appearance: none;
+      }
+      #qbtPopupSpeed::-moz-range-track {
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, .35);
+      }
+      #qbtPopupSpeed::-moz-range-thumb {
+        width: 9px;
+        height: 9px;
+        border: 0;
+        border-radius: 50%;
+        background: #3b82f6;
       }
       #tradePriceChartPane,
       #tradeCvdPane {
@@ -6093,13 +6118,7 @@
                     <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
                     <button id="qbtPopupFollow" type="button" class="bt-tool active" onclick="qbtToggleFollow()" title="Nieuwe candles volgen" aria-label="Nieuwe candles volgen" aria-pressed="true"><i class="fas fa-location-arrow"></i></button>
                     <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
-                    <select id="qbtPopupSpeed" class="bt-input !h-7 !w-20" onchange="qbtUpdatePlaybackSpeed()" title="Replay snelheid" aria-label="Replay snelheid">
-                      <option value="0.25">0.25x</option>
-                      <option value="0.5">0.5x</option>
-                      <option value="1" selected>1x</option>
-                      <option value="2">2x</option>
-                      <option value="4">4x</option>
-                    </select>
+                    <input id="qbtPopupSpeed" type="range" min="0" max="5" step="1" value="2" onchange="qbtUpdatePlaybackSpeed()" title="Replay snelheid: 1x" aria-label="Replay snelheid" />
                   </div>
                 </div>
                 <div class="flex flex-row flex-1 w-full h-full min-h-0 relative overflow-hidden">
@@ -27525,10 +27544,18 @@
         if (qbtAutoFollow) requestAnimationFrame(qbtScrollWorkspaceToEnd);
       }
       function qbtPlaybackDelay() {
-        var speed = Number(document.getElementById("qbtPopupSpeed").value) || 1;
+        var speedSteps = [0.25, 0.5, 1, 2, 4, 6];
+        var speed = speedSteps[Number(document.getElementById("qbtPopupSpeed").value)] || 1;
         return Math.max(80, Math.round(1000 / speed));
       }
       function qbtUpdatePlaybackSpeed() {
+        var speedSteps = [0.25, 0.5, 1, 2, 4, 6];
+        var speed = speedSteps[Number(document.getElementById("qbtPopupSpeed").value)] || 1;
+        var speedControl = document.getElementById("qbtPopupSpeed");
+        if (speedControl) {
+          speedControl.title = "Replay snelheid: " + speed + "x";
+          speedControl.setAttribute("aria-label", speedControl.title);
+        }
         if (qbtPlaybackTimer) {
           window.clearTimeout(qbtPlaybackTimer);
           qbtPlaybackTimer = window.setTimeout(qbtPlaybackTick, qbtPlaybackDelay());
