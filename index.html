@@ -5206,7 +5206,6 @@
             <label class="min-w-[210px] flex-1"><span class="bt-label">Eindigen op</span><input id="qbtEndDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
             <label class="w-36"><span class="bt-label">Risico per trade ($)</span><input id="qbtRiskAmount" type="number" min="0.01" step="0.01" value="200" class="bt-input !h-8 w-full" /></label>
             <label class="w-28"><span class="bt-label">Instrument</span><select id="qbtRiskInstrument" class="bt-input !h-8 w-full"><option value="ES">ES</option><option value="MES">MES</option></select></label>
-            <label class="w-32"><span class="bt-label">Chart bars</span><span class="flex gap-1"><button type="button" class="bt-control !h-8 flex-1" onclick="setBacktestTimeframe(30)">Time</button><input id="qbtTickCount" type="number" min="1" max="100000" step="1" value="100" class="bt-input !h-8 w-20" onchange="setBacktestTickChart(this.value)" title="Ticks per bar" /></span></label>
             <button id="qbtStartButton" type="button" onclick="qbtStartBacktest()" class="bt-control !h-8" disabled><i class="fas fa-play"></i> Start backtest</button>
           </div>
           <div id="qbtLegacySurface" class="hidden grid min-h-[680px] grid-cols-1 border border-terminal bg-[#10151c] lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -6046,7 +6045,6 @@
                       <button type="button" class="journal-timeframe-button" data-journal-timeframe="900" onclick="changeJournalTradeChartTimeframe(900)">15m</button>
                       <button type="button" class="journal-timeframe-button" data-journal-timeframe="1800" onclick="changeJournalTradeChartTimeframe(1800)">30m</button>
                       <button type="button" class="journal-timeframe-button" data-journal-timeframe="3600" onclick="changeJournalTradeChartTimeframe(3600)">1h</button>
-                      <button type="button" class="journal-timeframe-button" data-journal-ticks="true" onclick="setJournalTickChart(prompt('Aantal ticks per bar:', '100'))">Ticks</button>
                       <span class="w-px h-3.5 bg-white/10 mx-1 shrink-0"></span>
                       <button id="journalTimeframeAddButton" type="button" onclick="event.stopPropagation(); addJournalChartTimeframe()" title="Timeframe toevoegen"><i class="fas fa-plus"></i></button>
                       <button id="journalChartLayoutButton" type="button" onclick="event.stopPropagation(); openJournalChartWorkspaceSettings()" title="Chart layout en footprint instellingen"><i class="fas fa-table-cells-large"></i></button>
@@ -14693,6 +14691,7 @@
           backtestDatasets: typeof backtestDatasets !== "undefined" ? backtestDatasets : [],
           backtestTimeframes: typeof getBacktestTimeframes === "function" ? getBacktestTimeframes() : [],
           journalChartTimeframes: typeof getJournalCustomTimeframes === "function" ? getJournalCustomTimeframes() : [],
+          journalChartTickframes: typeof getJournalCustomTickframes === "function" ? getJournalCustomTickframes() : [],
           sharedFootprintTemplates: typeof readSharedProfiles === "function" ? readSharedProfiles(SHARED_FOOTPRINT_TEMPLATES_KEY) : [],
           sharedLayoutProfiles: typeof readSharedProfiles === "function" ? readSharedProfiles(SHARED_LAYOUT_PROFILES_KEY) : [],
           sharedFootprintDefault: localStorage.getItem("qt_shared_footprint_default_v1") || "",
@@ -14701,6 +14700,7 @@
           backtestChartLayout: (function () { try { return JSON.parse(localStorage.getItem("qt_bt_chart_layout_v1") || "null"); } catch (error) { return null; } })(),
           journalTradePopupSettings: {
             chartTimeframes: typeof getJournalCustomTimeframes === "function" ? getJournalCustomTimeframes() : [],
+            chartTickframes: typeof getJournalCustomTickframes === "function" ? getJournalCustomTickframes() : [],
             cvdHeight: Number(localStorage.getItem("qt_journal_cvd_height_v1")) || null,
             vwapSettings: (function () { try { return JSON.parse(localStorage.getItem("qt_journal_vwap_settings_v1") || "null"); } catch (error) { return null; } })(),
             chartPresets: (function () { try { return JSON.parse(localStorage.getItem("journalChartPresets") || "[]"); } catch (error) { return []; } })(),
@@ -14986,6 +14986,7 @@
               }
 
               if (importedData && Array.isArray(importedData.journalChartTimeframes)) localStorage.setItem("qt_journal_timeframes_v1", JSON.stringify(importedData.journalChartTimeframes));
+              if (importedData && Array.isArray(importedData.journalChartTickframes)) localStorage.setItem("qt_journal_tickframes_v1", JSON.stringify(importedData.journalChartTickframes));
               if (importedData && Array.isArray(importedData.sharedFootprintTemplates)) localStorage.setItem("qt_shared_footprint_templates_v1", JSON.stringify(importedData.sharedFootprintTemplates));
               if (importedData && Array.isArray(importedData.sharedLayoutProfiles)) localStorage.setItem("qt_shared_layout_profiles_v1", JSON.stringify(importedData.sharedLayoutProfiles));
               if (importedData && typeof importedData.sharedFootprintDefault === "string") localStorage.setItem("qt_shared_footprint_default_v1", importedData.sharedFootprintDefault);
@@ -14995,6 +14996,7 @@
               var popupSettings = importedData && importedData.journalTradePopupSettings;
               if (popupSettings && typeof popupSettings === "object") {
                 if (Array.isArray(popupSettings.chartTimeframes)) localStorage.setItem("qt_journal_timeframes_v1", JSON.stringify(popupSettings.chartTimeframes));
+                if (Array.isArray(popupSettings.chartTickframes)) localStorage.setItem("qt_journal_tickframes_v1", JSON.stringify(popupSettings.chartTickframes));
                 if (typeof popupSettings.cvdHeight === "number" && popupSettings.cvdHeight > 0) localStorage.setItem("qt_journal_cvd_height_v1", String(Math.round(popupSettings.cvdHeight)));
                 if (popupSettings.vwapSettings && typeof popupSettings.vwapSettings === "object") localStorage.setItem("qt_journal_vwap_settings_v1", JSON.stringify(popupSettings.vwapSettings));
                 if (Array.isArray(popupSettings.chartPresets)) localStorage.setItem("journalChartPresets", JSON.stringify(popupSettings.chartPresets));
@@ -18661,7 +18663,7 @@
             current.deltaHigh = Math.max(current.deltaHigh, current.delta + pathHigh); current.deltaLow = Math.min(current.deltaLow, current.delta + pathLow); current.delta += delta;
           } else current.cvdComplete = false;
           if (mergeJournalFootprintLevels(current.footprintMap, bar.footprint)) current.footprintComplete = true;
-          current.sourceCount += 1;
+          current.sourceCount += Math.max(1, Math.round(Number(bar.tickCount) || 1));
         });
         aggregated.forEach(function (bar) {
           if (bar.cvdComplete) bar.cvdSource = "tick"; else { bar.cvdSource = "unverified"; delete bar.delta; delete bar.deltaHigh; delete bar.deltaLow; }
@@ -18804,7 +18806,7 @@
           button.classList.toggle("active", active);
           button.setAttribute("aria-pressed", active ? "true" : "false");
         });
-        document.querySelectorAll("[data-journal-ticks]").forEach(function (button) { button.classList.toggle("active", workspace && workspace.panels[journalActivePanelIndex] && workspace.panels[journalActivePanelIndex].timeframeMode === "ticks"); });
+        document.querySelectorAll("[data-journal-tick-count]").forEach(function (button) { var panel = workspace && workspace.panels[journalActivePanelIndex]; button.classList.toggle("active", panel && panel.timeframeMode === "ticks" && Number(button.dataset.journalTickCount) === Number(panel.tickCount)); });
       }
 
       function formatJournalCustomTimeframe(seconds) {
@@ -18818,11 +18820,16 @@
         try { var values = JSON.parse(localStorage.getItem("qt_journal_timeframes_v1") || "[]"); return Array.isArray(values) ? values.map(Number).filter(function (value) { return value >= 30; }) : []; } catch (error) { return []; }
       }
 
+      function getJournalCustomTickframes() {
+        try { var values = JSON.parse(localStorage.getItem("qt_journal_tickframes_v1") || "[]"); return Array.isArray(values) ? values.map(Number).filter(function (value) { return Number.isInteger(value) && value >= 1 && value <= 100000; }) : []; } catch (error) { return []; }
+      }
+
       function renderJournalCustomTimeframes() {
         var bar = document.querySelector(".journal-timeframe-bar");
         var divider = bar && bar.querySelector("span.w-px");
         if (!bar || !divider || divider.parentElement !== bar) return;
         bar.querySelectorAll("[data-journal-custom-timeframe]").forEach(function (item) { item.remove(); });
+        bar.querySelectorAll("[data-journal-custom-tickframe]").forEach(function (item) { item.remove(); });
         var existing = Array.from(bar.querySelectorAll("[data-journal-timeframe]")).map(function (item) { return Number(item.dataset.journalTimeframe); });
         getJournalCustomTimeframes().forEach(function (seconds) {
           if (existing.indexOf(seconds) >= 0) return;
@@ -18833,13 +18840,26 @@
           var selector = document.getElementById("journalTradeChartTimeframe");
           if (selector && !Array.from(selector.options).some(function (option) { return Number(option.value) === seconds; })) selector.add(new Option(formatJournalCustomTimeframe(seconds), String(seconds)));
         });
+        getJournalCustomTickframes().forEach(function (ticks) {
+          var button = document.createElement("button"); button.type = "button"; button.className = "journal-timeframe-button";
+          button.dataset.journalTickCount = String(ticks); button.dataset.journalCustomTickframe = "true"; button.textContent = ticks + "t";
+          button.onclick = function () { setJournalTickChart(ticks); };
+          bar.insertBefore(button, divider);
+        });
       }
 
       function addJournalChartTimeframe() {
-        var input = prompt("Nieuw timeframe (bijv. 45s, 4m, 4h of 1D):", "4h");
+        var input = prompt("Nieuw timeframe: gebruik tijd (bijv. 4m of 1h) of ticks (bijv. 500t):", "500t");
         if (!input) return;
-        var match = String(input).trim().match(/^(\d+)\s*([smhd])$/i);
-        if (!match) return alert("Gebruik bijvoorbeeld 45s, 4m, 4h of 1D.");
+        var match = String(input).trim().match(/^(\d+)\s*([smhdt])$/i);
+        if (!match) return alert("Gebruik bijvoorbeeld 45s, 4m, 1h of 500t.");
+        if (match[2].toLowerCase() === "t") {
+          var ticks = Math.max(1, Math.min(100000, Number(match[1])));
+          var tickValues = getJournalCustomTickframes();
+          if (tickValues.indexOf(ticks) < 0) tickValues.push(ticks);
+          localStorage.setItem("qt_journal_tickframes_v1", JSON.stringify(tickValues.sort(function (a, b) { return a - b; })));
+          renderJournalCustomTimeframes(); setJournalTickChart(ticks); return;
+        }
         var factor = { s: 1, m: 60, h: 3600, d: 86400 }[match[2].toLowerCase()];
         var seconds = Math.max(30, Number(match[1]) * factor);
         var values = getJournalCustomTimeframes();
@@ -22419,6 +22439,7 @@
               cvdLow: Math.min(cvdOpen, cvd),
               cvdClose: cvd,
               volumeTotal: volume,
+              tickCount: 1,
               footprintMap: {},
             };
           } else {
@@ -22429,6 +22450,7 @@
             current.cvdLow = Math.min(current.cvdLow, cvd);
             current.cvdClose = cvd;
             current.volumeTotal += volume;
+            current.tickCount += 1;
           }
           var priceLevel = Math.round(price / .25) * .25;
           var priceKey = priceLevel.toFixed(8);
@@ -22816,6 +22838,7 @@
               delta: bar.delta,
               deltaHigh: bar.deltaHigh,
               deltaLow: bar.deltaLow,
+              tickCount: bar.tickCount,
               footprint: Array.isArray(bar.footprint) ? bar.footprint : undefined,
               footprintSource: bar.footprintSource || undefined,
             };
@@ -22839,6 +22862,7 @@
             delta: Number(bar.delta) || 0,
             deltaHigh: Number.isFinite(Number(bar.deltaHigh)) ? Number(bar.deltaHigh) : Math.max(0, Number(bar.delta) || 0),
             deltaLow: Number.isFinite(Number(bar.deltaLow)) ? Number(bar.deltaLow) : Math.min(0, Number(bar.delta) || 0),
+            tickCount: Math.max(1, Math.round(Number(bar.tickCount) || 1)),
             footprint: Array.isArray(bar.footprint) ? bar.footprint : undefined,
             footprintSource: bar.footprintSource || undefined,
           };
@@ -23328,8 +23352,6 @@
 
       function setBacktestTickChart(tickCount) {
         var count = Math.max(1, Math.min(100000, Math.round(Number(tickCount) || 100)));
-        var input = document.getElementById("qbtTickCount");
-        if (input) input.value = String(count);
         var layout = getBacktestChartLayout();
         if (!layout.panels[0]) return;
         layout.panels[0].timeframeMode = "ticks";
@@ -27331,7 +27353,7 @@
       function qbtStep(direction) { if (!qbtBars.length) return; if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true); qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction)); qbtRender(); qbtSyncWorkspace(); if (qbtIndex >= qbtBars.length - 1 && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); } }
       function qbtEnter(side) { if (!qbtBars.length || qbtOpen) return; var bar = qbtBars[qbtIndex], qty = Math.max(1, Number(document.getElementById("qbtQty").value) || 1); qbtOpen = {side:side,qty:qty,entry:bar.close,entryTime:qbtTime(bar),entryIndex:qbtIndex}; qbtRender(); qbtSyncWorkspace(); }
       function qbtExit() { if (!qbtOpen || !qbtBars.length) return; var bar = qbtBars[qbtIndex]; if (qbtIndex <= qbtOpen.entryIndex) return qbtSetStatus("Ga minstens één bar vooruit om de trade te sluiten.", true); var exit = bar.close, pnl = (qbtOpen.side === "Long" ? exit - qbtOpen.entry : qbtOpen.entry - exit) * qbtOpen.qty; qbtTrades.push({id:"qbt-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),side:qbtOpen.side,qty:qbtOpen.qty,entry:qbtOpen.entry,exit:exit,entryTime:qbtOpen.entryTime,exitTime:qbtTime(bar),pnl:pnl}); qbtOpen = null; qbtRender(); qbtSyncWorkspace(); }
-      function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
+      function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
       function qbtJournalCandles(limit) { return qbtJournalCandlesFromBars(qbtBars, limit); }
       function qbtJournalDayCandles(value) {
         var date = qbtTime({ timestamp: value });
@@ -27524,7 +27546,7 @@
         saveData({ skipUpdate:true });
         closeJournalRrContextMenu();
       }
-      async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
+      async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
       function qbtSaveDataset() { if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true); var suggestedName = (document.getElementById("qbtSymbol").value || "Backtest data") + " " + new Date().toLocaleDateString("nl-BE"); openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName); }
       async function qbtLoadDatasets() { try { qbtDatasets = await localforage.getItem(QBT_DATA_KEY) || []; qbtRenderDatasets(); } catch (error) { qbtSetStatus("Opgeslagen datasets konden niet worden geladen.", true); } }
       function qbtRenderDatasets() { var select = document.getElementById("qbtDataset"); if (!select) return; select.innerHTML = '<option value="">Opgeslagen data…</option>' + qbtDatasets.map(function (set) { return '<option value="' + set.id + '">' + String(set.name).replace(/</g,"&lt;") + '</option>'; }).join(""); }
