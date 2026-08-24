@@ -5199,7 +5199,7 @@
         <div class="mx-auto max-w-[1800px] space-y-3 font-mono">
           <div class="flex flex-wrap items-center justify-between gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <div class="min-w-0"><div class="text-[10px] font-bold uppercase tracking-widest text-zinc-200">Backtest</div><div id="qbtStatus" class="mt-0.5 truncate text-[9px] text-zinc-500">Upload tickdata of OHLC CSV.</div></div>
-            <div class="flex items-center gap-1.5"><button onclick="document.getElementById('qbtFile').click()" class="bt-control !h-8"><i class="fas fa-upload"></i> CSV</button><button onclick="qbtSaveDataset()" class="bt-control !h-8" title="Huidige data lokaal opslaan"><i class="fas fa-floppy-disk"></i></button><select id="qbtDataset" onchange="qbtLoadDataset(this.value)" class="bt-input !h-8 !w-44"><option value="">Opgeslagen data…</option></select><input id="qbtFile" type="file" accept=".csv" class="hidden" onchange="qbtLoadFile(this.files[0]); this.value=''" /></div>
+            <div class="flex items-center gap-1.5"><button onclick="document.getElementById('qbtFile').click()" class="bt-control !h-8"><i class="fas fa-upload"></i> CSV</button><button onclick="qbtSaveDataset()" class="bt-control !h-8" title="Huidige data lokaal opslaan"><i class="fas fa-floppy-disk"></i></button><span class="flex items-center"><select id="qbtDataset" onchange="qbtHandleDatasetSelection(this.value)" class="bt-input !h-8 !w-44"><option value="">Opgeslagen data…</option></select><button id="qbtDeleteDatasetButton" type="button" onclick="qbtDeleteSelectedDataset()" class="bt-tool !h-8 !w-7 ml-1 text-red-300" title="Geselecteerde dataset verwijderen" disabled><i class="fas fa-xmark"></i></button></span><input id="qbtFile" type="file" accept=".csv" class="hidden" onchange="qbtLoadFile(this.files[0]); this.value=''" /></div>
           </div>
           <div class="flex flex-wrap items-end gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <label class="min-w-[210px] flex-1"><span class="bt-label">Beginnen vanaf</span><input id="qbtStartDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
@@ -19769,7 +19769,7 @@
         if (!range) return;
         var span = Math.max(1, Number(range.to) - Number(range.from));
         var offset = Math.max(0, Math.min(45, Number(rightOffsetPercent) || 0)) / 100;
-        var rightEdge = Number(lastLogicalIndex) + span * (offset / Math.max(.01, 1 - offset));
+        var rightEdge = Number(lastLogicalIndex) + span * offset;
         timeScale.setVisibleLogicalRange({ from: rightEdge - span, to: rightEdge });
       }
 
@@ -22220,6 +22220,8 @@
       var backtestMeasureStart = null;
       var backtestMeasureEnd = null;
       var backtestMeasuring = false;
+      var backtestRightOffsetAnchorFrame = null;
+      var backtestApplyingRightOffsetAnchor = false;
 
       var BACKTEST_INSTRUMENTS = {
         ES: { symbol: "ES", tickSize: 0.25, pointValue: 50, tickValue: 12.5 },
@@ -24293,7 +24295,10 @@
             scheduleBacktestDrawingRender();
           });
           bindBacktestChartScaleSynchronization();
-          backtestReplayChart.timeScale().subscribeVisibleLogicalRangeChange(function () { scheduleBacktestDrawingRender(); scheduleBacktestFootprintRender(); });
+          backtestReplayChart.timeScale().subscribeVisibleLogicalRangeChange(function () {
+            scheduleBacktestDrawingRender(); scheduleBacktestFootprintRender();
+            if (backtestAutoFitEnabled && !backtestApplyingRightOffsetAnchor) scheduleBacktestRightOffsetAnchor();
+          });
           backtestReplayChart.subscribeClick(function (parameter) {
             if (!parameter || !parameter.point || backtestDrawingTool !== "cursor") return;
             var riskHit = hitTestBacktestRiskTool(parameter.point.x, parameter.point.y);
@@ -24644,6 +24649,18 @@
         window.requestAnimationFrame(function () {
           moveBacktestChartToRightMargin();
           backtestSecondaryCharts.forEach(function (record) { moveBacktestPanelToRightMargin(record.panelIndex); });
+        });
+      }
+
+      function scheduleBacktestRightOffsetAnchor() {
+        if (backtestRightOffsetAnchorFrame || !backtestReplayChart || !backtestBars.length) return;
+        backtestRightOffsetAnchorFrame = window.requestAnimationFrame(function () {
+          backtestRightOffsetAnchorFrame = null;
+          if (!backtestAutoFitEnabled || !backtestReplayChart) return;
+          backtestApplyingRightOffsetAnchor = true;
+          moveBacktestChartToRightMargin();
+          backtestSecondaryCharts.forEach(function (record) { moveBacktestPanelToRightMargin(record.panelIndex); });
+          backtestApplyingRightOffsetAnchor = false;
         });
       }
 
@@ -25554,7 +25571,7 @@
           y: y,
           isCvd: false,
         };
-        if (backtestMagnetEnabled || event.ctrlKey) point = snapBacktestPointToCandle(point);
+        if ((backtestMagnetEnabled || event.ctrlKey) && (!Number.isFinite(point.logical) || point.logical <= backtestReplayIndex)) point = snapBacktestPointToCandle(point);
         return point;
       }
 
@@ -26109,9 +26126,18 @@
       }
 
       function getBacktestRiskGeometry(risk) {
-        var startX = Number.isFinite(risk.logical)
-          ? backtestReplayChart.timeScale().logicalToCoordinate(risk.logical)
-          : backtestReplayChart.timeScale().timeToCoordinate(risk.time);
+        var startX = null;
+        if (Number.isFinite(risk.logical)) {
+          var logicalRange = backtestReplayChart.timeScale().getVisibleLogicalRange();
+          var plotBounds = getBacktestPlotBounds();
+          if (logicalRange && Number(logicalRange.to) > Number(logicalRange.from) && plotBounds.right > 0) {
+            startX = (Number(risk.logical) - Number(logicalRange.from)) / (Number(logicalRange.to) - Number(logicalRange.from)) * plotBounds.right;
+          } else {
+            startX = backtestReplayChart.timeScale().logicalToCoordinate(risk.logical);
+          }
+        } else {
+          startX = backtestReplayChart.timeScale().timeToCoordinate(risk.time);
+        }
         var entryY = backtestReplaySeries.priceToCoordinate(risk.entryPrice);
         var stopY = backtestReplaySeries.priceToCoordinate(risk.stopPrice);
         var targetY = backtestReplaySeries.priceToCoordinate(risk.targetPrice);
@@ -27215,6 +27241,8 @@
          journal modal instead of maintaining a second chart/modal implementation. */
       var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES";
       var qbtReplayAggregationCache = null;
+      var qbtReplayVisibleTicks = null;
+      var qbtLoadedDatasetId = "";
       var QBT_DATA_KEY = "qt_minimal_backtest_datasets_v1";
 
       function qbtText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
@@ -27252,7 +27280,7 @@
         if (qbtBars.length < 2) return qbtSetStatus("Het gekozen tijdsbereik bevat minder dan twee bars.", true);
         backtestSourceBars = qbtBars;
         backtestSourceBars.deltaSource = qbtSourceBars.deltaSource || "missing";
-        qbtIndex = Math.min(80, qbtBars.length - 1); qbtTrades = []; qbtOpen = null;
+        qbtIndex = Math.min(80, qbtBars.length - 1); qbtReplayVisibleTicks = null; qbtTrades = []; qbtOpen = null;
         qbtSetStatus(qbtBars.length.toLocaleString("nl-BE") + " bars geselecteerd");
         qbtRender(); qbtOpenWorkspace();
       }
@@ -27364,7 +27392,7 @@
       }
       function qbtPlaybackTick() {
         qbtPlaybackTimer = null;
-        if (qbtIndex >= qbtBars.length - 1) return qbtSetPlaybackIcon(false);
+        if (!qbtHasNextReplayStep()) return qbtSetPlaybackIcon(false);
         qbtStep(1);
         qbtPlaybackTimer = window.setTimeout(qbtPlaybackTick, qbtPlaybackDelay());
       }
@@ -27376,7 +27404,7 @@
           qbtSetPlaybackIcon(false);
           return;
         }
-        if (qbtIndex >= qbtBars.length - 1) qbtIndex = Math.max(0, Math.min(80, qbtBars.length - 1));
+        if (!qbtHasNextReplayStep()) { qbtIndex = Math.max(0, Math.min(80, qbtBars.length - 1)); qbtInitializeTickReplay(qbtActiveTickPanel()); }
         qbtSetPlaybackIcon(true);
         qbtPlaybackTimer = window.setTimeout(qbtPlaybackTick, qbtPlaybackDelay());
       }
@@ -27413,11 +27441,52 @@
           qbtSetRangeInputs(); qbtBars = []; qbtIndex = 0; qbtTrades = []; qbtOpen = null; qbtRender();
         } catch (error) { qbtSetStatus(error.message || "Dit CSV-bestand kon niet worden gelezen.", true); }
       }
-      function qbtStep(direction) { if (!qbtBars.length) return; if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true); qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction)); qbtRender(); qbtSyncWorkspace(); if (qbtIndex >= qbtBars.length - 1 && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); } }
+      function qbtStep(direction) {
+        if (!qbtBars.length) return;
+        if (direction < 0 && (qbtOpen || qbtTrades.length)) return qbtSetStatus("Reset de dataset voordat je teruggaat na een trade.", true);
+        var panel = qbtActiveTickPanel();
+        if (panel) {
+          if (!Number.isFinite(qbtReplayVisibleTicks)) qbtInitializeTickReplay(panel);
+          qbtReplayVisibleTicks = Math.max(panel.tickCount, Math.min(qbtTotalTicks(), qbtReplayVisibleTicks + direction * panel.tickCount));
+          qbtIndex = qbtSourceIndexForTickLimit(qbtReplayVisibleTicks);
+        } else {
+          qbtReplayVisibleTicks = null;
+          qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction));
+        }
+        qbtRender(); qbtSyncWorkspace();
+        if (!qbtHasNextReplayStep() && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); }
+      }
       function qbtEnter(side) { if (!qbtBars.length || qbtOpen) return; var bar = qbtBars[qbtIndex], qty = Math.max(1, Number(document.getElementById("qbtQty").value) || 1); qbtOpen = {side:side,qty:qty,entry:bar.close,entryTime:qbtTime(bar),entryIndex:qbtIndex}; qbtRender(); qbtSyncWorkspace(); }
       function qbtExit() { if (!qbtOpen || !qbtBars.length) return; var bar = qbtBars[qbtIndex]; if (qbtIndex <= qbtOpen.entryIndex) return qbtSetStatus("Ga minstens één bar vooruit om de trade te sluiten.", true); var exit = bar.close, pnl = (qbtOpen.side === "Long" ? exit - qbtOpen.entry : qbtOpen.entry - exit) * qbtOpen.qty; qbtTrades.push({id:"qbt-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),side:qbtOpen.side,qty:qbtOpen.qty,entry:qbtOpen.entry,exit:exit,entryTime:qbtOpen.entryTime,exitTime:qbtTime(bar),pnl:pnl}); qbtOpen = null; qbtRender(); qbtSyncWorkspace(); }
       function qbtJournalCandlesFromBars(bars, limit) { return (Array.isArray(bars) ? bars.slice(0, limit || bars.length) : []).map(function (bar) { var date = qbtTime(bar); return {time:Math.floor(date.getTime()/1000 - date.getTimezoneOffset()*60),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }); }
       function qbtJournalCandles(limit) { return qbtJournalCandlesFromBars(qbtBars, limit); }
+      function qbtActiveTickPanel() {
+        var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
+        var panel = trade && getJournalChartWorkspace(trade).panels[0];
+        return panel && panel.timeframeMode === "ticks" && qbtBars.length && qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; }) ? panel : null;
+      }
+      function qbtTickTotalThrough(index) {
+        var total = 0;
+        for (var barIndex = 0; barIndex <= Math.min(index, qbtBars.length - 1); barIndex++) total += qbtBars[barIndex].ticks.length;
+        return total;
+      }
+      function qbtTotalTicks() { return qbtTickTotalThrough(qbtBars.length - 1); }
+      function qbtSourceIndexForTickLimit(limit) {
+        var total = 0;
+        for (var index = 0; index < qbtBars.length; index++) { total += qbtBars[index].ticks.length; if (total >= limit) return index; }
+        return Math.max(0, qbtBars.length - 1);
+      }
+      function qbtInitializeTickReplay(panel) {
+        if (!panel) { qbtReplayVisibleTicks = null; return; }
+        var available = qbtTickTotalThrough(qbtIndex);
+        qbtReplayVisibleTicks = Math.max(panel.tickCount, Math.floor(available / panel.tickCount) * panel.tickCount);
+        qbtReplayVisibleTicks = Math.min(qbtReplayVisibleTicks, qbtTotalTicks());
+        qbtIndex = qbtSourceIndexForTickLimit(qbtReplayVisibleTicks);
+      }
+      function qbtHasNextReplayStep() {
+        var panel = qbtActiveTickPanel();
+        return panel ? Number(qbtReplayVisibleTicks) < qbtTotalTicks() : qbtIndex < qbtBars.length - 1;
+      }
       function qbtReplayPanelData(trade, panel, panelIndex, visiblePreparedData) {
         if (!panel || panel.timeframeMode !== "ticks" || !qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; })) return journalPanelAggregation(visiblePreparedData, panel);
         if (!qbtReplayAggregationCache || qbtReplayAggregationCache.source !== qbtBars) {
@@ -27434,7 +27503,7 @@
           var fullSource = prepareJournalChartDataForTrade(qbtJournalCandlesFromBars(qbtBars), trade);
           cached = qbtReplayAggregationCache.panels[key] = journalPanelAggregation(fullSource, panel);
         }
-        var visibleTicks = qbtReplayAggregationCache.prefixTicks[Math.min(qbtIndex, qbtReplayAggregationCache.prefixTicks.length - 1)] || 0;
+        var visibleTicks = Number.isFinite(qbtReplayVisibleTicks) ? qbtReplayVisibleTicks : (qbtReplayAggregationCache.prefixTicks[Math.min(qbtIndex, qbtReplayAggregationCache.prefixTicks.length - 1)] || 0);
         var low = 0, high = cached.length;
         while (low < high) {
           var middle = Math.floor((low + high) / 2);
@@ -27555,14 +27624,14 @@
         var span = range ? Math.min(80, Math.max(20, range.to - range.from)) : Math.min(80, currentJournalChartData.length);
         var to = Math.max(0, currentJournalChartData.length - 1);
         var offset = getBacktestRightOffset() / 100;
-        var rightEdge = to + span * (offset / Math.max(.01, 1 - offset));
+        var rightEdge = to + span * offset;
         var nextRange = { from: Math.max(0, rightEdge - span), to: rightEdge };
         timeScale.setVisibleLogicalRange(nextRange);
         if (currentTradeCvdChart) currentTradeCvdChart.timeScale().setVisibleLogicalRange(nextRange);
         journalSecondaryCharts.forEach(function (record) {
           if (!record.chart || !record.data || !record.data.length) return;
           var panelTo = record.data.length - 1;
-          var panelRightEdge = panelTo + span * (offset / Math.max(.01, 1 - offset));
+          var panelRightEdge = panelTo + span * offset;
           var panelRange = { from: Math.max(0, panelRightEdge - span), to: panelRightEdge };
           record.chart.timeScale().setVisibleLogicalRange(panelRange);
           if (record.cvdChart) record.cvdChart.timeScale().setVisibleLogicalRange(panelRange);
@@ -27645,8 +27714,31 @@
       async function qbtSaveDatasetWithName(name) { qbtDatasets.push({id:"qbt-data-"+Date.now(),name:name,bars:qbtBars.map(function (bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; })}); await localforage.setItem(QBT_DATA_KEY,qbtDatasets); qbtRenderDatasets(); qbtSetStatus("Dataset lokaal opgeslagen."); }
       function qbtSaveDataset() { if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true); var suggestedName = (document.getElementById("qbtSymbol").value || "Backtest data") + " " + new Date().toLocaleDateString("nl-BE"); openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName); }
       async function qbtLoadDatasets() { try { qbtDatasets = await localforage.getItem(QBT_DATA_KEY) || []; qbtRenderDatasets(); } catch (error) { qbtSetStatus("Opgeslagen datasets konden niet worden geladen.", true); } }
-      function qbtRenderDatasets() { var select = document.getElementById("qbtDataset"); if (!select) return; select.innerHTML = '<option value="">Opgeslagen data…</option>' + qbtDatasets.map(function (set) { return '<option value="' + set.id + '">' + String(set.name).replace(/</g,"&lt;") + '</option>'; }).join(""); }
-      function qbtLoadDataset(id) { var set = qbtDatasets.find(function (item) { return item.id === id; }); if (!set) return; qbtSourceBars = set.bars.map(function (bar) { return Object.assign({},bar,{timestamp:new Date(bar.timestamp)}); }); qbtSetRangeInputs(); qbtBars = []; qbtIndex = 0; qbtTrades=[]; qbtOpen=null; qbtRender(); }
+      function qbtRenderDatasets() {
+        var select = document.getElementById("qbtDataset"); if (!select) return;
+        select.innerHTML = '<option value="">Opgeslagen data…</option>' + qbtDatasets.map(function (set) { return '<option value="' + set.id + '">' + String(set.name).replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</option>'; }).join("");
+        select.value = qbtDatasets.some(function (set) { return set.id === qbtLoadedDatasetId; }) ? qbtLoadedDatasetId : "";
+        var removeButton = document.getElementById("qbtDeleteDatasetButton"); if (removeButton) removeButton.disabled = !select.value;
+      }
+      function qbtHandleDatasetSelection(id) {
+        var button = document.getElementById("qbtDeleteDatasetButton"); if (button) button.disabled = !id;
+        if (id) qbtLoadDataset(id);
+      }
+      function qbtDeleteSelectedDataset() {
+        var select = document.getElementById("qbtDataset");
+        var id = select && select.value;
+        var dataset = qbtDatasets.find(function (item) { return item.id === id; });
+        if (!dataset) return;
+        showConfirm('Dataset "' + dataset.name + '" verwijderen?', async function () {
+          qbtDatasets = qbtDatasets.filter(function (item) { return item.id !== id; });
+          await localforage.setItem(QBT_DATA_KEY, qbtDatasets);
+          if (qbtLoadedDatasetId === id) {
+            qbtLoadedDatasetId = ""; qbtSourceBars = []; qbtBars = []; qbtIndex = 0; qbtReplayVisibleTicks = null; qbtReplayAggregationCache = null; qbtTrades = []; qbtOpen = null; qbtRender(); qbtSetStatus("Dataset verwijderd.");
+          }
+          qbtRenderDatasets();
+        });
+      }
+      function qbtLoadDataset(id) { var set = qbtDatasets.find(function (item) { return item.id === id; }); if (!set) return; qbtLoadedDatasetId = id; qbtSourceBars = set.bars.map(function (bar) { return Object.assign({},bar,{timestamp:new Date(bar.timestamp)}); }); qbtReplayVisibleTicks = null; qbtReplayAggregationCache = null; qbtSetRangeInputs(); qbtBars = []; qbtIndex = 0; qbtTrades=[]; qbtOpen=null; qbtRender(); qbtRenderDatasets(); }
       document.addEventListener("DOMContentLoaded", function () { qbtLoadDatasets(); window.addEventListener("resize", qbtResize); });
     </script>
   </body>
