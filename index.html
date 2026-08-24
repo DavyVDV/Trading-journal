@@ -48,6 +48,7 @@
         color: #f1f5f9;
         font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
         cursor: var(--site-cursor);
+      }
       button,
       a,
       label,
@@ -21630,7 +21631,9 @@
         var container = document.getElementById("chartDataPreviewContainer");
         var chartDiv = document.getElementById("lightweightChartContainer");
         
-        var sourceChartData = (globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null);
+        var sourceChartData = trade && trade.__backtestSession && Array.isArray(trade.chartData)
+          ? trade.chartData
+          : (globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null);
         var preparedChartData = prepareJournalChartDataForTrade(sourceChartData, trade);
         var workspace = getJournalChartWorkspace(trade);
         journalTradeChartTimeframe = workspace.panels[0].timeframe;
@@ -22485,11 +22488,13 @@
             volume: parseBacktestNumber(source[indexes.volume]),
             delta: indexes.delta >= 0 ? parseBacktestNumber(source[indexes.delta]) : NaN,
           };
+          var barHasRealDelta = Number.isFinite(bar.delta);
           if (!Number.isFinite(bar.delta) && indexes.askVolume >= 0 && indexes.bidVolume >= 0) {
             var askVolume = parseBacktestNumber(source[indexes.askVolume]);
             var bidVolume = parseBacktestNumber(source[indexes.bidVolume]);
             if (Number.isFinite(askVolume) && Number.isFinite(bidVolume)) {
               bar.delta = askVolume - bidVolume;
+              barHasRealDelta = true;
             }
           }
           if (Number.isFinite(bar.delta)) {
@@ -22504,6 +22509,7 @@
               bar.delta = previousCumulativeDelta === null
                 ? 0
                 : cumulativeDelta - previousCumulativeDelta;
+              barHasRealDelta = true;
               usedRealDelta = true;
             } else {
               bar.delta = 0;
@@ -22513,6 +22519,7 @@
           }
           bar.deltaHigh = Math.max(0, bar.delta);
           bar.deltaLow = Math.min(0, bar.delta);
+          if (barHasRealDelta) bar.cvdSource = "tick";
           if (
             timestamp &&
             [bar.open, bar.high, bar.low, bar.close, bar.volume, bar.delta].every(Number.isFinite)
@@ -22590,8 +22597,13 @@
           var sample = await file.slice(0, 4096).text();
           var firstLine = sample.split(/\r?\n/, 1)[0] || "";
           var sampleHeaders = parseBacktestCsvLine(firstLine, detectBacktestCsvDelimiter(firstLine)).map(normalizeBacktestHeader);
+          var hasTickVolume = ["volume", "size", "quantity", "tradevolume"].some(function (header) {
+            return sampleHeaders.indexOf(header) >= 0;
+          });
           var hasTickDelta = sampleHeaders.some(function (header) { return header.indexOf("cumulativedelta") === 0; }) ||
-            (sampleHeaders.indexOf("aggressorflag") >= 0 && sampleHeaders.indexOf("volume") >= 0);
+            (hasTickVolume && ["aggressor", "aggressorflag", "side", "tradeside"].some(function (header) {
+              return sampleHeaders.indexOf(header) >= 0;
+            }));
           var isTickData = (sampleHeaders.indexOf("last") >= 0 || sampleHeaders.indexOf("price") >= 0) &&
             hasTickDelta &&
             sampleHeaders.indexOf("open") < 0;
@@ -27088,6 +27100,7 @@
         if (commit) commit.classList.add("hidden");
         [rrLongTool, rrShortTool].forEach(function (element) { if (element) element.classList.toggle("hidden", !enabled); });
         if (copyAction) { copyAction.classList.toggle("hidden", !enabled); copyAction.classList.toggle("flex", enabled); }
+        setTradeModalSidebarHidden(enabled ? true : localStorage.getItem("qt_trade_modal_sidebar_hidden_v1") === "true", false);
         qbtBindRrPlacement();
       }
       function qbtBindRrPlacement() {
@@ -27102,8 +27115,10 @@
           if (!pricePane || !pricePane.contains(event.target)) return;
           var point = journalChartPoint(event, 0);
           if (!point) return;
+          if (!currentJournalChartData.length) return;
           var firstBar = currentJournalChartData[0];
           var lastBar = currentJournalChartData[currentJournalChartData.length - 1];
+          if (!firstBar || !lastBar) return;
           point.time = Math.max(Number(firstBar.time), Math.min(Number(lastBar.time), point.time));
           event.preventDefault();
           event.stopPropagation();
@@ -27113,7 +27128,7 @@
       function qbtSetRrButtonState(direction) {
         ["backtestRrLongToolButton", "backtestRrShortToolButton"].forEach(function (id) {
           var button = document.getElementById(id);
-          if (button) button.classList.toggle("active", direction && id.indexOf(direction.toLowerCase()) >= 0);
+          if (button) button.classList.toggle("active", direction && id.toLowerCase().indexOf(direction.toLowerCase()) >= 0);
         });
       }
       function qbtSetPlaybackIcon(isPlaying) {
@@ -27247,7 +27262,10 @@
       function qbtCopyRrToJournal() {
         var source = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         if (!source) return;
-        if (!Number.isFinite(Number(source.rrEntry)) || !Number.isFinite(Number(source.tp)) || !Number.isFinite(Number(source.sl))) qbtPlaceRrTool();
+        if (!Number.isFinite(Number(source.rrEntry)) || !Number.isFinite(Number(source.tp)) || !Number.isFinite(Number(source.sl))) {
+          qbtSetStatus("Plaats eerst een RR-tool op de grafiek voordat je kopieert.", true);
+          return;
+        }
         var entry = Number(source.rrEntry), target = Number(source.tp), stop = Number(source.sl);
         var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, time:source.time, exitTime:source.time, side:target >= entry ? "Buy" : "Sell", entry:entry, exit:entry, pnl:0, tp:target, sl:stop, rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest." });
         delete copied.__backtestSession;
