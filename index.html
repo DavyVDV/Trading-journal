@@ -19629,8 +19629,8 @@
         var range = timeScale.getVisibleLogicalRange();
         if (!range) return;
         var span = Math.max(1, Number(range.to) - Number(range.from));
-        var offset = Math.max(0, Number(rightOffsetPercent) || 0);
-        var rightEdge = Number(lastLogicalIndex) + span * (offset / 100);
+        var offset = Math.max(0, Math.min(45, Number(rightOffsetPercent) || 0)) / 100;
+        var rightEdge = Number(lastLogicalIndex) + span * (offset / Math.max(.01, 1 - offset));
         timeScale.setVisibleLogicalRange({ from: rightEdge - span, to: rightEdge });
       }
 
@@ -23783,7 +23783,8 @@
         var input = document.getElementById("btRightOffset");
         if (input && input.value !== String(offset)) input.value = String(offset);
         localStorage.setItem("qt_bt_right_offset_v2", String(offset));
-        if (backtestAutoFitEnabled) moveBacktestChartToRightMargin();
+        moveBacktestChartToRightMargin();
+        backtestSecondaryCharts.forEach(function (record) { moveBacktestPanelToRightMargin(record.panelIndex); });
         scheduleBacktestDrawingRender();
       }
 
@@ -23908,12 +23909,7 @@
 
       function moveBacktestChartToRightMargin() {
         if (!backtestReplayChart || !backtestBars.length) return;
-        var timeScale = backtestReplayChart.timeScale();
-        var range = timeScale.getVisibleLogicalRange();
-        if (!range) return;
-        var span = Math.max(1, range.to - range.from);
-        var rightEdge = backtestReplayIndex + span * (getBacktestRightOffset() / 100);
-        timeScale.setVisibleLogicalRange({ from: rightEdge - span, to: rightEdge });
+        scrollChartPanelToEnd(backtestReplayChart, backtestReplayIndex, getBacktestRightOffset());
         scheduleBacktestDrawingRender();
       }
 
@@ -23922,7 +23918,7 @@
         if (index === 0) return moveBacktestChartToRightMargin();
         var record = backtestSecondaryCharts.find(function (item) { return item.panelIndex === index; });
         if (!record) return;
-        scrollChartPanelToEnd(record.chart, record.data.length - 1, record.config.rightOffset || 0);
+        scrollChartPanelToEnd(record.chart, record.data.length - 1, getBacktestRightOffset());
         scheduleBacktestFootprintRender();
       }
 
@@ -23952,7 +23948,8 @@
         if (!backtestReplayChart) return;
         function fit() {
           backtestReplayChart.timeScale().fitContent();
-          if (backtestAutoFitEnabled) moveBacktestChartToRightMargin();
+          moveBacktestChartToRightMargin();
+          backtestSecondaryCharts.forEach(function (record) { moveBacktestPanelToRightMargin(record.panelIndex); });
           scheduleBacktestDrawingRender();
         }
         fit();
@@ -24448,10 +24445,12 @@
       }
 
       function keepBacktestReplayInView() {
-        if (!backtestReplayChart || !backtestAutoFitEnabled) return;
+        if (!backtestReplayChart) return;
         moveBacktestChartToRightMargin();
+        backtestSecondaryCharts.forEach(function (record) { moveBacktestPanelToRightMargin(record.panelIndex); });
         window.requestAnimationFrame(function () {
-          if (backtestAutoFitEnabled) moveBacktestChartToRightMargin();
+          moveBacktestChartToRightMargin();
+          backtestSecondaryCharts.forEach(function (record) { moveBacktestPanelToRightMargin(record.panelIndex); });
         });
       }
 
@@ -27217,8 +27216,11 @@
         var range = timeScale.getVisibleLogicalRange ? timeScale.getVisibleLogicalRange() : null;
         var span = range ? Math.max(20, range.to - range.from) : Math.min(80, currentJournalChartData.length);
         var to = Math.max(0, currentJournalChartData.length - 1);
-        timeScale.setVisibleLogicalRange({ from: Math.max(0, to - span), to: to });
-        if (currentTradeCvdChart) currentTradeCvdChart.timeScale().setVisibleLogicalRange({ from: Math.max(0, to - span), to: to });
+        var offset = getBacktestRightOffset() / 100;
+        var rightEdge = to + span * (offset / Math.max(.01, 1 - offset));
+        var nextRange = { from: Math.max(0, rightEdge - span), to: rightEdge };
+        timeScale.setVisibleLogicalRange(nextRange);
+        if (currentTradeCvdChart) currentTradeCvdChart.timeScale().setVisibleLogicalRange(nextRange);
       }
       function qbtOpenWorkspace(sourceTrade) {
         if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true);
