@@ -27086,6 +27086,11 @@
         var match = Object.keys(BACKTEST_INSTRUMENTS).find(function (key) { return symbol.indexOf(key) === 0; });
         return BACKTEST_INSTRUMENTS[match || "ES"];
       }
+      function qbtRoundPrice(value, tickSize) {
+        var step = Number(tickSize) > 0 ? Number(tickSize) : 0.25;
+        var decimals = Math.max(2, String(step).indexOf(".") >= 0 ? String(step).split(".")[1].length : 0);
+        return Number((Math.round(Number(value) / step) * step).toFixed(decimals));
+      }
       function qbtGetCommissionPerContract() {
         var symbol = qbtGetInstrumentSpecification().symbol;
         var matching = commissionRules.filter(function (rule) { return symbol.indexOf(String(rule.prefix || "").toUpperCase()) === 0; }).sort(function (a, b) { return String(b.prefix || "").length - String(a.prefix || "").length; });
@@ -27378,11 +27383,14 @@
         qbtPendingRrDirection = null;
         qbtSetRrButtonState(null);
         var isLong = direction !== "Short";
-        var distance = Math.max(0.25, Math.abs(Number(bar.high) - Number(bar.low)) * 2 || 1);
+        var specification = qbtGetInstrumentSpecification();
+        var distanceTicks = Math.max(1, Math.round((Math.abs(Number(bar.high) - Number(bar.low)) * 2 || specification.tickSize) / specification.tickSize));
+        var distance = distanceTicks * specification.tickSize;
         trade.side = isLong ? "Buy" : "Sell";
-        trade.rrEntry = Number(point.price);
-        trade.tp = trade.rrEntry + (isLong ? distance : -distance);
-        trade.sl = trade.rrEntry - (isLong ? distance : -distance);
+        trade.tickSize = specification.tickSize;
+        trade.rrEntry = qbtRoundPrice(point.price, specification.tickSize);
+        trade.tp = qbtRoundPrice(trade.rrEntry + (isLong ? distance : -distance), specification.tickSize);
+        trade.sl = qbtRoundPrice(trade.rrEntry - (isLong ? distance : -distance), specification.tickSize);
         trade.rrStartTime = Number(point.time);
         trade.rrEndTime = trade.rrStartTime + 900;
         trade.rrRemoved = false;
