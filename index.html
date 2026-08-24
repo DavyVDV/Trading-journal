@@ -7293,6 +7293,7 @@
             !isEditable &&
             noteModal &&
             !noteModal.classList.contains("hidden") &&
+            !noteModal.classList.contains("qbt-workspace-mode") &&
             (event.key === "ArrowLeft" || event.key === "ArrowRight")
           ) {
             event.preventDefault();
@@ -18897,7 +18898,7 @@
             grid: { vertLines: { visible: false }, horzLines: { visible: false } },
             crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { visible: false, labelVisible: false }, horzLine: { visible: false, labelVisible: false } },
             rightPriceScale: { minimumWidth: 68, scaleMargins: { top: 0.15, bottom: 0.12 } },
-            timeScale: { timeVisible: true, secondsVisible: true, rightOffset: 0, minBarSpacing: 1, fixLeftEdge: true, tickMarkFormatter: formatJournalChartAxisTick },
+            timeScale: { timeVisible: true, secondsVisible: true, rightOffset: 0, minBarSpacing: 1, tickMarkFormatter: formatJournalChartAxisTick },
             handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
             handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
           });
@@ -19766,7 +19767,7 @@
               grid: { vertLines: { color: journalPanelGridColor(config) }, horzLines: { color: journalPanelGridColor(config) } },
               crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { visible: false, labelVisible: false }, horzLine: { visible: false, labelVisible: false } },
               rightPriceScale: { autoScale: config.autoScale !== false, minimumWidth: 68, borderColor: "rgba(148, 163, 184, .22)", scaleMargins: { top: Math.min(.45, .08 + (config.yOffset || 0) / 100), bottom: Math.min(.45, .08 + (config.yOffset || 0) / 100) } },
-              timeScale: { visible: !panelShowsCvd, timeVisible: true, secondsVisible: true, rightOffset: config.rightOffset || 0, minBarSpacing: 1, fixLeftEdge: true, borderColor: "rgba(148, 163, 184, .22)", tickMarkFormatter: formatJournalChartAxisTick },
+              timeScale: { visible: !panelShowsCvd, timeVisible: true, secondsVisible: true, rightOffset: config.rightOffset || 0, minBarSpacing: 1, borderColor: "rgba(148, 163, 184, .22)", tickMarkFormatter: formatJournalChartAxisTick },
               handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
               handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
             });
@@ -19792,7 +19793,7 @@
                 grid: { vertLines: { color: journalPanelGridColor(config) }, horzLines: { color: journalPanelGridColor(config) } },
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { visible: false, labelVisible: false }, horzLine: { visible: false, labelVisible: false } },
                 rightPriceScale: { minimumWidth: 68, borderColor: "rgba(148, 163, 184, .22)", scaleMargins: { top: .15, bottom: .12 } },
-                timeScale: { timeVisible: true, secondsVisible: true, minBarSpacing: 1, fixLeftEdge: true, borderColor: "rgba(148, 163, 184, .22)", tickMarkFormatter: formatJournalChartAxisTick },
+                timeScale: { timeVisible: true, secondsVisible: true, minBarSpacing: 1, borderColor: "rgba(148, 163, 184, .22)", tickMarkFormatter: formatJournalChartAxisTick },
                 handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }, handleScroll: { mouseWheel: true, pressedMouseMove: true },
               });
               var cvdSeries = cvdChart.addCandlestickSeries({ upColor: JOURNAL_CHART_UP_COLOR, downColor: JOURNAL_CHART_DOWN_COLOR, borderVisible: false, wickUpColor: JOURNAL_CHART_UP_COLOR, wickDownColor: JOURNAL_CHART_DOWN_COLOR, priceFormat: { type: "volume" } });
@@ -21684,7 +21685,6 @@
               secondsVisible: true,
               rightOffset: 0,
               minBarSpacing: 1,
-              fixLeftEdge: true,
               tickMarkFormatter: formatJournalChartAxisTick,
             },
             rightPriceScale: {
@@ -26758,6 +26758,8 @@
       });
       document.addEventListener("keydown", function (event) {
         if (activeTab !== "backtest") return;
+        var noteModal = document.getElementById("noteModal");
+        if (noteModal && !noteModal.classList.contains("hidden") && noteModal.classList.contains("qbt-workspace-mode") && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
         var target = event.target;
         if (target && /INPUT|SELECT|TEXTAREA/.test(target.tagName)) return;
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
@@ -27068,13 +27070,14 @@
         var container = document.getElementById("qbtChart");
         if (!container || !window.LightweightCharts) return;
         if (!qbtChart) {
-          qbtChart = LightweightCharts.createChart(container, { layout:{background:{type:"solid",color:"#10151c"},textColor:"#a8b4c4"}, grid:{vertLines:{visible:false},horzLines:{visible:false}}, crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{visible:false,labelVisible:false},horzLine:{visible:false,labelVisible:false}}, timeScale:{timeVisible:true,secondsVisible:true,rightOffset:4,minBarSpacing:2,fixLeftEdge:true,tickMarkFormatter: typeof formatJournalChartAxisTick === "function" ? formatJournalChartAxisTick : undefined}, rightPriceScale:{minimumWidth:68,scaleMargins:{top:.08,bottom:.08}}, handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}, handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:true} });
+          qbtChart = LightweightCharts.createChart(container, { layout:{background:{type:"solid",color:"#10151c"},textColor:"#a8b4c4"}, grid:{vertLines:{visible:false},horzLines:{visible:false}}, crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{visible:false,labelVisible:false},horzLine:{visible:false,labelVisible:false}}, timeScale:{timeVisible:true,secondsVisible:true,rightOffset:4,minBarSpacing:2,tickMarkFormatter: typeof formatJournalChartAxisTick === "function" ? formatJournalChartAxisTick : undefined}, rightPriceScale:{minimumWidth:68,scaleMargins:{top:.08,bottom:.08}}, handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}, handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:true} });
           qbtSeries = qbtChart.addCandlestickSeries({upColor:"#23b7d9",downColor:"#d83a2e",borderUpColor:"#23b7d9",borderDownColor:"#d83a2e",wickUpColor:"#23b7d9",wickDownColor:"#d83a2e"});
         }
         qbtResize();
       }
       function qbtResize() { if (!qbtChart) return; var el = document.getElementById("qbtChart"); if (el && el.clientWidth) qbtChart.applyOptions({width:el.clientWidth,height:el.clientHeight || 520}); }
       function qbtSetWorkspaceMode(enabled) {
+        var modal = document.getElementById("noteModal");
         var title = document.getElementById("noteModalTitle");
         var controls = document.getElementById("backtestWorkspaceControls");
         var sidebarToggle = document.getElementById("noteModalSidebarToggleBtn");
@@ -27090,6 +27093,7 @@
         var rrShortTool = document.getElementById("backtestRrShortToolButton");
         var copyAction = document.getElementById("backtestCopyRrToJournalBtn");
         var commit = document.getElementById("backtestCommitToJournalBtn");
+        if (modal) modal.classList.toggle("qbt-workspace-mode", enabled);
         if (!enabled) {
           qbtPendingRrDirection = null;
           qbtSetRrButtonState(null);
