@@ -27393,7 +27393,8 @@
         var targetHit = side === "Buy" ? exitPrice >= target : exitPrice <= target;
         var stopHit = side === "Buy" ? exitPrice <= stop : exitPrice >= stop;
         var sourcePnl = Number(source.pnl);
-        var tradeWasLoss = stopHit || (!targetHit && Number.isFinite(sourcePnl) && sourcePnl < 0);
+        var hasSourceOutcome = Number.isFinite(sourcePnl) && Math.abs(sourcePnl) > 0.000001;
+        var tradeWasLoss = hasSourceOutcome ? sourcePnl < 0 : stopHit && !targetHit;
         var grossPnl = tradeWasLoss ? -grossLoss : grossWin;
         var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:entryTime, exitTime:exitTime, side:side, entry:entry, exit:exitPrice, volume:contracts, fee:commission, pnl:grossPnl, riskAmount:riskAmount, potentialWin:grossWin, potentialLoss:grossLoss, potentialWinNet:grossWin - commission, potentialLossNet:grossLoss + commission, tp:target, sl:stop, rrStartTime:qbtChartTimestamp({ timestamp:entryTime }), rrEndTime:qbtChartTimestamp({ timestamp:exitTime }), rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest. Risico $" + riskAmount.toFixed(2) + " | " + contracts + " contract(en) | Win $" + (grossWin - commission).toFixed(2) + " | Verlies $" + (grossLoss + commission).toFixed(2) + " | Commissie $" + commission.toFixed(2), chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
         delete copied.__backtestSession;
