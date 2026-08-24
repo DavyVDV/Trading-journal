@@ -27158,7 +27158,7 @@
           var firstBar = currentJournalChartData[0];
           var lastBar = currentJournalChartData[currentJournalChartData.length - 1];
           if (!firstBar || !lastBar) return;
-          point.time = Math.max(Number(firstBar.time), Math.min(Number(lastBar.time), point.time));
+          point.time = Math.max(Number(firstBar.time), point.time);
           event.preventDefault();
           event.stopPropagation();
           qbtPlaceRrAtPoint(qbtPendingRrDirection, point);
