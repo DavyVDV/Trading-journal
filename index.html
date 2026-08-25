@@ -26,7 +26,7 @@
       .border-terminal { border-color: rgba(255, 255, 255, 0.1); }
       .bg-terminal-dark { background-color: #0f172a; }
       .bg-terminal-card { background-color: rgba(30, 41, 59, 0.5); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); }
-      .bg-terminal-input {
+      .bg-terminal-input { background-color: rgba(15, 23, 42, 0.6); }
 
       .pnl-profit {
         color: #22bde8;
@@ -14604,76 +14604,177 @@
           .replace(/"/g, "&quot;");
       }
 
-      function exportBackup() {
-        if (!Array.isArray(globalTags)) globalTags = [];
-        var tagSet = new Set(globalTags);
-        if (Array.isArray(tagGroups)) {
-          tagGroups.forEach(function (g) {
-            if (g && Array.isArray(g.tags)) {
-              g.tags.forEach(function (t) {
-                if (t && !tagSet.has(t)) {
-                  tagSet.add(t);
-                  globalTags.push(t);
-                }
-              });
-            }
-          });
-        }
-        if (Array.isArray(trades)) {
-          trades.forEach(function (tr) {
-            if (tr && Array.isArray(tr.tags)) {
-              tr.tags.forEach(function (t) {
-                if (t && !tagSet.has(t)) {
-                  tagSet.add(t);
-                  globalTags.push(t);
-                }
-              });
-            }
-          });
-        }
+      async function exportBackup() {
+        var statusEl = document.createElement("div");
+        statusEl.id = "backupStatusToast";
+        statusEl.className = "fixed bottom-5 right-5 z-[500] bg-slate-900 border border-blue-500 text-slate-100 text-xs px-4 py-3 rounded shadow-2xl flex items-center gap-3";
+        statusEl.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-400"></i><span>Backup wordt voorbereid...</span>';
+        document.body.appendChild(statusEl);
 
-        var cleanCustomCharts = customCharts.map(function (cc) {
-          return {
-            id: cc.id,
-            title: cc.title || "",
-            tags: cc.tags,
-            excludeTags: cc.excludeTags || [],
-            logic: cc.logic,
-            seriesMode: cc.seriesMode || "separate",
-            width: cc.width,
-            height: cc.height,
-            x: cc.x,
-            y: cc.y,
-          };
-        });
+        await new Promise(function (resolve) { setTimeout(resolve, 50); });
 
-        var data = {
-          trades: trades,
-          globalTags: globalTags,
-          tagGroups: tagGroups,
-          globalTagColors: globalTagColors,
-          commissionRules: commissionRules,
-          customCharts: cleanCustomCharts,
-          analyticsMainChartTitle: analyticsMainChartTitle || "",
-          analyticsFilterTags: analyticsFilterTags || [],
-          analyticsExcludeTags: analyticsExcludeTags || [],
-          analyticsFilterLogic: analyticsFilterLogic || "AND",
-          journalFilterProfiles: journalFilterProfiles || [],
-          journalDefaultFilterProfile: journalDefaultFilterProfile || "",
-          flowcharts: typeof flowcharts !== "undefined" ? flowcharts : [],
-          globalChartData: globalChartData,
-          globalChartDataTimeMode: CHART_TIME_MODE,
-          backtestDatasets: typeof backtestDatasets !== "undefined" ? backtestDatasets : [],
-          backtestTimeframes: typeof getBacktestTimeframes === "function" ? getBacktestTimeframes() : [],
-          journalChartTimeframes: typeof getJournalCustomTimeframes === "function" ? getJournalCustomTimeframes() : [],
-          journalChartTickframes: typeof getJournalCustomTickframes === "function" ? getJournalCustomTickframes() : [],
-          sharedFootprintTemplates: typeof readSharedProfiles === "function" ? readSharedProfiles(SHARED_FOOTPRINT_TEMPLATES_KEY) : [],
-          sharedLayoutProfiles: typeof readSharedProfiles === "function" ? readSharedProfiles(SHARED_LAYOUT_PROFILES_KEY) : [],
-          sharedFootprintDefault: localStorage.getItem("qt_shared_footprint_default_v1") || "",
-          sharedLayoutDefault: localStorage.getItem("qt_shared_layout_default_v1") || "",
-          sharedFootprintActive: (function () { try { return JSON.parse(localStorage.getItem("qt_shared_footprint_active_v1") || "null"); } catch (error) { return null; } })(),
-          backtestChartLayout: (function () { try { return JSON.parse(localStorage.getItem("qt_bt_chart_layout_v1") || "null"); } catch (error) { return null; } })(),
-          journalTradePopupSettings: {
+        try {
+          if (!Array.isArray(globalTags)) globalTags = [];
+          var tagSet = new Set(globalTags);
+          if (Array.isArray(tagGroups)) {
+            tagGroups.forEach(function (g) {
+              if (g && Array.isArray(g.tags)) {
+                g.tags.forEach(function (t) {
+                  if (t && !tagSet.has(t)) {
+                    tagSet.add(t);
+                    globalTags.push(t);
+                  }
+                });
+              }
+            });
+          }
+          if (Array.isArray(trades)) {
+            trades.forEach(function (tr) {
+              if (tr && Array.isArray(tr.tags)) {
+                tr.tags.forEach(function (t) {
+                  if (t && !tagSet.has(t)) {
+                    tagSet.add(t);
+                    globalTags.push(t);
+                  }
+                });
+              }
+            });
+          }
+
+          var cleanCustomCharts = (customCharts || []).map(function (cc) {
+            return {
+              id: cc.id,
+              title: cc.title || "",
+              tags: cc.tags,
+              excludeTags: cc.excludeTags || [],
+              logic: cc.logic,
+              seriesMode: cc.seriesMode || "separate",
+              width: cc.width,
+              height: cc.height,
+              x: cc.x,
+              y: cc.y,
+            };
+          });
+
+          var currentGlobalChartData = globalChartData;
+          if ((!currentGlobalChartData || !currentGlobalChartData.length) && typeof localforage !== "undefined") {
+            try {
+              var storedGcd = await localforage.getItem("qt_global_chart_data_v1");
+              if (storedGcd) {
+                currentGlobalChartData = typeof storedGcd === "string" ? JSON.parse(storedGcd) : storedGcd;
+              }
+            } catch (e) {}
+          }
+
+          var currentBacktestDatasets = typeof backtestDatasets !== "undefined" ? backtestDatasets : [];
+          if ((!currentBacktestDatasets || !currentBacktestDatasets.length) && typeof localforage !== "undefined") {
+            try {
+              var storedBt = await localforage.getItem("qt_backtest_chart_datasets_v1");
+              if (Array.isArray(storedBt)) currentBacktestDatasets = storedBt;
+            } catch (e) {}
+          }
+
+          var currentQbtDatasets = typeof qbtDatasets !== "undefined" ? qbtDatasets : [];
+          if ((!currentQbtDatasets || !currentQbtDatasets.length) && typeof localforage !== "undefined") {
+            try {
+              var storedQbt = await localforage.getItem(typeof QBT_DATA_KEY !== "undefined" ? QBT_DATA_KEY : "qt_minimal_backtest_datasets_v1");
+              if (Array.isArray(storedQbt)) currentQbtDatasets = storedQbt;
+            } catch (e) {}
+          }
+
+          // Build Blob in memory chunks to prevent RangeError: Invalid string length on large datasets
+          var blobParts = [];
+          blobParts.push('{"trades":');
+          blobParts.push(JSON.stringify(trades || []));
+          blobParts.push(',"globalTags":');
+          blobParts.push(JSON.stringify(globalTags || []));
+          blobParts.push(',"tagGroups":');
+          blobParts.push(JSON.stringify(tagGroups || []));
+          blobParts.push(',"globalTagColors":');
+          blobParts.push(JSON.stringify(globalTagColors || {}));
+          blobParts.push(',"commissionRules":');
+          blobParts.push(JSON.stringify(commissionRules || []));
+          blobParts.push(',"customCharts":');
+          blobParts.push(JSON.stringify(cleanCustomCharts));
+          blobParts.push(',"analyticsMainChartTitle":');
+          blobParts.push(JSON.stringify(analyticsMainChartTitle || ""));
+          blobParts.push(',"analyticsFilterTags":');
+          blobParts.push(JSON.stringify(analyticsFilterTags || []));
+          blobParts.push(',"analyticsExcludeTags":');
+          blobParts.push(JSON.stringify(analyticsExcludeTags || []));
+          blobParts.push(',"analyticsFilterLogic":');
+          blobParts.push(JSON.stringify(analyticsFilterLogic || "AND"));
+          blobParts.push(',"journalFilterProfiles":');
+          blobParts.push(JSON.stringify(journalFilterProfiles || []));
+          blobParts.push(',"journalDefaultFilterProfile":');
+          blobParts.push(JSON.stringify(journalDefaultFilterProfile || ""));
+          blobParts.push(',"flowcharts":');
+          blobParts.push(JSON.stringify(typeof flowcharts !== "undefined" ? flowcharts : []));
+          blobParts.push(',"globalChartDataTimeMode":');
+          blobParts.push(JSON.stringify(typeof CHART_TIME_MODE !== "undefined" ? CHART_TIME_MODE : "local-wall-clock-v2"));
+
+          blobParts.push(',"globalChartData":');
+          if (Array.isArray(currentGlobalChartData) && currentGlobalChartData.length > 0) {
+            blobParts.push('[');
+            for (var gi = 0; gi < currentGlobalChartData.length; gi++) {
+              if (gi > 0) blobParts.push(',');
+              blobParts.push(JSON.stringify(currentGlobalChartData[gi]));
+            }
+            blobParts.push(']');
+          } else {
+            blobParts.push('[]');
+          }
+
+          blobParts.push(',"backtestDatasets":');
+          if (Array.isArray(currentBacktestDatasets) && currentBacktestDatasets.length > 0) {
+            blobParts.push('[');
+            for (var bi = 0; bi < currentBacktestDatasets.length; bi++) {
+              if (bi > 0) blobParts.push(',');
+              blobParts.push(JSON.stringify(currentBacktestDatasets[bi]));
+            }
+            blobParts.push(']');
+          } else {
+            blobParts.push('[]');
+          }
+
+          blobParts.push(',"qbtDatasets":');
+          if (Array.isArray(currentQbtDatasets) && currentQbtDatasets.length > 0) {
+            blobParts.push('[');
+            for (var qi = 0; qi < currentQbtDatasets.length; qi++) {
+              if (qi > 0) blobParts.push(',');
+              blobParts.push(JSON.stringify(currentQbtDatasets[qi]));
+            }
+            blobParts.push(']');
+          } else {
+            blobParts.push('[]');
+          }
+
+          blobParts.push(',"backtestTimeframes":');
+          blobParts.push(JSON.stringify(typeof getBacktestTimeframes === "function" ? getBacktestTimeframes() : []));
+          blobParts.push(',"journalChartTimeframes":');
+          blobParts.push(JSON.stringify(typeof getJournalCustomTimeframes === "function" ? getJournalCustomTimeframes() : []));
+          blobParts.push(',"journalChartTickframes":');
+          blobParts.push(JSON.stringify(typeof getJournalCustomTickframes === "function" ? getJournalCustomTickframes() : []));
+          blobParts.push(',"sharedFootprintTemplates":');
+          blobParts.push(JSON.stringify(typeof readSharedProfiles === "function" ? readSharedProfiles(typeof SHARED_FOOTPRINT_TEMPLATES_KEY !== "undefined" ? SHARED_FOOTPRINT_TEMPLATES_KEY : "qt_shared_footprint_templates_v1") : []));
+          blobParts.push(',"sharedLayoutProfiles":');
+          blobParts.push(JSON.stringify(typeof readSharedProfiles === "function" ? readSharedProfiles(typeof SHARED_LAYOUT_PROFILES_KEY !== "undefined" ? SHARED_LAYOUT_PROFILES_KEY : "qt_shared_layout_profiles_v1") : []));
+          blobParts.push(',"sharedFootprintDefault":');
+          blobParts.push(JSON.stringify(localStorage.getItem("qt_shared_footprint_default_v1") || ""));
+          blobParts.push(',"sharedLayoutDefault":');
+          blobParts.push(JSON.stringify(localStorage.getItem("qt_shared_layout_default_v1") || ""));
+
+          var sharedFpActive = null;
+          try { sharedFpActive = JSON.parse(localStorage.getItem("qt_shared_footprint_active_v1") || "null"); } catch (e) {}
+          blobParts.push(',"sharedFootprintActive":');
+          blobParts.push(JSON.stringify(sharedFpActive));
+
+          var btChartLayout = null;
+          try { btChartLayout = JSON.parse(localStorage.getItem("qt_bt_chart_layout_v1") || "null"); } catch (e) {}
+          blobParts.push(',"backtestChartLayout":');
+          blobParts.push(JSON.stringify(btChartLayout));
+
+          var popupSettings = {
             chartTimeframes: typeof getJournalCustomTimeframes === "function" ? getJournalCustomTimeframes() : [],
             chartTickframes: typeof getJournalCustomTickframes === "function" ? getJournalCustomTickframes() : [],
             cvdHeight: Number(localStorage.getItem("qt_journal_cvd_height_v1")) || null,
@@ -14681,41 +14782,58 @@
             chartPresets: (function () { try { return JSON.parse(localStorage.getItem("journalChartPresets") || "[]"); } catch (error) { return []; } })(),
             chartDefaultPresets: (function () { try { return JSON.parse(localStorage.getItem("journalChartDefaultPresets") || "{}"); } catch (error) { return {}; } })(),
             chartSavedColors: (function () { try { return JSON.parse(localStorage.getItem("journalChartSavedColors") || "[]"); } catch (error) { return []; } })(),
-          },
-        };
-        var backupDataString = JSON.stringify(data, null, 2);
+          };
+          blobParts.push(',"journalTradePopupSettings":');
+          blobParts.push(JSON.stringify(popupSettings));
 
-        var dateToUse = new Date();
-        if (trades && trades.length > 0) {
-          var latestDate = new Date(
-            Math.max.apply(
-              null,
-              trades.map(function (t) {
-                return (
-                  t.time instanceof Date ? t.time : new Date(t.time)
-                ).getTime();
-              }),
-            ),
-          );
-          if (!isNaN(latestDate.getTime())) {
-            dateToUse = latestDate;
+          blobParts.push('}');
+
+          var dateToUse = new Date();
+          if (trades && trades.length > 0) {
+            var latestDate = new Date(
+              Math.max.apply(
+                null,
+                trades.map(function (t) {
+                  return (
+                    t.time instanceof Date ? t.time : new Date(t.time)
+                  ).getTime();
+                }),
+              ),
+            );
+            if (!isNaN(latestDate.getTime())) {
+              dateToUse = latestDate;
+            }
           }
+
+          var d = String(dateToUse.getDate()).padStart(2, "0");
+          var m = String(dateToUse.getMonth() + 1).padStart(2, "0");
+          var y = dateToUse.getFullYear();
+          var dateStr = d + "-" + m + "-" + y;
+
+          var blob = new Blob(blobParts, { type: "application/json" });
+          var url = URL.createObjectURL(blob);
+          var downloadAnchorNode = document.createElement("a");
+          downloadAnchorNode.setAttribute("href", url);
+          downloadAnchorNode.setAttribute("download", dateStr + ".json");
+          document.body.appendChild(downloadAnchorNode);
+          downloadAnchorNode.click();
+          downloadAnchorNode.remove();
+          setTimeout(function () {
+            URL.revokeObjectURL(url);
+          }, 1000);
+
+          if (statusEl && statusEl.parentNode) {
+            var sizeMb = (blob.size / (1024 * 1024)).toFixed(2);
+            statusEl.innerHTML = '<i class="fas fa-check-circle text-emerald-400"></i><span>Backup gereed (' + sizeMb + ' MB)</span>';
+            setTimeout(function () {
+              if (statusEl && statusEl.parentNode) statusEl.parentNode.removeChild(statusEl);
+            }, 3500);
+          }
+        } catch (error) {
+          console.error("Backup export mislukt:", error);
+          if (statusEl && statusEl.parentNode) statusEl.parentNode.removeChild(statusEl);
+          alert("Fout bij het maken van de backup: " + (error && error.message ? error.message : String(error)));
         }
-
-        var d = String(dateToUse.getDate()).padStart(2, "0");
-        var m = String(dateToUse.getMonth() + 1).padStart(2, "0");
-        var y = dateToUse.getFullYear();
-        var dateStr = d + "-" + m + "-" + y;
-
-        var blob = new Blob([backupDataString], { type: "application/json" });
-        var url = URL.createObjectURL(blob);
-        var downloadAnchorNode = document.createElement("a");
-        downloadAnchorNode.setAttribute("href", url);
-        downloadAnchorNode.setAttribute("download", dateStr + ".json");
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-        URL.revokeObjectURL(url);
       }
 
       function exportTradeDataCsv() {
@@ -14953,6 +15071,14 @@
                 backtestDatasets = importedData.backtestDatasets;
                 if (typeof saveBacktestDatasets === "function") await saveBacktestDatasets();
                 if (typeof renderChartDataLibrary === "function") renderChartDataLibrary();
+              }
+
+              if (importedData && Array.isArray(importedData.qbtDatasets)) {
+                qbtDatasets = importedData.qbtDatasets;
+                if (typeof localforage !== "undefined") {
+                  try { await localforage.setItem(typeof QBT_DATA_KEY !== "undefined" ? QBT_DATA_KEY : "qt_minimal_backtest_datasets_v1", qbtDatasets); } catch (e) {}
+                }
+                if (typeof qbtRenderDatasets === "function") qbtRenderDatasets();
               }
 
               if (importedData && Array.isArray(importedData.backtestTimeframes) && importedData.backtestTimeframes.length) {
