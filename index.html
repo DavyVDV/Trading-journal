@@ -11810,35 +11810,33 @@
           scrollCue.classList.remove("opacity-0", "pointer-events-none");
         }
         setTradeModalSidebarHidden(localStorage.getItem("qt_trade_modal_sidebar_hidden_v1") === "true", false);
-        document.getElementById("noteModal").classList.remove("hidden");
+        
+        var modalEl = document.getElementById("noteModal");
+        var wasHidden = modalEl.classList.contains("hidden");
+        if (wasHidden) modalEl.classList.remove("hidden");
         bindJournalCvdResize();
+
         var chartRenderToken = ++tradeModalChartRenderToken;
-        requestAnimationFrame(function () {
+        if (!wasHidden && currentLwChart) {
+          // Modal and chart are already visible - render immediately without frame delay
+          try {
+            renderLightweightChart(trade);
+          } catch (err) {
+            console.error("Trade chart render failed:", err);
+          }
+        } else {
+          // First open from hidden state - wait for layout calculation
           requestAnimationFrame(function () {
-            var modal = document.getElementById("noteModal");
             var activeTradeId = document.getElementById("editTradeId").value;
-            if (chartRenderToken !== tradeModalChartRenderToken || !modal || modal.classList.contains("hidden") || activeTradeId !== id) return;
+            if (chartRenderToken !== tradeModalChartRenderToken || modalEl.classList.contains("hidden") || activeTradeId !== id) return;
             try {
               renderLightweightChart(trade);
             } catch (err) {
               console.error("Trade chart render failed:", err);
             }
           });
-        });
+        }
         document.addEventListener("keydown", closeModalOnEsc);
-        
-        // Ensure chart resizes correctly when it becomes visible
-        setTimeout(function() {
-          if (chartRenderToken !== tradeModalChartRenderToken || document.getElementById("editTradeId").value !== id) return;
-          applyJournalCvdHeight(Number(localStorage.getItem("qt_journal_cvd_height_v1")) || document.getElementById("chartDataPreviewContainer").clientHeight * .3);
-          if (currentLwChart && document.getElementById("chartDataPreviewContainer").offsetWidth > 0) {
-            currentLwChart.resize(
-              document.getElementById("lightweightChartContainer").clientWidth,
-              document.getElementById("lightweightChartContainer").clientHeight
-            );
-            zoomChartToTrade(trade);
-          }
-        }, 50);
       }
 
       function setTradeModalSidebarHidden(hidden, rerender) {
@@ -12016,13 +12014,35 @@
       }
 
       function persistCurrentModalTradeEdits() {
-        var id = document.getElementById("editTradeId").value;
+        var idEl = document.getElementById("editTradeId");
+        if (!idEl || !idEl.value) return;
         var trade = trades.find(function (t) {
-          return t.id === id;
+          return t.id === idEl.value;
         });
         if (!trade) return;
-        trade.notes = document.getElementById("editNotes").value;
-        trade.tags = currentEditTags.slice();
+        var notesEl = document.getElementById("editNotes");
+        var newNotes = notesEl ? notesEl.value : "";
+        var oldNotes = trade.notes || "";
+        var oldTags = trade.tags || [];
+        var isDirty = (newNotes !== oldNotes);
+        if (!isDirty) {
+          if (oldTags.length !== currentEditTags.length) {
+            isDirty = true;
+          } else {
+            for (var i = 0; i < oldTags.length; i++) {
+              if (oldTags[i] !== currentEditTags[i]) {
+                isDirty = true;
+                break;
+              }
+            }
+          }
+        }
+        if (isDirty) {
+          trade.notes = newNotes;
+          trade.tags = currentEditTags.slice();
+          updateTradeTagsInRenderedTable(trade);
+          scheduleSilentTradeSave();
+        }
       }
 
       function updateModalNavigationButtons() {
@@ -12044,11 +12064,11 @@
         var index = modalTrades.findIndex(function (t) {
           return t.id === id;
         });
+        if (index === -1) return;
         var nextTrade = modalTrades[index + direction];
         if (!nextTrade) return;
 
         persistCurrentModalTradeEdits();
-        saveData({ skipUpdate: true });
         openModal(nextTrade.id);
       }
 
@@ -22116,16 +22136,15 @@
             var range = typeof mainTimeScale.getVisibleLogicalRange === "function" ? mainTimeScale.getVisibleLogicalRange() : null;
             if (range) currentTradeCvdChart.timeScale().setVisibleLogicalRange(range);
           }
-          if (currentLwChart && typeof currentLwChart.timeScale().getVisibleRange === "function") {
+          if (currentRiskRewardTrade === trade) {
+            renderRiskRewardOverlay(trade);
           }
         });
-        [0, 80, 180, 360].forEach(function (delay) {
-          setTimeout(function () {
-            if (currentRiskRewardTrade === trade) {
-              renderRiskRewardOverlay(trade);
-            }
-          }, delay);
-        });
+        setTimeout(function () {
+          if (currentRiskRewardTrade === trade) {
+            scheduleRiskRewardOverlayRender();
+          }
+        }, 50);
       }
 
     </script>
