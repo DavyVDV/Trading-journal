@@ -2497,7 +2497,7 @@
         padding: 0 !important;
         border: 0 !important;
         background: transparent !important;
-        accent-color: #3b82f6;
+        accent-color: #2563eb;
         cursor: pointer;
       }
       #qbtPopupSpeed::-webkit-slider-runnable-track {
@@ -2511,7 +2511,7 @@
         margin-top: -3px;
         border: 0;
         border-radius: 50%;
-        background: #3b82f6;
+        background: #2563eb;
         appearance: none;
         -webkit-appearance: none;
       }
@@ -2525,8 +2525,31 @@
         height: 9px;
         border: 0;
         border-radius: 50%;
-        background: #3b82f6;
+        background: #2563eb;
       }
+      .qbt-speed-control {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        height: 28px;
+      }
+      #qbtPopupSpeedLabel {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 4px);
+        display: none;
+        transform: translateX(-50%);
+        padding: 3px 6px;
+        border: 1px solid rgba(59, 130, 246, .7);
+        border-radius: 3px;
+        background: #172554;
+        color: #93c5fd;
+        font: 700 9px "JetBrains Mono", monospace;
+        line-height: 1;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .qbt-speed-control.active #qbtPopupSpeedLabel { display: block; }
       #tradePriceChartPane,
       #tradeCvdPane {
         left: 0 !important;
@@ -3050,11 +3073,10 @@
       }
       .journal-layout-panel-row {
         display: grid;
-        grid-template-columns: 26px minmax(90px, 1fr) minmax(110px, 1fr);
-        grid-auto-rows: 30px;
+        grid-template-columns: 26px minmax(0, 1fr);
         align-items: center;
         gap: 7px;
-        min-height: 74px;
+        min-height: 48px;
         padding: 7px;
         border: 1px solid rgba(148, 163, 184, .14);
         background: #141b23;
@@ -3070,21 +3092,6 @@
         color: #bfdbfe;
         font: 700 9px "JetBrains Mono", monospace;
       }
-      .journal-layout-panel-control {
-        width: 100%;
-        height: 30px;
-        padding: 0 10px;
-        overflow: hidden;
-        border: 1px solid var(--line) !important;
-        border-radius: 4px !important;
-        background: var(--surface-1) !important;
-        color: var(--text-1);
-        font-size: 10px;
-        text-align: left;
-        white-space: nowrap;
-        cursor: pointer;
-      }
-      .journal-layout-panel-control:hover { border-color: var(--line-strong) !important; background: var(--surface-hover) !important; }
       #journalChartWorkspaceSettings .bt-input { height: 30px; font-size: 10px; }
       .journal-layout-presets {
         display: grid;
@@ -3978,13 +3985,8 @@
         .journal-setting-grid .wide { grid-column: auto; }
         .journal-layout-panel-row {
           grid-template-columns: 24px minmax(0, 1fr);
-          grid-auto-rows: 30px;
-          min-height: 104px;
+          min-height: 48px;
         }
-        .journal-layout-panel-row > button[data-panel-control="timeframe"] { grid-column: 2; grid-row: 1; }
-        .journal-layout-panel-row > button[data-panel-control="timeframeMode"] { grid-column: 2; grid-row: 2; }
-        .journal-layout-panel-row > input { grid-column: 1; grid-row: 3; }
-        .journal-layout-panel-row > button[data-panel-control="type"] { grid-column: 2; grid-row: 3; }
       }
       @media (max-width: 460px) {
         .vwap-tv-style-row {
@@ -6145,16 +6147,14 @@
                     <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
                     <button id="qbtPopupFollow" type="button" class="bt-tool active" onclick="qbtToggleFollow()" title="Nieuwe candles volgen" aria-label="Nieuwe candles volgen" aria-pressed="true"><i class="fas fa-location-arrow"></i></button>
                     <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
-                    <input id="qbtPopupSpeed" type="range" min="0" max="5" step="1" value="2" onchange="qbtUpdatePlaybackSpeed()" title="Replay snelheid: 1x" aria-label="Replay snelheid" />
+                    <span id="qbtSpeedControl" class="qbt-speed-control">
+                      <span id="qbtPopupSpeedLabel" aria-hidden="true">10x</span>
+                      <input id="qbtPopupSpeed" type="range" min="1" max="20" step="1" value="10" oninput="qbtUpdatePlaybackSpeed(true)" onchange="qbtUpdatePlaybackSpeed(false)" onpointerdown="qbtShowSpeedLabel()" onfocus="qbtShowSpeedLabel()" onblur="qbtHideSpeedLabel()" title="Replay snelheid: 10x" aria-label="Replay snelheid" />
+                    </span>
                   </div>
                 </div>
-                <div class="flex flex-row flex-1 w-full h-full min-h-0 relative overflow-hidden">
-                  <div id="journalChartSidebarToolbar" class="w-9 h-full min-h-0 shrink-0 border-r border-terminal/80 bg-[#121822] flex flex-col items-center py-1 z-20 overflow-hidden no-scrollbar" onwheel="event.preventDefault(); event.stopPropagation();">
                     <nav class="bt-vertical-toolbar journal-chart-toolbar" aria-label="Chart gereedschappen">
                       <button class="bt-tool active" data-journal-chart-tool="cursor" onclick="activateJournalChartTool('cursor')" title="Chart bewegen en tekeningen selecteren"><i class="fas fa-crosshairs"></i></button>
-                      <div class="bt-vertical-divider"></div>
-                      <button class="bt-tool" data-journal-chart-tool="trendline" onclick="activateJournalChartTool('trendline')" oncontextmenu="openJournalChartToolSettings(event,'trendline',-1)" title="Trendlijn"><i class="fas fa-slash"></i></button>
-                      <button class="bt-tool" data-journal-chart-tool="ray" onclick="activateJournalChartTool('ray')" oncontextmenu="openJournalChartToolSettings(event,'ray',-1)" title="Ray"><i class="fas fa-arrow-right-long"></i></button>
                       <button class="bt-tool" data-journal-chart-tool="horizontal" onclick="activateJournalChartTool('horizontal')" oncontextmenu="openJournalChartToolSettings(event,'horizontal',-1)" title="Horizontale lijn"><span class="bt-horizontal-tool-icon bt-horizontal-line-icon"></span></button>
                       <button class="bt-tool" data-journal-chart-tool="horizontal-ray" onclick="activateJournalChartTool('horizontal-ray')" oncontextmenu="openJournalChartToolSettings(event,'horizontal-ray',-1)" title="Horizontale ray"><span class="bt-horizontal-tool-icon bt-horizontal-ray-icon"></span></button>
                       <button class="bt-tool" data-journal-chart-tool="vertical" onclick="activateJournalChartTool('vertical')" oncontextmenu="openJournalChartToolSettings(event,'vertical',-1)" title="Verticale lijn"><i class="fas fa-grip-lines-vertical"></i></button>
@@ -16810,26 +16810,14 @@
         var list = document.getElementById("journalChartPanelSettingsList");
         if (!list) return;
         list.innerHTML = "";
-        var timeframeOptions = [[30,"30s"],[60,"1m"],[120,"2m"],[300,"5m"],[900,"15m"],[1800,"30m"],[3600,"1h"],[14400,"4h"],[86400,"1D"]];
-        function panelControl(key, value, label, ariaLabel) {
-          return '<button type="button" class="journal-layout-panel-control" data-panel-control="' + key + '" data-panel-value="' + value + '" aria-label="' + ariaLabel + '" title="Klik om te wijzigen">' + label + '</button>';
-        }
         for (var index = 0; index < workspace.count; index++) {
           var panel = workspace.panels[index];
           var row = document.createElement("div");
           row.className = "journal-layout-panel-row";
-          var timeframeLabel = (timeframeOptions.find(function (item) { return item[0] === Number(panel.timeframe); }) || timeframeOptions[0])[1];
           row.innerHTML = '<span class="journal-layout-panel-index">' + (index + 1) + '</span>' +
-            panelControl("timeframe", panel.timeframe, timeframeLabel, "Timeframe grafiek " + (index + 1)) +
-            panelControl("timeframeMode", panel.timeframeMode === "ticks" ? "ticks" : "time", panel.timeframeMode === "ticks" ? "Ticks" : "Tijd", "Modus grafiek " + (index + 1)) +
-            '<input class="bt-input !w-20" type="number" min="1" max="100000" step="1" value="' + panel.tickCount + '" aria-label="Ticks per bar grafiek ' + (index + 1) + '" />' +
-            panelControl("type", panel.type === "footprint" ? "footprint" : "candles", panel.type === "footprint" ? "Footprint" : "Candles", "Weergave grafiek " + (index + 1));
+            '<select class="bt-input" aria-label="Weergave grafiek ' + (index + 1) + '"><option value="candles"' + (panel.type === "candles" ? ' selected' : '') + '>Candles</option><option value="footprint"' + (panel.type === "footprint" ? ' selected' : '') + '>Footprint</option></select>';
           (function (panelIndex) {
-            var controls = row.querySelectorAll("[data-panel-control]");
-            controls[0].addEventListener("click", function () { var current = Number(this.dataset.panelValue); var next = timeframeOptions[(timeframeOptions.findIndex(function (item) { return item[0] === current; }) + 1) % timeframeOptions.length]; setJournalChartPanelSetting(panelIndex, "timeframe", next[0]); });
-            controls[1].addEventListener("click", function () { setJournalChartPanelSetting(panelIndex, "timeframeMode", this.dataset.panelValue === "ticks" ? "time" : "ticks"); });
-            row.querySelector("input").addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "tickCount", this.value); });
-            controls[2].addEventListener("click", function () { setJournalChartPanelSetting(panelIndex, "type", this.dataset.panelValue === "footprint" ? "candles" : "footprint"); });
+            row.querySelector("select").addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "type", this.value); });
           })(index);
           list.appendChild(row);
         }
@@ -27595,18 +27583,27 @@
         if (qbtAutoFollow) requestAnimationFrame(qbtScrollWorkspaceToEnd);
       }
       function qbtPlaybackDelay() {
-        var speedSteps = [0.25, 0.5, 1, 2, 4, 6];
-        var speed = speedSteps[Number(document.getElementById("qbtPopupSpeed").value)] || 1;
+        var speed = Math.max(1, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 10));
         return Math.max(80, Math.round(1000 / speed));
       }
-      function qbtUpdatePlaybackSpeed() {
-        var speedSteps = [0.25, 0.5, 1, 2, 4, 6];
-        var speed = speedSteps[Number(document.getElementById("qbtPopupSpeed").value)] || 1;
+      function qbtShowSpeedLabel() {
+        var control = document.getElementById("qbtSpeedControl");
+        if (control) control.classList.add("active");
+      }
+      function qbtHideSpeedLabel() {
+        var control = document.getElementById("qbtSpeedControl");
+        if (control) control.classList.remove("active");
+      }
+      function qbtUpdatePlaybackSpeed(showLabel) {
+        var speed = Math.max(1, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 10));
         var speedControl = document.getElementById("qbtPopupSpeed");
         if (speedControl) {
           speedControl.title = "Replay snelheid: " + speed + "x";
           speedControl.setAttribute("aria-label", speedControl.title);
         }
+        var speedLabel = document.getElementById("qbtPopupSpeedLabel");
+        if (speedLabel) speedLabel.textContent = speed + "x";
+        if (showLabel) qbtShowSpeedLabel();
         if (qbtPlaybackTimer) {
           window.clearTimeout(qbtPlaybackTimer);
           qbtPlaybackTimer = window.setTimeout(qbtPlaybackTick, qbtPlaybackDelay());
