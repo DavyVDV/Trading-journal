@@ -5173,7 +5173,7 @@
         <div class="mx-auto max-w-[1800px] space-y-3 font-mono">
           <div class="flex flex-wrap items-center justify-between gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <div class="min-w-0"><div class="text-[10px] font-bold uppercase tracking-widest text-zinc-200">Backtest</div><div id="qbtStatus" class="mt-0.5 truncate text-[9px] text-zinc-500">Upload tickdata of OHLC CSV.</div></div>
-            <div class="flex items-center gap-1.5"><button onclick="document.getElementById('qbtFile').click()" class="bt-control !h-8"><i class="fas fa-upload"></i> CSV</button><button onclick="qbtSaveDataset()" class="bt-control !h-8" title="Huidige backtest opslaan"><i class="fas fa-floppy-disk"></i></button><span class="flex items-center"><select id="qbtDataset" onchange="qbtHandleDatasetSelection(this.value)" class="bt-input !h-8 !w-44"><option value="">Opgeslagen backtests…</option></select><button id="qbtDeleteDatasetButton" type="button" onclick="qbtDeleteSelectedDataset()" class="bt-tool !h-8 !w-7 ml-1 text-red-300" title="Geselecteerde save verwijderen" disabled><i class="fas fa-xmark"></i></button></span><input id="qbtFile" type="file" accept=".csv" class="hidden" onchange="qbtLoadFile(this.files[0]); this.value=''" /></div>
+            <div class="flex items-center gap-1.5"><button onclick="document.getElementById('qbtFile').click()" class="bt-control !h-8"><i class="fas fa-upload"></i> CSV</button><input id="qbtFile" type="file" accept=".csv" class="hidden" onchange="qbtLoadFile(this.files[0]); this.value=''" /></div>
           </div>
           <div class="flex flex-wrap items-end gap-2 border border-terminal bg-terminal-card px-3 py-2">
             <label class="min-w-[210px] flex-1"><span class="bt-label">Beginnen vanaf</span><input id="qbtStartDateTime" type="datetime-local" class="bt-input !h-8 w-full" disabled /></label>
@@ -6035,7 +6035,6 @@
                     </select>
                   </div>
                   <div id="qbtPopupControls" class="hidden items-center gap-1 shrink-0">
-                    <button id="qbtPopupSave" type="button" class="bt-tool" onclick="qbtSaveDataset()" title="Huidige backtest opslaan" aria-label="Huidige backtest opslaan"><i class="fas fa-floppy-disk"></i></button>
                     <select id="qbtPopupSpeed" class="bt-input !h-7 !w-20" onchange="qbtUpdatePlaybackSpeed()" title="Replay snelheid" aria-label="Replay snelheid">
                       <option value="0.25">0.25x</option>
                       <option value="0.5">0.5x</option>
@@ -14716,14 +14715,6 @@
             } catch (e) {}
           }
 
-          var currentQbtDatasets = typeof qbtDatasets !== "undefined" ? qbtDatasets : [];
-          if ((!currentQbtDatasets || !currentQbtDatasets.length) && typeof localforage !== "undefined") {
-            try {
-              var storedQbt = await localforage.getItem(typeof QBT_DATA_KEY !== "undefined" ? QBT_DATA_KEY : "qt_minimal_backtest_datasets_v1");
-              if (Array.isArray(storedQbt)) currentQbtDatasets = storedQbt;
-            } catch (e) {}
-          }
-
           // Build Blob in memory chunks to prevent RangeError: Invalid string length on large datasets
           var blobParts = [];
           blobParts.push('{"trades":');
@@ -14767,29 +14758,8 @@
             blobParts.push('[]');
           }
 
-          blobParts.push(',"backtestDatasets":');
-          if (Array.isArray(currentBacktestDatasets) && currentBacktestDatasets.length > 0) {
-            blobParts.push('[');
-            for (var bi = 0; bi < currentBacktestDatasets.length; bi++) {
-              if (bi > 0) blobParts.push(',');
-              blobParts.push(JSON.stringify(currentBacktestDatasets[bi]));
-            }
-            blobParts.push(']');
-          } else {
-            blobParts.push('[]');
-          }
-
-          blobParts.push(',"qbtDatasets":');
-          if (Array.isArray(currentQbtDatasets) && currentQbtDatasets.length > 0) {
-            blobParts.push('[');
-            for (var qi = 0; qi < currentQbtDatasets.length; qi++) {
-              if (qi > 0) blobParts.push(',');
-              blobParts.push(JSON.stringify(currentQbtDatasets[qi]));
-            }
-            blobParts.push(']');
-          } else {
-            blobParts.push('[]');
-          }
+          blobParts.push(',"backtestDatasets":[]');
+          blobParts.push(',"qbtDatasets":[]');
 
           blobParts.push(',"backtestTimeframes":');
           blobParts.push(JSON.stringify(typeof getBacktestTimeframes === "function" ? getBacktestTimeframes() : []));
@@ -15108,20 +15078,6 @@
                 globalChartData = [];
               }
               await saveGlobalChartData();
-
-              if (importedData && Array.isArray(importedData.backtestDatasets)) {
-                backtestDatasets = importedData.backtestDatasets;
-                if (typeof saveBacktestDatasets === "function") await saveBacktestDatasets();
-                if (typeof renderChartDataLibrary === "function") renderChartDataLibrary();
-              }
-
-              if (importedData && Array.isArray(importedData.qbtDatasets)) {
-                qbtDatasets = importedData.qbtDatasets;
-                if (typeof localforage !== "undefined") {
-                  try { await localforage.setItem(typeof QBT_DATA_KEY !== "undefined" ? QBT_DATA_KEY : "qt_minimal_backtest_datasets_v1", qbtDatasets); } catch (e) {}
-                }
-                if (typeof qbtRenderDatasets === "function") qbtRenderDatasets();
-              }
 
               if (importedData && Array.isArray(importedData.backtestTimeframes) && importedData.backtestTimeframes.length) {
                 localStorage.setItem("qt_bt_timeframes_v1", JSON.stringify(importedData.backtestTimeframes));
@@ -22447,11 +22403,25 @@
       }
 
       function parseBacktestCsvRows(text) {
+        if (!text) return [];
+        var delimiter = detectBacktestCsvDelimiter(String(text || "").split(/\r?\n/, 1)[0]);
+        // Fast path: text has no quotes (standard in majority of financial CSV files)
+        if (text.indexOf('"') === -1) {
+          var rawLines = text.split(/\r?\n/);
+          var rows = [];
+          for (var i = 0; i < rawLines.length; i++) {
+            var l = rawLines[i].trim();
+            if (!l) continue;
+            var parts = l.split(delimiter);
+            for (var p = 0; p < parts.length; p++) parts[p] = parts[p].trim();
+            rows.push(parts);
+          }
+          return rows;
+        }
         var rows = [];
         var row = [];
         var cell = "";
         var quoted = false;
-        var delimiter = detectBacktestCsvDelimiter(String(text || "").split(/\r?\n/, 1)[0]);
         for (var i = 0; i < text.length; i++) {
           var character = text[i];
           if (character === '"') {
@@ -22482,10 +22452,15 @@
       }
 
       function parseBacktestCsvLine(line, delimiter) {
+        delimiter = delimiter || ",";
+        if (line.indexOf('"') === -1) {
+          var parts = line.split(delimiter);
+          for (var p = 0; p < parts.length; p++) parts[p] = parts[p].trim();
+          return parts;
+        }
         var fields = [];
         var value = "";
         var quoted = false;
-        delimiter = delimiter || detectBacktestCsvDelimiter(line);
         for (var index = 0; index < line.length; index++) {
           var character = line[index];
           if (character === '"') {
@@ -22514,100 +22489,92 @@
       }
 
       function parseBacktestTimestamp(value, utcOffset) {
-        var text = String(value || "").trim();
-        if (!text) return null;
-        if (/^\d{10,13}$/.test(text)) {
-          var numeric = Number(text);
-          return new Date(text.length === 10 ? numeric * 1000 : numeric);
-        }
-        var offset = String(utcOffset || "").trim();
-        var quantowerIsoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?$/);
-        if (quantowerIsoMatch && !offset) {
-          return new Date(Date.UTC(
-            Number(quantowerIsoMatch[1]), Number(quantowerIsoMatch[2]) - 1, Number(quantowerIsoMatch[3]),
-            Number(quantowerIsoMatch[4]), Number(quantowerIsoMatch[5]), Number(quantowerIsoMatch[6] || 0),
-            Number(String(quantowerIsoMatch[7] || "0").padEnd(3, "0")),
-          ));
-        }
-        var europeanMatch = text.match(
-          /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/,
-        );
-        if (europeanMatch && /^[+-]\d{2}:?\d{2}$/.test(offset)) {
-          var europeanYear = Number(europeanMatch[3]);
-          if (europeanYear < 100) europeanYear += 2000;
-          var normalizedOffset = offset.length === 5
-            ? offset.slice(0, 3) + ":" + offset.slice(3)
-            : offset;
-          return new Date(
-            europeanYear + "-" + String(Number(europeanMatch[2])).padStart(2, "0") + "-" +
-            String(Number(europeanMatch[1])).padStart(2, "0") + "T" +
-            String(Number(europeanMatch[4])).padStart(2, "0") + ":" + europeanMatch[5] + ":" +
-            String(europeanMatch[6] || "00").padStart(2, "0") + normalizedOffset,
-          );
-        }
-        var normalized = text.replace(" ", "T");
-        var parsed = new Date(normalized);
-        if (!isNaN(parsed)) return parsed;
-        var match = europeanMatch;
-        if (!match) return null;
-        var year = Number(match[3]);
-        if (year < 100) year += 2000;
-        return new Date(
-          year,
-          Number(match[2]) - 1,
-          Number(match[1]),
-          Number(match[4]),
-          Number(match[5]),
-          Number(match[6] || 0),
-        );
+        var ms = parseBacktestTimestampMillis(value, utcOffset);
+        return Number.isFinite(ms) ? new Date(ms) : null;
       }
 
       function parseBacktestTimestampMillis(value, utcOffset) {
-        var text = String(value || "").trim();
+        if (value == null) return NaN;
+        var text = typeof value === "string" ? value.trim() : String(value).trim();
         if (!text) return NaN;
-        if (/^\d{10,13}$/.test(text)) {
-          var numeric = Number(text);
-          return text.length === 10 ? numeric * 1000 : numeric;
-        }
-        var quantowerIsoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?$/);
-        if (quantowerIsoMatch && !String(utcOffset || "").trim()) {
-          return Date.UTC(
-            Number(quantowerIsoMatch[1]), Number(quantowerIsoMatch[2]) - 1, Number(quantowerIsoMatch[3]),
-            Number(quantowerIsoMatch[4]), Number(quantowerIsoMatch[5]), Number(quantowerIsoMatch[6] || 0),
-            Number(String(quantowerIsoMatch[7] || "0").padEnd(3, "0")),
-          );
-        }
-        var match = text.match(
-          /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?/,
-        );
-        var offsetMatch = String(utcOffset || "").trim().match(/^([+-])(\d{2}):?(\d{2})$/);
-        if (match) {
-          var year = Number(match[3]);
-          if (year < 100) year += 2000;
-          var milliseconds = Number(String(match[7] || "0").padEnd(3, "0"));
-          var utc = Date.UTC(
-            year,
-            Number(match[2]) - 1,
-            Number(match[1]),
-            Number(match[4]),
-            Number(match[5]),
-            Number(match[6] || 0),
-            milliseconds,
-          );
-          if (offsetMatch) {
-            var offsetMinutes = (Number(offsetMatch[2]) * 60 + Number(offsetMatch[3])) * (offsetMatch[1] === "+" ? 1 : -1);
-            return utc - offsetMinutes * 60000;
+        var len = text.length;
+
+        // 1. Numeric epoch (seconds or milliseconds)
+        if (len >= 10 && len <= 13) {
+          var isAllDigits = true;
+          for (var di = 0; di < len; di++) {
+            var code = text.charCodeAt(di);
+            if (code < 48 || code > 57) { isAllDigits = false; break; }
           }
-          return new Date(
-            year,
-            Number(match[2]) - 1,
-            Number(match[1]),
-            Number(match[4]),
-            Number(match[5]),
-            Number(match[6] || 0),
-            milliseconds,
-          ).getTime();
+          if (isAllDigits) {
+            var numeric = +text;
+            return len === 10 ? numeric * 1000 : numeric;
+          }
         }
+
+        // 2. ISO format (e.g. 2024-05-10 09:30:00.123 or 2024-05-10T09:30:00)
+        if (len >= 16 && text.charCodeAt(4) === 45 && text.charCodeAt(7) === 45) {
+          var year = +text.slice(0, 4);
+          var month = +text.slice(5, 7) - 1;
+          var day = +text.slice(8, 10);
+          var hour = +text.slice(11, 13);
+          var min = +text.slice(14, 16);
+          var sec = 0;
+          var ms = 0;
+          if (len >= 19 && text.charCodeAt(16) === 58) {
+            sec = +text.slice(17, 19);
+            if (len >= 21 && (text.charCodeAt(19) === 46 || text.charCodeAt(19) === 44)) {
+              var msStr = text.slice(20, 23);
+              ms = +msStr;
+              if (msStr.length === 1) ms *= 100;
+              else if (msStr.length === 2) ms *= 10;
+            }
+          }
+          if (String(utcOffset || "").trim()) {
+            var offMatch = String(utcOffset).trim().match(/^([+-])(\d{2}):?(\d{2})$/);
+            if (offMatch) {
+              var offsetMinutes = (Number(offMatch[2]) * 60 + Number(offMatch[3])) * (offMatch[1] === "+" ? 1 : -1);
+              return Date.UTC(year, month, day, hour, min, sec, ms) - offsetMinutes * 60000;
+            }
+          }
+          return Date.UTC(year, month, day, hour, min, sec, ms);
+        }
+
+        // 3. European format (DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY)
+        var sep = text.charCodeAt(2);
+        if ((sep === 45 || sep === 47 || sep === 46) && text.charCodeAt(5) === sep) {
+          var day = +text.slice(0, 2);
+          var month = +text.slice(3, 5) - 1;
+          var year = +text.slice(6, 10);
+          if (year < 100) year += 2000;
+          var timeIdx = text.indexOf(" ", 10);
+          if (timeIdx === -1) timeIdx = text.indexOf("T", 10);
+          if (timeIdx >= 0) {
+            var hour = +text.slice(timeIdx + 1, timeIdx + 3);
+            var min = +text.slice(timeIdx + 4, timeIdx + 6);
+            var sec = 0;
+            var ms = 0;
+            if (len >= timeIdx + 9 && text.charCodeAt(timeIdx + 6) === 58) {
+              sec = +text.slice(timeIdx + 7, timeIdx + 9);
+              if (len >= timeIdx + 11 && (text.charCodeAt(timeIdx + 9) === 46 || text.charCodeAt(timeIdx + 9) === 44)) {
+                var msStr = text.slice(timeIdx + 10, timeIdx + 13);
+                ms = +msStr;
+                if (msStr.length === 1) ms *= 100;
+                else if (msStr.length === 2) ms *= 10;
+              }
+            }
+            if (String(utcOffset || "").trim()) {
+              var offMatch = String(utcOffset).trim().match(/^([+-])(\d{2}):?(\d{2})$/);
+              if (offMatch) {
+                var offsetMinutes = (Number(offMatch[2]) * 60 + Number(offMatch[3])) * (offMatch[1] === "+" ? 1 : -1);
+                return Date.UTC(year, month, day, hour, min, sec, ms) - offsetMinutes * 60000;
+              }
+            }
+            return new Date(year, month, day, hour, min, sec, ms).getTime();
+          }
+        }
+
+        // 4. Fallback
         var parsed = Date.parse(text.replace(" ", "T"));
         return Number.isFinite(parsed) ? parsed : NaN;
       }
@@ -22625,10 +22592,7 @@
         var runningCvd = 0;
         var delimiter = ",";
         var lastProgressUpdate = 0;
-
-        function yieldBacktestParser() {
-          return new Promise(function (resolve) { setTimeout(resolve, 0); });
-        }
+        var lastYieldTime = performance.now();
 
         function finishCurrentBar() {
           if (!current) return;
@@ -22652,11 +22616,11 @@
         }
 
         function processTickLine(line) {
-          if (!line.trim()) return;
-          var fields = parseBacktestCsvLine(line, delimiter);
+          if (!line || !line.trim()) return;
+          var fields = line.indexOf('"') === -1 ? line.split(delimiter) : parseBacktestCsvLine(line, delimiter);
           if (!headers) {
             delimiter = detectBacktestCsvDelimiter(line);
-            fields = parseBacktestCsvLine(line, delimiter);
+            fields = line.indexOf('"') === -1 ? line.split(delimiter) : parseBacktestCsvLine(line, delimiter);
             headers = fields.map(normalizeBacktestHeader);
             indexes = {
               timestamp: headers.findIndex(function (header) { return ["timestamp", "datetime", "dateandtime", "time", "timeleft"].indexOf(header) >= 0; }),
@@ -22673,13 +22637,15 @@
             }
             return;
           }
+          var rawTimestamp = fields[indexes.timestamp];
+          if (!rawTimestamp) return;
           var timestamp = parseBacktestTimestampMillis(
-            fields[indexes.timestamp],
+            rawTimestamp,
             indexes.utc >= 0 ? fields[indexes.utc] : "",
           );
           var price = parseBacktestNumber(fields[indexes.last]);
           var volume = indexes.volume >= 0 ? parseBacktestNumber(fields[indexes.volume]) : 1;
-          if (!Number.isFinite(volume)) volume = 0;
+          if (!Number.isFinite(volume) || volume <= 0) volume = 1;
           var cvd;
           var aggressor = indexes.aggressor >= 0 ? String(fields[indexes.aggressor] || "").trim().toLowerCase() : "";
           if (indexes.cumulative >= 0) {
@@ -22689,7 +22655,7 @@
             else if (aggressor === "sell" || aggressor === "seller" || aggressor === "bid") runningCvd -= volume;
             cvd = runningCvd;
           }
-          if (![timestamp, price, cvd].every(Number.isFinite)) return;
+          if (!Number.isFinite(timestamp) || !Number.isFinite(price) || !Number.isFinite(cvd)) return;
           var bucket = Math.floor(timestamp / 30000) * 30000;
           if (!current || current.bucket !== bucket) {
             finishCurrentBar();
@@ -22711,17 +22677,17 @@
               footprintMap: {},
             };
           } else {
-            current.high = Math.max(current.high, price);
-            current.low = Math.min(current.low, price);
+            if (price > current.high) current.high = price;
+            if (price < current.low) current.low = price;
             current.close = price;
-            current.cvdHigh = Math.max(current.cvdHigh, cvd);
-            current.cvdLow = Math.min(current.cvdLow, cvd);
+            if (cvd > current.cvdHigh) current.cvdHigh = cvd;
+            if (cvd < current.cvdLow) current.cvdLow = cvd;
             current.cvdClose = cvd;
             current.volumeTotal += volume;
             current.tickCount += 1;
           }
-          var priceLevel = Math.round(price / .25) * .25;
-          var priceKey = priceLevel.toFixed(8);
+          var priceLevel = Math.round(price * 4) / 4;
+          var priceKey = priceLevel;
           var footprintLevel = current.footprintMap[priceKey] || (current.footprintMap[priceKey] = {
             price: priceLevel, buyVolume: 0, sellVolume: 0, neutralVolume: 0,
             buyTrades: 0, sellTrades: 0, neutralTrades: 0, maxTrade: 0,
@@ -22729,7 +22695,7 @@
           var deltaChange = previousCvd === null ? 0 : cvd - previousCvd;
           var isBuy = aggressor === "buy" || aggressor === "buyer" || aggressor === "ask" || (!aggressor && deltaChange > 0);
           var isSell = aggressor === "sell" || aggressor === "seller" || aggressor === "bid" || (!aggressor && deltaChange < 0);
-          var classifiedVolume = Math.max(0, Number(volume) || Math.abs(deltaChange) || 0);
+          var classifiedVolume = Math.max(0, volume || Math.abs(deltaChange) || 0);
           current.ticks.push([timestamp, price, classifiedVolume, deltaChange, isBuy ? 1 : isSell ? -1 : 0]);
           if (isBuy) {
             footprintLevel.buyVolume += classifiedVolume;
@@ -22741,7 +22707,7 @@
             footprintLevel.neutralVolume += classifiedVolume;
             footprintLevel.neutralTrades += 1;
           }
-          footprintLevel.maxTrade = Math.max(footprintLevel.maxTrade, classifiedVolume);
+          if (classifiedVolume > footprintLevel.maxTrade) footprintLevel.maxTrade = classifiedVolume;
           previousCvd = cvd;
         }
 
@@ -22750,23 +22716,34 @@
           if (chunk.done) break;
           bytesRead += chunk.value.byteLength;
           buffer += decoder.decode(chunk.value, { stream: true });
+          var startPos = 0;
           var lineEnd;
-          while ((lineEnd = buffer.indexOf("\n")) >= 0) {
-            var line = buffer.slice(0, lineEnd).replace(/\r$/, "");
-            buffer = buffer.slice(lineEnd + 1);
+          while ((lineEnd = buffer.indexOf("\n", startPos)) >= 0) {
+            var line = buffer.slice(startPos, lineEnd);
+            startPos = lineEnd + 1;
+            if (line.charCodeAt(line.length - 1) === 13) {
+              line = line.slice(0, -1);
+            }
             processTickLine(line);
           }
+          if (startPos > 0) {
+            buffer = buffer.slice(startPos);
+          }
           var now = performance.now();
-          if (onProgress && now - lastProgressUpdate >= 120) {
-            onProgress(Math.min(99, bytesRead / Math.max(1, file.size) * 100), bytesRead, file.size);
+          if (onProgress && now - lastProgressUpdate >= 100) {
+            onProgress(Math.min(99, (bytesRead / Math.max(1, file.size)) * 100), bytesRead, file.size);
             lastProgressUpdate = now;
           }
-          // A resolved stream read can keep scheduling microtasks and starve painting.
-          // Yield to a new task after every chunk so multi-gigabyte imports remain interactive.
-          await yieldBacktestParser();
+          if (now - lastYieldTime >= 20) {
+            await new Promise(function (resolve) { setTimeout(resolve, 0); });
+            lastYieldTime = performance.now();
+          }
         }
         buffer += decoder.decode();
-        if (buffer.trim()) processTickLine(buffer.replace(/\r$/, ""));
+        if (buffer.trim()) {
+          var remLine = buffer.replace(/\r$/, "");
+          processTickLine(remLine);
+        }
         finishCurrentBar();
         if (!bars.length) throw new Error("Geen geldige tickdata gevonden.");
         bars.sort(function (a, b) { return a.timestamp - b.timestamp; });
@@ -22785,8 +22762,13 @@
       }
 
       function parseBacktestNumber(value) {
-        var text = String(value == null ? "" : value).trim().replace(/\s/g, "");
+        if (typeof value === "number") return value;
+        if (value == null) return NaN;
+        var text = typeof value === "string" ? value.trim() : String(value).trim();
         if (!text) return NaN;
+        var fastNum = +text;
+        if (!isNaN(fastNum) && text.indexOf(",") === -1) return fastNum;
+        text = text.replace(/\s/g, "");
         var commaIndex = text.lastIndexOf(",");
         var dotIndex = text.lastIndexOf(".");
         if (commaIndex >= 0 && dotIndex >= 0) {
@@ -22796,7 +22778,7 @@
         } else if (commaIndex >= 0) {
           text = text.replace(",", ".");
         }
-        return Number(text);
+        return +text;
       }
 
       function parseBacktestCsv(text) {
@@ -27508,14 +27490,12 @@
     <script>
       /* Minimal replay layer. It deliberately hands completed trades to the existing
          journal modal instead of maintaining a second chart/modal implementation. */
-      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtLoadedFileName = "", qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES", qbtAutoFollow = localStorage.getItem("qt_qbt_auto_follow_v1") !== "false";
+      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtLoadedFileName = "", qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES", qbtAutoFollow = localStorage.getItem("qt_qbt_auto_follow_v1") !== "false";
       var qbtReplayAggregationCache = null;
       var qbtReplayVisibleTicks = null;
       var qbtPrimaryCvdData = [];
       var qbtJournalSourceCache = { source: null, data: [] };
       var qbtJournalVisibleCache = { source: null, data: [] };
-      var qbtLoadedDatasetId = "";
-      var QBT_DATA_KEY = "qt_minimal_backtest_datasets_v1";
 
       function qbtText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
       function qbtTime(bar) { return bar && bar.timestamp instanceof Date ? bar.timestamp : new Date(bar && bar.timestamp); }
@@ -28092,106 +28072,15 @@
         saveData({ skipUpdate:true });
         closeJournalRrContextMenu();
       }
-      function qbtSerializeBar(bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }
-      function qbtSerializeTrade(trade) { return Object.assign({}, trade, { entryTime: trade.entryTime instanceof Date ? trade.entryTime.toISOString() : trade.entryTime, exitTime: trade.exitTime instanceof Date ? trade.exitTime.toISOString() : trade.exitTime }); }
-      async function qbtSaveDatasetWithName(name) {
-        try {
-          var isReplay = Boolean(qbtBars && qbtBars.length);
-          var barsToSave = isReplay ? qbtBars : qbtSourceBars;
-          if (!barsToSave || !barsToSave.length) {
-            qbtSetStatus("Geen chartdata beschikbaar om op te slaan.", true);
-            return;
-          }
-          var dataset = {
-            id: "qbt-data-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
-            name: name,
-            savedAt: new Date().toISOString(),
-            replayIndex: isReplay ? qbtIndex : null,
-            replayVisibleTicks: isReplay ? qbtReplayVisibleTicks : null,
-            riskAmount: qbtRiskAmount,
-            riskInstrument: qbtRiskInstrument,
-            symbol: (document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value) || "BACKTEST",
-            qty: (document.getElementById("qbtQty") && Number(document.getElementById("qbtQty").value)) || 1,
-            openTrade: isReplay && qbtOpen ? qbtSerializeTrade(qbtOpen) : null,
-            trades: isReplay && Array.isArray(qbtTrades) ? qbtTrades.map(qbtSerializeTrade) : [],
-            deltaSource: (qbtSourceBars && qbtSourceBars.deltaSource) || (qbtBars && qbtBars.deltaSource) || "missing",
-            bars: barsToSave.map(qbtSerializeBar)
-          };
-          qbtDatasets.push(dataset);
-          await localforage.setItem(QBT_DATA_KEY, qbtDatasets);
-          qbtLoadedDatasetId = dataset.id;
-          qbtRenderDatasets();
-          qbtSetStatus("Backtest dataset opgeslagen (" + (isReplay ? ("op bar " + (qbtIndex + 1)) : (barsToSave.length.toLocaleString("nl-BE") + " bars")) + ").");
-        } catch (error) {
-          console.error("Fout bij opslaan van dataset:", error);
-          qbtSetStatus("Dataset kon niet worden opgeslagen: " + (error && error.message ? error.message : String(error)), true);
+      document.addEventListener("DOMContentLoaded", function () {
+        if (typeof localforage !== "undefined") {
+          try {
+            localforage.removeItem("qt_minimal_backtest_datasets_v1");
+            localforage.removeItem("qt_backtest_chart_datasets_v1");
+          } catch (e) {}
         }
-      }
-      function qbtSaveDataset() {
-        var hasData = (qbtBars && qbtBars.length > 0) || (qbtSourceBars && qbtSourceBars.length > 0);
-        if (!hasData) return qbtSetStatus("Laad eerst chartdata.", true);
-        var baseName = (qbtLoadedFileName ? qbtLoadedFileName.replace(/\.csv$/i, "") : (document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value)) || "Backtest data";
-        var suggestedName = baseName + " " + new Date().toLocaleDateString("nl-BE");
-        openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName);
-      }
-      async function qbtLoadDatasets() { try { qbtDatasets = await localforage.getItem(QBT_DATA_KEY) || []; qbtRenderDatasets(); } catch (error) { qbtSetStatus("Opgeslagen datasets konden niet worden geladen.", true); } }
-      function qbtRenderDatasets() {
-        var select = document.getElementById("qbtDataset"); if (!select) return;
-        select.innerHTML = '<option value="">Opgeslagen backtests…</option>' + qbtDatasets.map(function (set) {
-          var suffix = set.replayIndex != null ? " · bar " + (Number(set.replayIndex) + 1) : (" · " + (set.bars ? set.bars.length.toLocaleString("nl-BE") : 0) + " bars");
-          return '<option value="' + set.id + '">' + String(set.name).replace(/&/g, "&amp;").replace(/</g, "&lt;") + suffix + '</option>';
-        }).join("");
-        select.value = qbtDatasets.some(function (set) { return set.id === qbtLoadedDatasetId; }) ? qbtLoadedDatasetId : "";
-        var removeButton = document.getElementById("qbtDeleteDatasetButton"); if (removeButton) removeButton.disabled = !select.value;
-      }
-      function qbtHandleDatasetSelection(id) {
-        var button = document.getElementById("qbtDeleteDatasetButton"); if (button) button.disabled = !id;
-        if (id) qbtLoadDataset(id);
-      }
-      function qbtDeleteSelectedDataset() {
-        var select = document.getElementById("qbtDataset");
-        var id = select && select.value;
-        var dataset = qbtDatasets.find(function (item) { return item.id === id; });
-        if (!dataset) return;
-        showConfirm('Dataset "' + dataset.name + '" verwijderen?', async function () {
-          qbtDatasets = qbtDatasets.filter(function (item) { return item.id !== id; });
-          await localforage.setItem(QBT_DATA_KEY, qbtDatasets);
-          if (qbtLoadedDatasetId === id) {
-            qbtLoadedDatasetId = ""; qbtSourceBars = []; qbtBars = []; qbtIndex = 0; qbtReplayVisibleTicks = null; qbtReplayAggregationCache = null; qbtTrades = []; qbtOpen = null; qbtRender(); qbtSetStatus("Dataset verwijderd.");
-          }
-          qbtRenderDatasets();
-        });
-      }
-      function qbtLoadDataset(id) {
-        var set = qbtDatasets.find(function (item) { return item.id === id; });
-        if (!set) return;
-        qbtLoadedDatasetId = id;
-        qbtLoadedFileName = set.name || "";
-        qbtSourceBars = (set.bars || []).map(function (bar) { return Object.assign({}, bar, { timestamp: new Date(bar.timestamp) }); });
-        qbtSourceBars.deltaSource = set.deltaSource || "missing";
-        qbtReplayAggregationCache = null;
-        var isReplaySave = set.replayIndex != null;
-        qbtBars = isReplaySave ? qbtSourceBars.slice() : [];
-        qbtReplayVisibleTicks = isReplaySave && Number.isFinite(Number(set.replayVisibleTicks)) ? Number(set.replayVisibleTicks) : null;
-        qbtIndex = isReplaySave ? Math.max(0, Math.min(qbtBars.length - 1, Number(set.replayIndex) || 0)) : 0;
-        qbtRiskAmount = Number(set.riskAmount) || qbtRiskAmount;
-        qbtRiskInstrument = set.riskInstrument || qbtRiskInstrument;
-        if (document.getElementById("qbtRiskAmount")) document.getElementById("qbtRiskAmount").value = qbtRiskAmount;
-        if (document.getElementById("qbtRiskInstrument")) document.getElementById("qbtRiskInstrument").value = qbtRiskInstrument;
-        if (document.getElementById("qbtSymbol")) document.getElementById("qbtSymbol").value = set.symbol || "BACKTEST";
-        if (document.getElementById("qbtQty")) document.getElementById("qbtQty").value = Number(set.qty) || 1;
-        qbtTrades = isReplaySave ? (set.trades || []).map(function (trade) { return Object.assign({}, trade, { entryTime: trade.entryTime ? new Date(trade.entryTime) : trade.entryTime, exitTime: trade.exitTime ? new Date(trade.exitTime) : trade.exitTime }); }) : [];
-        qbtOpen = isReplaySave && set.openTrade ? Object.assign({}, set.openTrade, { entryTime: set.openTrade.entryTime ? new Date(set.openTrade.entryTime) : set.openTrade.entryTime, exitTime: set.openTrade.exitTime ? new Date(set.openTrade.exitTime) : set.openTrade.exitTime }) : null;
-        qbtSetRangeInputs();
-        qbtRender();
-        qbtRenderDatasets();
-        if (isReplaySave && qbtBars.length) {
-          qbtOpenWorkspace(qbtOpen || qbtTrades[qbtTrades.length - 1]);
-        } else {
-          qbtSetStatus('Dataset "' + set.name + '" geladen (' + qbtSourceBars.length.toLocaleString("nl-BE") + ' bars).');
-        }
-      }
-      document.addEventListener("DOMContentLoaded", function () { qbtLoadDatasets(); window.addEventListener("resize", qbtResize); });
+        window.addEventListener("resize", qbtResize);
+      });
     </script>
   </body>
 </html>
