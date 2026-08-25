@@ -8,71 +8,6 @@
       rel="icon"
       type="image/svg+xml"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='15' fill='white' /><text x='50' y='75' font-family='sans-serif' font-weight='bold' font-size='75' fill='black' text-anchor='middle'>J</text></svg>"
-    />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ["Inter", "sans-serif"],
-              mono: ["JetBrains Mono", "monospace"],
-            },
-          },
-        },
-      };
-    </script>
-    <style>
-      :root {
-        --site-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='blueGlow' x='-95%25' y='-95%25' width='290%25' height='290%25'%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='2.2' flood-color='%237dd3fc' flood-opacity='1'/%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='5.2' flood-color='%232f8cff' flood-opacity='0.72'/%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='8' flood-color='%231e40af' flood-opacity='0.32'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M7.3 5.4 22.2 11.9 14.6 14.7 11.4 22.1Z' fill='%2304070d' stroke='%23f8fbff' stroke-width='2.2' stroke-linejoin='round' filter='url(%23blueGlow)'/%3E%3Cpath d='M7.3 5.4 22.2 11.9 14.6 14.7 11.4 22.1Z' fill='%2304070d' stroke='%23000712' stroke-width='0.7' stroke-linejoin='round'/%3E%3C/svg%3E")
-            7 5,
-          auto;
-        --site-pointer-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='blueGlow' x='-95%25' y='-95%25' width='290%25' height='290%25'%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='2.2' flood-color='%237dd3fc' flood-opacity='1'/%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='5.2' flood-color='%232f8cff' flood-opacity='0.72'/%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='8' flood-color='%231e40af' flood-opacity='0.32'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M11.2 26.1C9.8 24.8 8.7 22.9 7.8 20.5L6.7 17.3C6.3 16.1 7 15 8.2 14.9C8.9 14.9 9.5 15.2 9.9 15.8L10.7 17.1V7.6C10.7 6.3 11.7 5.3 13 5.3C14.2 5.3 15.2 6.3 15.2 7.6V13.3C15.6 12.6 16.3 12.2 17.1 12.2C18 12.2 18.7 12.7 19.1 13.4C19.5 12.8 20.1 12.5 20.9 12.5C22 12.5 22.9 13.3 23.1 14.4C23.5 14.1 24 13.9 24.6 13.9C25.9 13.9 26.8 15.1 26.3 16.4L24.1 22.2C23.1 24.8 20.6 26.6 17.8 26.6H14.8C13.4 26.6 12.2 26.5 11.2 26.1Z' fill='%2304070d' stroke='%23f8fbff' stroke-width='2.1' stroke-linejoin='round' stroke-linecap='round' filter='url(%23blueGlow)'/%3E%3Cpath d='M11.2 26.1C9.8 24.8 8.7 22.9 7.8 20.5L6.7 17.3C6.3 16.1 7 15 8.2 14.9C8.9 14.9 9.5 15.2 9.9 15.8L10.7 17.1V7.6C10.7 6.3 11.7 5.3 13 5.3C14.2 5.3 15.2 6.3 15.2 7.6V13.3C15.6 12.6 16.3 12.2 17.1 12.2C18 12.2 18.7 12.7 19.1 13.4C19.5 12.8 20.1 12.5 20.9 12.5C22 12.5 22.9 13.3 23.1 14.4C23.5 14.1 24 13.9 24.6 13.9C25.9 13.9 26.8 15.1 26.3 16.4L24.1 22.2C23.1 24.8 20.6 26.6 17.8 26.6H14.8C13.4 26.6 12.2 26.5 11.2 26.1Z' fill='%2304070d' stroke='%23000712' stroke-width='0.65' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E")
-            13 6,
-          pointer;
-      }
-      body {
-        background-color: #0f172a;
-        color: #f1f5f9;
-        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-        cursor: var(--site-cursor);
-      }
-      button,
-      a,
-      label,
-      select,
-      summary,
-      [role="button"],
-      .cursor-pointer {
-        cursor: var(--site-pointer-cursor) !important;
-      }
-      .border-terminal {
-        border-color: rgba(255, 255, 255, 0.1);
-      }
-      .bg-terminal-dark {
-        background-color: #0f172a;
-      }
-      .bg-terminal-card {
-        background-color: rgba(30, 41, 59, 0.5);
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      .bg-terminal-input {
-        background-color: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
       }
 
       .pnl-profit {
@@ -2490,72 +2425,6 @@
         gap: 2px;
         overflow: hidden !important;
       }
-      #qbtPopupSpeedSlider {
-        width: 72px !important;
-        height: 18px !important;
-        min-height: 18px !important;
-        padding: 0 !important;
-        border: 0 !important;
-        background: transparent !important;
-        accent-color: #2563eb;
-        cursor: pointer;
-        display: block;
-        margin: 0;
-        appearance: none;
-        -webkit-appearance: none;
-      }
-      #qbtPopupSpeedSlider::-webkit-slider-runnable-track {
-        height: 3px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, .35);
-      }
-      #qbtPopupSpeedSlider::-webkit-slider-thumb {
-        width: 9px;
-        height: 9px;
-        margin-top: -3px;
-        border: 0;
-        border-radius: 50%;
-        background: #2563eb;
-        appearance: none;
-        -webkit-appearance: none;
-        vertical-align: middle;
-      }
-      #qbtPopupSpeedSlider::-moz-range-track {
-        height: 3px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, .35);
-      }
-      #qbtPopupSpeedSlider::-moz-range-thumb {
-        width: 9px;
-        height: 9px;
-        border: 0;
-        border-radius: 50%;
-        background: #2563eb;
-        vertical-align: middle;
-      }
-      .qbt-speed-control {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        height: 28px;
-      }
-      #qbtPopupSpeedLabel {
-        position: absolute;
-        left: 50%;
-        bottom: calc(100% + 4px);
-        display: none;
-        transform: translateX(-50%);
-        padding: 3px 6px;
-        border: 1px solid rgba(59, 130, 246, .7);
-        border-radius: 3px;
-        background: #172554;
-        color: #93c5fd;
-        font: 700 9px "JetBrains Mono", monospace;
-        line-height: 1;
-        white-space: nowrap;
-        pointer-events: none;
-      }
-      .qbt-speed-control.active #qbtPopupSpeedLabel { display: block; }
       #tradePriceChartPane,
       #tradeCvdPane {
         left: 0 !important;
@@ -6160,10 +6029,6 @@
                       <option value="10">10x</option>
                       <option value="20">20x</option>
                     </select>
-                    <span id="qbtSpeedControl" class="qbt-speed-control">
-                      <span id="qbtPopupSpeedLabel" aria-hidden="true">1x</span>
-                      <input id="qbtPopupSpeedSlider" type="range" min="0" max="7" step="1" value="2" oninput="qbtUpdatePlaybackSpeedFromSlider(true)" onpointerdown="qbtShowSpeedLabel()" onfocus="qbtShowSpeedLabel()" onblur="qbtHideSpeedLabel()" title="Replay snelheid: 1x" aria-label="Replay snelheid" />
-                    </span>
                     <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
                     <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
                     <button id="qbtPopupFollow" type="button" class="bt-tool active" onclick="qbtToggleFollow()" title="Nieuwe candles volgen" aria-label="Nieuwe candles volgen" aria-pressed="true"><i class="fas fa-location-arrow"></i></button>
@@ -7086,8 +6951,7 @@
       var activeTab = "dashboard";
       var popupStackZIndex = 1000;
 
-      var currentCalendarDate = new Date(); // Added for Calendar View
-
+      var currentCalendarDate = new Date();
       var colWidths = {};
 
       function isStackedPopup(element) {
@@ -27601,45 +27465,13 @@
         if (qbtAutoFollow) requestAnimationFrame(qbtScrollWorkspaceToEnd);
       }
       function qbtPlaybackDelay() {
-        var speed = Math.max(1, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 10));
+        var speed = Math.max(0.25, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 1));
         return Math.max(80, Math.round(1000 / speed));
       }
-      function qbtShowSpeedLabel() {
-        var control = document.getElementById("qbtSpeedControl");
-        var label = document.getElementById("qbtPopupSpeedLabel");
-        if (control) control.classList.add("active");
-        if (label) label.style.display = "block";
-      }
-      function qbtHideSpeedLabel() {
-        var control = document.getElementById("qbtSpeedControl");
-        var label = document.getElementById("qbtPopupSpeedLabel");
-        if (control) control.classList.remove("active");
-        if (label) label.style.display = "none";
-      }
-      function qbtUpdatePlaybackSpeedFromSlider(showLabel) {
-        var slider = document.getElementById("qbtPopupSpeedSlider");
-        var select = document.getElementById("qbtPopupSpeed");
-        var options = ["0.25", "0.5", "1", "2", "4", "6", "10", "20"];
-        var selectedIndex = slider ? Math.max(0, Math.min(options.length - 1, Number(slider.value) || 0)) : 2;
-        if (slider) slider.setAttribute("aria-valuetext", options[selectedIndex] + "x");
-        if (select) select.value = options[selectedIndex];
-        var label = document.getElementById("qbtPopupSpeedLabel");
-        if (label) label.textContent = options[selectedIndex] + "x";
-        if (showLabel) qbtShowSpeedLabel();
-        qbtUpdatePlaybackSpeed(showLabel);
-      }
-      function qbtUpdatePlaybackSpeed(showLabel) {
-        var speed = Math.max(1, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 10));
+      function qbtUpdatePlaybackSpeed() {
         var speedControl = document.getElementById("qbtPopupSpeed");
-        if (speedControl) {
-          speedControl.title = "Replay snelheid: " + speed + "x";
-          speedControl.setAttribute("aria-label", speedControl.title);
-        }
-        var speedLabel = document.getElementById("qbtPopupSpeedLabel");
-        if (speedLabel) speedLabel.textContent = speed + "x";
-        var speedSlider = document.getElementById("qbtPopupSpeedSlider");
-        if (speedSlider) speedSlider.value = String(["0.25", "0.5", "1", "2", "4", "6", "10", "20"].indexOf(String(speed)) >= 0 ? ["0.25", "0.5", "1", "2", "4", "6", "10", "20"].indexOf(String(speed)) : 2);
-        if (showLabel) qbtShowSpeedLabel();
+        var speed = Math.max(0.25, Math.min(20, Number(speedControl && speedControl.value) || 1));
+        if (speedControl) speedControl.title = "Replay snelheid: " + speed + "x";
         if (qbtPlaybackTimer) {
           window.clearTimeout(qbtPlaybackTimer);
           qbtPlaybackTimer = window.setTimeout(qbtPlaybackTick, qbtPlaybackDelay());
