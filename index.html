@@ -3070,6 +3070,21 @@
         color: #bfdbfe;
         font: 700 9px "JetBrains Mono", monospace;
       }
+      .journal-layout-panel-control {
+        width: 100%;
+        height: 30px;
+        padding: 0 10px;
+        overflow: hidden;
+        border: 1px solid var(--line) !important;
+        border-radius: 4px !important;
+        background: var(--surface-1) !important;
+        color: var(--text-1);
+        font-size: 10px;
+        text-align: left;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .journal-layout-panel-control:hover { border-color: var(--line-strong) !important; background: var(--surface-hover) !important; }
       #journalChartWorkspaceSettings .bt-input { height: 30px; font-size: 10px; }
       .journal-layout-presets {
         display: grid;
@@ -3966,10 +3981,10 @@
           grid-auto-rows: 30px;
           min-height: 104px;
         }
-        .journal-layout-panel-row > select:nth-of-type(1) { grid-column: 2; grid-row: 1; }
-        .journal-layout-panel-row > select:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+        .journal-layout-panel-row > button[data-panel-control="timeframe"] { grid-column: 2; grid-row: 1; }
+        .journal-layout-panel-row > button[data-panel-control="timeframeMode"] { grid-column: 2; grid-row: 2; }
         .journal-layout-panel-row > input { grid-column: 1; grid-row: 3; }
-        .journal-layout-panel-row > select:nth-of-type(3) { grid-column: 2; grid-row: 3; }
+        .journal-layout-panel-row > button[data-panel-control="type"] { grid-column: 2; grid-row: 3; }
       }
       @media (max-width: 460px) {
         .vwap-tv-style-row {
@@ -16795,25 +16810,26 @@
         var list = document.getElementById("journalChartPanelSettingsList");
         if (!list) return;
         list.innerHTML = "";
+        var timeframeOptions = [[30,"30s"],[60,"1m"],[120,"2m"],[300,"5m"],[900,"15m"],[1800,"30m"],[3600,"1h"],[14400,"4h"],[86400,"1D"]];
+        function panelControl(key, value, label, ariaLabel) {
+          return '<button type="button" class="journal-layout-panel-control" data-panel-control="' + key + '" data-panel-value="' + value + '" aria-label="' + ariaLabel + '" title="Klik om te wijzigen">' + label + '</button>';
+        }
         for (var index = 0; index < workspace.count; index++) {
           var panel = workspace.panels[index];
           var row = document.createElement("div");
           row.className = "journal-layout-panel-row";
+          var timeframeLabel = (timeframeOptions.find(function (item) { return item[0] === Number(panel.timeframe); }) || timeframeOptions[0])[1];
           row.innerHTML = '<span class="journal-layout-panel-index">' + (index + 1) + '</span>' +
-            '<select class="bt-input" aria-label="Timeframe grafiek ' + (index + 1) + '">' +
-              [[30,"30s"],[60,"1m"],[120,"2m"],[300,"5m"],[900,"15m"],[1800,"30m"],[3600,"1h"],[14400,"4h"],[86400,"1D"]].map(function (item) {
-                return '<option value="' + item[0] + '"' + (Number(panel.timeframe) === item[0] ? ' selected' : '') + '>' + item[1] + '</option>';
-              }).join("") +
-            '</select>' +
-            '<select class="bt-input" aria-label="Modus grafiek ' + (index + 1) + '"><option value="time"' + (panel.timeframeMode !== "ticks" ? ' selected' : '') + '>Tijd</option><option value="ticks"' + (panel.timeframeMode === "ticks" ? ' selected' : '') + '>Ticks</option></select>' +
+            panelControl("timeframe", panel.timeframe, timeframeLabel, "Timeframe grafiek " + (index + 1)) +
+            panelControl("timeframeMode", panel.timeframeMode === "ticks" ? "ticks" : "time", panel.timeframeMode === "ticks" ? "Ticks" : "Tijd", "Modus grafiek " + (index + 1)) +
             '<input class="bt-input !w-20" type="number" min="1" max="100000" step="1" value="' + panel.tickCount + '" aria-label="Ticks per bar grafiek ' + (index + 1) + '" />' +
-            '<select class="bt-input" aria-label="Weergave grafiek ' + (index + 1) + '"><option value="candles"' + (panel.type === "candles" ? ' selected' : '') + '>Candles</option><option value="footprint"' + (panel.type === "footprint" ? ' selected' : '') + '>Footprint</option></select>';
+            panelControl("type", panel.type === "footprint" ? "footprint" : "candles", panel.type === "footprint" ? "Footprint" : "Candles", "Weergave grafiek " + (index + 1));
           (function (panelIndex) {
-            var selects = row.querySelectorAll("select");
-            selects[0].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "timeframe", this.value); });
-            selects[1].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "timeframeMode", this.value); });
+            var controls = row.querySelectorAll("[data-panel-control]");
+            controls[0].addEventListener("click", function () { var current = Number(this.dataset.panelValue); var next = timeframeOptions[(timeframeOptions.findIndex(function (item) { return item[0] === current; }) + 1) % timeframeOptions.length]; setJournalChartPanelSetting(panelIndex, "timeframe", next[0]); });
+            controls[1].addEventListener("click", function () { setJournalChartPanelSetting(panelIndex, "timeframeMode", this.dataset.panelValue === "ticks" ? "time" : "ticks"); });
             row.querySelector("input").addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "tickCount", this.value); });
-            selects[2].addEventListener("change", function () { setJournalChartPanelSetting(panelIndex, "type", this.value); });
+            controls[2].addEventListener("click", function () { setJournalChartPanelSetting(panelIndex, "type", this.dataset.panelValue === "footprint" ? "candles" : "footprint"); });
           })(index);
           list.appendChild(row);
         }
