@@ -9167,7 +9167,9 @@
         options = options || {};
         dashboardNeedsRender = true;
         try {
-          var tradesCopy = trades.map(function (t) {
+          var tradesCopy = trades.filter(function (t) {
+            return !t.__backtestSession;
+          }).map(function (t) {
             return Object.assign({}, t);
           });
           localforage
@@ -12232,7 +12234,9 @@
         tradeModalChartRenderToken++;
         var closingTrade = currentRiskRewardTrade;
         cancelJournalRrSettings();
-        autoCommitTradeEdits();
+        if (!closingTrade || !closingTrade.__backtestSession) {
+          autoCommitTradeEdits();
+        }
         document.getElementById("noteModal").classList.add("hidden");
         document.removeEventListener("keydown", closeModalOnEsc);
         closeJournalChartWorkspaceSettings();
@@ -12249,7 +12253,6 @@
         updateTradeExcursionInRenderedTable(closingTrade);
         if (closingTrade && closingTrade.__backtestSession) {
           trades = trades.filter(function (trade) { return trade.id !== closingTrade.id; });
-          saveData({ skipUpdate: true });
         }
         if (chartToRemove) {
           try {
@@ -18952,12 +18955,12 @@
           var source = verifiedCvdSource(bar);
           if (!source) {
             current.cvdComplete = false;
-            return;
+          } else {
+            var runningDelta = current.delta;
+            current.deltaHigh = Math.max(current.deltaHigh, runningDelta + Number(source.deltaHigh));
+            current.deltaLow = Math.min(current.deltaLow, runningDelta + Number(source.deltaLow));
+            current.delta += Number(source.delta);
           }
-          var runningDelta = current.delta;
-          current.deltaHigh = Math.max(current.deltaHigh, runningDelta + Number(source.deltaHigh));
-          current.deltaLow = Math.min(current.deltaLow, runningDelta + Number(source.deltaLow));
-          current.delta += Number(source.delta);
           mergeJournalFootprintLevels(current.footprintMap, bar.footprint || (source && source.footprint));
         });
         finishBucket();
@@ -19187,8 +19190,20 @@
       }
 
       function hasReliableJournalFootprintData(chartData) {
-        return Array.isArray(chartData) && chartData.some(function (bar) {
-          return bar && bar.footprintSource === "tick" && Array.isArray(bar.footprint) && bar.footprint.length;
+        if (!Array.isArray(chartData) || !chartData.length) {
+          if (typeof qbtBars !== "undefined" && Array.isArray(qbtBars) && qbtBars.length) {
+            return qbtBars.some(function (bar) {
+              return bar && ((bar.footprintSource === "tick" && Array.isArray(bar.footprint) && bar.footprint.length) || (Array.isArray(bar.ticks) && bar.ticks.length) || (Array.isArray(bar.footprint) && bar.footprint.length));
+            });
+          }
+          return false;
+        }
+        return chartData.some(function (bar) {
+          return bar && (
+            (bar.footprintSource === "tick" && Array.isArray(bar.footprint) && bar.footprint.length > 0) ||
+            (Array.isArray(bar.ticks) && bar.ticks.length > 0) ||
+            (Array.isArray(bar.footprint) && bar.footprint.length > 0)
+          );
         });
       }
 
@@ -19346,7 +19361,12 @@
         var context = canvas.getContext("2d");
         context.setTransform(ratio, 0, 0, ratio, 0, 0);
         context.clearRect(0, 0, width, height);
-        var reliable = Array.isArray(chartData) && chartData.some(function (bar) { return bar.footprintSource === "tick" && Array.isArray(bar.footprint) && bar.footprint.length; });
+        var reliable = Array.isArray(chartData) && chartData.some(function (bar) {
+          return bar && (
+            (bar.footprintSource === "tick" && Array.isArray(bar.footprint) && bar.footprint.length > 0) ||
+            (Array.isArray(bar.footprint) && bar.footprint.length > 0)
+          );
+        });
         if (unavailable) unavailable.classList.toggle("hidden", reliable);
         if (!reliable) return;
         var visibleTimeRange = chart.timeScale().getVisibleRange ? chart.timeScale().getVisibleRange() : null;
@@ -20148,8 +20168,9 @@
 
       function renderJournalChartWorkspace(trade, sourceData) {
         var workspace = getJournalChartWorkspace(trade);
+        var isBacktest = trade && trade.__backtestSession;
         var needsFootprint = workspace.panels.some(function (chartPanel) { return chartPanel.type === "footprint"; });
-        if (needsFootprint && !hasReliableJournalFootprintData(sourceData)) {
+        if (needsFootprint && !isBacktest && !hasReliableJournalFootprintData(sourceData)) {
           workspace = {
             count: 1,
             showCvd: false,
@@ -20748,6 +20769,7 @@
 
       function prepareJournalChartDataForTrade(chartData, trade) {
         if (!chartData || !chartData.length || !trade || !trade.time) return chartData || [];
+        if (trade && trade.__backtestSession) return chartData;
         var entryTime = toChartTimestampFromLocalDate(trade.time);
         var entryPrice = Number(trade.entry);
         var tolerance = Math.max(0.5, Math.abs(entryPrice) * 0.00025);
