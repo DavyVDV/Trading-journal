@@ -1902,6 +1902,10 @@
         height: 1px;
         background-image: repeating-linear-gradient(to right, rgba(226, 232, 240, .45) 0 3px, transparent 3px 6px);
       }
+      .journal-sync-crosshair-label {
+        position: fixed;
+        z-index: 100001;
+      }
       #journalCrosshairVertical {
         top: 0; bottom: 0; width: 1px;
         background: repeating-linear-gradient(to bottom, rgba(226,232,240,.45) 0 3px, transparent 3px 6px);
@@ -17232,7 +17236,13 @@
         var horizontal = document.createElement("div");
         horizontal.className = "journal-sync-crosshair-line journal-sync-crosshair-horizontal";
         document.body.appendChild(horizontal);
-        var pair = { vertical: vertical, horizontal: horizontal };
+        var priceLabel = document.createElement("div");
+        priceLabel.className = "journal-crosshair-label journal-sync-crosshair-label";
+        document.body.appendChild(priceLabel);
+        var timeLabel = document.createElement("div");
+        timeLabel.className = "journal-crosshair-label journal-sync-crosshair-label";
+        document.body.appendChild(timeLabel);
+        var pair = { vertical: vertical, horizontal: horizontal, priceLabel: priceLabel, timeLabel: timeLabel };
         journalSyncCrosshairLines.set(chart, pair);
         return pair;
       }
@@ -17241,6 +17251,8 @@
         journalSyncCrosshairLines.forEach(function (pair) {
           pair.vertical.style.display = "none";
           pair.horizontal.style.display = "none";
+          pair.priceLabel.style.display = "none";
+          pair.timeLabel.style.display = "none";
         });
       }
 
@@ -17318,13 +17330,23 @@
             pair.vertical.style.left = (paneRect.left + coordinateX) + "px";
             pair.vertical.style.top = paneRect.top + "px";
             pair.vertical.style.height = paneRect.height + "px";
+            pair.timeLabel.style.display = "flex";
+            pair.timeLabel.style.left = Math.max(paneRect.left, Math.min(paneRect.right - 112, paneRect.left + coordinateX - 56)) + "px";
+            pair.timeLabel.style.top = Math.max(paneRect.top, paneRect.bottom - 20) + "px";
+            var targetDate = new Date(Number(bar.time) * 1000);
+            pair.timeLabel.textContent = String(targetDate.getUTCDate()).padStart(2, "0") + "/" + String(targetDate.getUTCMonth() + 1).padStart(2, "0") + "/" + String(targetDate.getUTCFullYear()).slice(-2) + " " + String(targetDate.getUTCHours()).padStart(2, "0") + ":" + String(targetDate.getUTCMinutes()).padStart(2, "0") + ":" + String(targetDate.getUTCSeconds()).padStart(2, "0");
             if (Number.isFinite(coordinateY) && coordinateY >= 0 && coordinateY <= paneRect.height) {
               pair.horizontal.style.display = "block";
               pair.horizontal.style.top = (paneRect.top + coordinateY) + "px";
               pair.horizontal.style.left = paneRect.left + "px";
               pair.horizontal.style.width = paneRect.width + "px";
+              pair.priceLabel.style.display = "flex";
+              pair.priceLabel.style.left = Math.max(paneRect.left, paneRect.right - 68) + "px";
+              pair.priceLabel.style.top = Math.max(paneRect.top, Math.min(paneRect.bottom - 20, paneRect.top + coordinateY - 10)) + "px";
+              pair.priceLabel.textContent = target.isCvd ? Math.round(resolvedValue).toLocaleString("en-US") : (Math.round(resolvedValue / .25) * .25).toFixed(2);
             } else {
               pair.horizontal.style.display = "none";
+              pair.priceLabel.style.display = "none";
             }
           } catch (error) { hideJournalSyncLine(target.chart); }
         });
@@ -17333,7 +17355,12 @@
 
       function hideJournalSyncLine(chart) {
         var pair = journalSyncCrosshairLines.get(chart);
-        if (pair) { pair.vertical.style.display = "none"; pair.horizontal.style.display = "none"; }
+        if (pair) {
+          pair.vertical.style.display = "none";
+          pair.horizontal.style.display = "none";
+          pair.priceLabel.style.display = "none";
+          pair.timeLabel.style.display = "none";
+        }
       }
 
       function synchronizeJournalPanelTimeRange(sourceChart, range) {
