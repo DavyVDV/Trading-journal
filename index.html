@@ -27877,22 +27877,21 @@
       }
       function qbtScrollWorkspaceToEnd() {
         if (!currentLwChart || !currentJournalChartData.length) return;
-        var timeScale = currentLwChart.timeScale();
-        var range = timeScale.getVisibleLogicalRange ? timeScale.getVisibleLogicalRange() : null;
-        var span = range ? Math.min(80, Math.max(20, range.to - range.from)) : Math.min(80, currentJournalChartData.length);
-        var to = Math.max(0, currentJournalChartData.length - 1);
         var offset = getBacktestRightOffset() / 100;
-        var rightEdge = to + span * offset;
-        var nextRange = { from: Math.max(0, rightEdge - span), to: rightEdge };
-        timeScale.setVisibleLogicalRange(nextRange);
-        if (currentTradeCvdChart) currentTradeCvdChart.timeScale().setVisibleLogicalRange(nextRange);
+        function followChart(chart, dataLength, fallbackSpan) {
+          if (!chart || !dataLength) return;
+          var timeScale = chart.timeScale();
+          var range = timeScale.getVisibleLogicalRange ? timeScale.getVisibleLogicalRange() : null;
+          var span = range && Number.isFinite(range.to - range.from) ? Math.min(80, Math.max(20, range.to - range.from)) : Math.min(80, dataLength);
+          var rightEdge = Math.max(0, dataLength - 1) + span * offset;
+          timeScale.setVisibleLogicalRange({ from: Math.max(0, rightEdge - span), to: rightEdge });
+        }
+        followChart(currentLwChart, currentJournalChartData.length, currentJournalChartData.length);
+        if (currentTradeCvdChart) followChart(currentTradeCvdChart, currentJournalCvdData.length || currentJournalChartData.length, currentJournalChartData.length);
         journalSecondaryCharts.forEach(function (record) {
           if (!record.chart || !record.data || !record.data.length) return;
-          var panelTo = record.data.length - 1;
-          var panelRightEdge = panelTo + span * offset;
-          var panelRange = { from: Math.max(0, panelRightEdge - span), to: panelRightEdge };
-          record.chart.timeScale().setVisibleLogicalRange(panelRange);
-          if (record.cvdChart) record.cvdChart.timeScale().setVisibleLogicalRange(panelRange);
+          followChart(record.chart, record.data.length, currentJournalChartData.length);
+          if (record.cvdChart) followChart(record.cvdChart, record.cvdData && record.cvdData.length || record.data.length, currentJournalChartData.length);
         });
       }
       function qbtOpenWorkspace(sourceTrade) {
