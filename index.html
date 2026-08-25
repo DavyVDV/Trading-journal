@@ -3051,10 +3051,11 @@
       .journal-layout-panel-row {
         display: grid;
         grid-template-columns: 26px minmax(90px, 1fr) minmax(110px, 1fr);
+        grid-auto-rows: 30px;
         align-items: center;
         gap: 7px;
-        min-height: 38px;
-        padding: 5px 7px;
+        min-height: 74px;
+        padding: 7px;
         border: 1px solid rgba(148, 163, 184, .14);
         background: #141b23;
       }
@@ -3960,8 +3961,15 @@
       @media (max-width: 720px) {
         .journal-setting-grid { grid-template-columns: 1fr; }
         .journal-setting-grid .wide { grid-column: auto; }
-        .journal-layout-panel-row { grid-template-columns: 24px 1fr; }
-        .journal-layout-panel-row select:last-child { grid-column: 2; }
+        .journal-layout-panel-row {
+          grid-template-columns: 24px minmax(0, 1fr);
+          grid-auto-rows: 30px;
+          min-height: 104px;
+        }
+        .journal-layout-panel-row > select:nth-of-type(1) { grid-column: 2; grid-row: 1; }
+        .journal-layout-panel-row > select:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+        .journal-layout-panel-row > input { grid-column: 1; grid-row: 3; }
+        .journal-layout-panel-row > select:nth-of-type(3) { grid-column: 2; grid-row: 3; }
       }
       @media (max-width: 460px) {
         .vwap-tv-style-row {
