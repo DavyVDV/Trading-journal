@@ -20777,37 +20777,37 @@
           : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
         if (!chartDataToUse || chartDataToUse.length === 0) return;
         
-        var entryTime = trade.time ? toChartTimestampFromLocalDate(trade.time) : null;
-        var exitTime = trade.exitTime ? toChartTimestampFromLocalDate(trade.exitTime) : null;
+        var entryTime = trade.rrStartTime || (trade.time ? toChartTimestampFromLocalDate(trade.time) : null);
+        var exitTime = trade.rrEndTime || (trade.exitTime ? toChartTimestampFromLocalDate(trade.exitTime) : null);
         
         var entryCandleTime = findBestTradeCandleTime(chartDataToUse, entryTime, trade.entry);
-        var exitCandleTime = findBestTradeCandleTime(chartDataToUse, exitTime, trade.exit);
+        var exitCandleTime = exitTime ? findBestTradeCandleTime(chartDataToUse, exitTime, trade.exit) : null;
         
         if (!exitCandleTime && trade.exit) {
            exitCandleTime = entryCandleTime;
         }
         
-        if (entryCandleTime) {
-           var centerTime = entryCandleTime;
-           var rangeInSeconds = 0;
-           if (exitCandleTime) {
-               rangeInSeconds = Math.abs(exitCandleTime - entryCandleTime);
+        if (entryCandleTime != null) {
+           var entryIdx = chartDataToUse.findIndex(function(c) { return Number(c.time) === Number(entryCandleTime); });
+           if (entryIdx === -1) {
+             entryIdx = findJournalChartLowerBound(chartDataToUse, entryCandleTime);
+             if (entryIdx >= chartDataToUse.length) entryIdx = chartDataToUse.length - 1;
            }
-           if (rangeInSeconds === 0) rangeInSeconds = 300;
-           var padding = Math.max(rangeInSeconds * 0.35, 300);
-           
-           var radius = rangeInSeconds + padding;
-           
-           var fromIdx = chartDataToUse.findIndex(function(c) { return c.time >= (centerTime - radius); });
-           var toIdx = chartDataToUse.findIndex(function(c) { return c.time >= (centerTime + radius); });
-           
-           if (fromIdx === -1) fromIdx = 0;
-           if (toIdx === -1) toIdx = chartDataToUse.length - 1;
+           var exitIdx = exitCandleTime != null ? chartDataToUse.findIndex(function(c) { return Number(c.time) === Number(exitCandleTime); }) : entryIdx;
+           if (exitIdx === -1) {
+             exitIdx = exitCandleTime != null ? findJournalChartLowerBound(chartDataToUse, exitCandleTime) : entryIdx;
+             if (exitIdx >= chartDataToUse.length) exitIdx = chartDataToUse.length - 1;
+           }
+           var minIdx = Math.min(entryIdx, exitIdx);
+           var maxIdx = Math.max(entryIdx, exitIdx);
+           var tradeSpan = maxIdx - minIdx;
+           var padding = Math.max(12, Math.round(tradeSpan * 0.4), 20);
+           var fromIdx = Math.max(0, minIdx - padding);
+           var toIdx = Math.min(chartDataToUse.length - 1, maxIdx + padding);
            if (fromIdx >= toIdx) {
-             fromIdx = 0;
-             toIdx = chartDataToUse.length - 1;
+             fromIdx = Math.max(0, entryIdx - 20);
+             toIdx = Math.min(chartDataToUse.length - 1, entryIdx + 20);
            }
-           
            currentLwChart.timeScale().setVisibleLogicalRange({ from: fromIdx, to: toIdx });
         } else {
            currentLwChart.timeScale().fitContent();
@@ -27859,8 +27859,8 @@
       function qbtJournalDayCandles(value) {
         var date = qbtTime({ timestamp: value });
         if (!(date instanceof Date) || isNaN(date.getTime())) return [];
-        var start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 1, 0, 0);
-        var end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 22, 0, 0, 0);
+        var start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+        var end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
         var source = qbtSourceBars.length ? qbtSourceBars : qbtBars;
         return qbtJournalCandlesFromBars(source.filter(function (bar) {
           var timestamp = qbtTime(bar);
@@ -28066,11 +28066,12 @@
         var sourcePnl = Number(source.pnl);
         var tradeWasLoss = rrOutcome ? rrOutcome.type === "sl" : Number.isFinite(sourcePnl) && sourcePnl < 0;
         var grossPnl = tradeWasLoss ? -grossLoss : grossWin;
-        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, time:entryTime, exitTime:exitTime, side:side, entry:entry, exit:exitPrice, volume:contracts, fee:commission, pnl:grossPnl, riskAmount:riskAmount, potentialWin:grossWin, potentialLoss:grossLoss, potentialWinNet:grossWin - commission, potentialLossNet:grossLoss + commission, tp:target, sl:stop, rrStartTime:qbtChartTimestamp({ timestamp:entryTime }), rrEndTime:qbtChartTimestamp({ timestamp:exitTime }), rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest. Risico $" + riskAmount.toFixed(2) + " | " + contracts + " contract(en) | Win $" + (grossWin - commission).toFixed(2) + " | Verlies $" + (grossLoss + commission).toFixed(2) + " | Commissie $" + commission.toFixed(2), chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
+        var copied = Object.assign({}, source, { id:"journal-backtest-" + Date.now() + "-" + Math.random().toString(36).slice(2,7), __backtestSession:undefined, __backtestReplayActive:undefined, dateStr:fmtDateCore(entryTime), time:entryTime, exitTime:exitTime, side:side, entry:entry, exit:exitPrice, volume:contracts, fee:commission, pnl:grossPnl, riskAmount:riskAmount, potentialWin:grossWin, potentialLoss:grossLoss, potentialWinNet:grossWin - commission, potentialLossNet:grossLoss + commission, tp:target, sl:stop, rrStartTime:qbtChartTimestamp({ timestamp:entryTime }), rrEndTime:qbtChartTimestamp({ timestamp:exitTime }), rrRemoved:false, rrHidden:false, tags:["Backtest"], notes:"RR-tool gekopieerd vanuit Backtest. Risico $" + riskAmount.toFixed(2) + " | " + contracts + " contract(en) | Win $" + (grossWin - commission).toFixed(2) + " | Verlies $" + (grossLoss + commission).toFixed(2) + " | Commissie $" + commission.toFixed(2), chartData:qbtJournalDayCandles(entryTime), chartDataTimeMode:CHART_TIME_MODE });
         delete copied.__backtestSession;
         trades.push(copied);
         saveData({ skipUpdate:true });
         closeJournalRrContextMenu();
+        qbtSetStatus("Trade gekopieerd naar Journal (" + (grossPnl >= 0 ? "+" : "") + "$" + grossPnl.toFixed(2) + ").");
       }
       document.addEventListener("DOMContentLoaded", function () {
         if (typeof localforage !== "undefined") {
