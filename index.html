@@ -2490,7 +2490,7 @@
         gap: 2px;
         overflow: hidden !important;
       }
-      #qbtPopupSpeed {
+      #qbtPopupSpeedSlider {
         width: 72px !important;
         height: 18px !important;
         min-height: 18px !important;
@@ -2504,12 +2504,12 @@
         appearance: none;
         -webkit-appearance: none;
       }
-      #qbtPopupSpeed::-webkit-slider-runnable-track {
+      #qbtPopupSpeedSlider::-webkit-slider-runnable-track {
         height: 3px;
         border-radius: 999px;
         background: rgba(148, 163, 184, .35);
       }
-      #qbtPopupSpeed::-webkit-slider-thumb {
+      #qbtPopupSpeedSlider::-webkit-slider-thumb {
         width: 9px;
         height: 9px;
         margin-top: -3px;
@@ -2520,12 +2520,12 @@
         -webkit-appearance: none;
         vertical-align: middle;
       }
-      #qbtPopupSpeed::-moz-range-track {
+      #qbtPopupSpeedSlider::-moz-range-track {
         height: 3px;
         border-radius: 999px;
         background: rgba(148, 163, 184, .35);
       }
-      #qbtPopupSpeed::-moz-range-thumb {
+      #qbtPopupSpeedSlider::-moz-range-thumb {
         width: 9px;
         height: 9px;
         border: 0;
@@ -6150,9 +6150,19 @@
                   </div>
                   <div id="qbtPopupControls" class="hidden items-center gap-1 shrink-0">
                     <button id="qbtPopupSave" type="button" class="bt-tool" onclick="qbtSaveDataset()" title="Huidige backtest opslaan" aria-label="Huidige backtest opslaan"><i class="fas fa-floppy-disk"></i></button>
+                    <select id="qbtPopupSpeed" class="bt-input !h-7 !w-20" onchange="qbtUpdatePlaybackSpeed()" title="Replay snelheid" aria-label="Replay snelheid">
+                      <option value="0.25">0.25x</option>
+                      <option value="0.5">0.5x</option>
+                      <option value="1" selected>1x</option>
+                      <option value="2">2x</option>
+                      <option value="4">4x</option>
+                      <option value="6">6x</option>
+                      <option value="10">10x</option>
+                      <option value="20">20x</option>
+                    </select>
                     <span id="qbtSpeedControl" class="qbt-speed-control">
-                      <span id="qbtPopupSpeedLabel" aria-hidden="true">10x</span>
-                      <input id="qbtPopupSpeed" type="range" min="1" max="20" step="1" value="10" oninput="qbtUpdatePlaybackSpeed(true)" onchange="qbtUpdatePlaybackSpeed(false)" onpointerdown="qbtShowSpeedLabel()" onfocus="qbtShowSpeedLabel()" onblur="qbtHideSpeedLabel()" title="Replay snelheid: 10x" aria-label="Replay snelheid" />
+                      <span id="qbtPopupSpeedLabel" aria-hidden="true">1x</span>
+                      <input id="qbtPopupSpeedSlider" type="range" min="0" max="7" step="1" value="2" oninput="qbtUpdatePlaybackSpeedFromSlider(true)" onpointerdown="qbtShowSpeedLabel()" onfocus="qbtShowSpeedLabel()" onblur="qbtHideSpeedLabel()" title="Replay snelheid: 1x" aria-label="Replay snelheid" />
                     </span>
                     <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
                     <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
@@ -27606,6 +27616,13 @@
         if (control) control.classList.remove("active");
         if (label) label.style.display = "none";
       }
+      function qbtUpdatePlaybackSpeedFromSlider(showLabel) {
+        var slider = document.getElementById("qbtPopupSpeedSlider");
+        var select = document.getElementById("qbtPopupSpeed");
+        var options = ["0.25", "0.5", "1", "2", "4", "6", "10", "20"];
+        if (slider && select) select.value = options[Math.max(0, Math.min(options.length - 1, Number(slider.value) || 0))];
+        qbtUpdatePlaybackSpeed(showLabel);
+      }
       function qbtUpdatePlaybackSpeed(showLabel) {
         var speed = Math.max(1, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 10));
         var speedControl = document.getElementById("qbtPopupSpeed");
@@ -27615,6 +27632,8 @@
         }
         var speedLabel = document.getElementById("qbtPopupSpeedLabel");
         if (speedLabel) speedLabel.textContent = speed + "x";
+        var speedSlider = document.getElementById("qbtPopupSpeedSlider");
+        if (speedSlider) speedSlider.value = String(["0.25", "0.5", "1", "2", "4", "6", "10", "20"].indexOf(String(speed)) >= 0 ? ["0.25", "0.5", "1", "2", "4", "6", "10", "20"].indexOf(String(speed)) : 2);
         if (showLabel) qbtShowSpeedLabel();
         if (qbtPlaybackTimer) {
           window.clearTimeout(qbtPlaybackTimer);
@@ -27683,7 +27702,12 @@
           qbtIndex = qbtSourceIndexForTickLimit(qbtReplayVisibleTicks);
         } else {
           qbtReplayVisibleTicks = null;
-          qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex + direction));
+          var replayPanel = qbtActiveReplayPanel();
+          var timeframeSeconds = replayPanel && replayPanel.timeframeMode !== "ticks" ? qbtSelectedReplayTimeframe() : 30;
+          var currentTimestamp = qbtTime(qbtBars[qbtIndex]).getTime();
+          var targetTimestamp = currentTimestamp + direction * timeframeSeconds * 1000;
+          qbtIndex = direction > 0 ? qbtSourceIndexAtOrAfterTime(targetTimestamp) : qbtSourceIndexAtOrBeforeTime(targetTimestamp);
+          qbtIndex = Math.max(0, Math.min(qbtBars.length - 1, qbtIndex));
         }
         qbtRender(true); qbtSyncWorkspace();
         if (!qbtHasNextReplayStep() && qbtPlaybackTimer) { window.clearTimeout(qbtPlaybackTimer); qbtPlaybackTimer = null; qbtSetPlaybackIcon(false); }
@@ -27705,6 +27729,32 @@
         var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
         var panel = trade && getJournalChartWorkspace(trade).panels[0];
         return panel && panel.timeframeMode === "ticks" && qbtBars.length && qbtBars.every(function (bar) { return Array.isArray(bar.ticks) && bar.ticks.length; }) ? panel : null;
+      }
+      function qbtActiveReplayPanel() {
+        var trade = trades.find(function (item) { return item.id === qbtWorkspaceTradeId; });
+        return trade ? getJournalChartWorkspace(trade).panels[0] : null;
+      }
+      function qbtSelectedReplayTimeframe() {
+        var selector = document.getElementById("journalTradeChartTimeframe");
+        return Math.max(30, Number(selector && selector.value) || Number(journalTradeChartTimeframe) || 30);
+      }
+      function qbtSourceIndexAtOrAfterTime(timestamp) {
+        var low = 0, high = qbtBars.length - 1;
+        while (low < high) {
+          var middle = Math.floor((low + high) / 2);
+          if (qbtTime(qbtBars[middle]).getTime() < timestamp) low = middle + 1;
+          else high = middle;
+        }
+        return low;
+      }
+      function qbtSourceIndexAtOrBeforeTime(timestamp) {
+        var low = 0, high = qbtBars.length - 1, result = 0;
+        while (low <= high) {
+          var middle = Math.floor((low + high) / 2);
+          if (qbtTime(qbtBars[middle]).getTime() <= timestamp) { result = middle; low = middle + 1; }
+          else high = middle - 1;
+        }
+        return result;
       }
       function qbtEnsureTickPrefixCache() {
         if (qbtReplayAggregationCache && qbtReplayAggregationCache.source === qbtBars && Array.isArray(qbtReplayAggregationCache.prefixTicks) && qbtReplayAggregationCache.prefixTicks.length === qbtBars.length) return qbtReplayAggregationCache.prefixTicks;
