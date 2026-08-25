@@ -27508,7 +27508,7 @@
     <script>
       /* Minimal replay layer. It deliberately hands completed trades to the existing
          journal modal instead of maintaining a second chart/modal implementation. */
-      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES", qbtAutoFollow = localStorage.getItem("qt_qbt_auto_follow_v1") !== "false";
+      var qbtBars = [], qbtSourceBars = [], qbtIndex = 0, qbtChart = null, qbtSeries = null, qbtOpen = null, qbtTrades = [], qbtDatasets = [], qbtLoadedFileName = "", qbtWorkspaceTradeId = null, qbtPlaybackTimer = null, qbtPendingRrDirection = null, qbtRrPlacementBound = false, qbtRiskAmount = 200, qbtRiskInstrument = "ES", qbtAutoFollow = localStorage.getItem("qt_qbt_auto_follow_v1") !== "false";
       var qbtReplayAggregationCache = null;
       var qbtReplayVisibleTicks = null;
       var qbtPrimaryCvdData = [];
@@ -27702,7 +27702,7 @@
         var legacy = document.getElementById("qbtLegacySurface");
         if (legacy && !legacy.classList.contains("hidden")) { qbtCreateChart(); if (qbtSeries) qbtSeries.setData(qbtChartData()); }
         var current = qbtBars[qbtIndex];
-        qbtSetStatus(qbtBars.length ? ((qbtIndex + 1).toLocaleString("nl-BE") + " / " + qbtBars.length.toLocaleString("nl-BE") + " bars · " + formatBacktestTime(qbtTime(current))) : "Upload tickdata of OHLC CSV.");
+        qbtSetStatus(qbtBars.length ? ((qbtIndex + 1).toLocaleString("nl-BE") + " / " + qbtBars.length.toLocaleString("nl-BE") + " bars · " + formatBacktestTime(qbtTime(current))) : (qbtSourceBars.length ? (qbtSourceBars.length.toLocaleString("nl-BE") + " bars geladen. Start backtest of sla dataset op.") : "Upload tickdata of OHLC CSV."));
         if (progressOnly) return;
         qbtText("qbtCount", qbtTrades.length);
         var position = document.getElementById("qbtPosition");
@@ -27727,6 +27727,7 @@
             qbtBars = parseBacktestCsv(await file.text());
           }
           qbtBars.forEach(function (bar) { bar.timestamp = qbtTime(bar); });
+          qbtLoadedFileName = file.name;
           qbtSourceBars = qbtBars.slice();
           qbtSourceBars.deltaSource = qbtBars.deltaSource || (isTickData ? "csv" : "missing");
           qbtSetRangeInputs(); qbtBars = []; qbtIndex = 0; qbtTrades = []; qbtOpen = null; qbtRender();
@@ -28094,18 +28095,52 @@
       function qbtSerializeBar(bar) { return {timestamp:qbtTime(bar).toISOString(),open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:bar.volume,tickCount:bar.tickCount,ticks:bar.ticks,delta:bar.delta,deltaHigh:bar.deltaHigh,deltaLow:bar.deltaLow,cvdSource:bar.cvdSource,footprint:bar.footprint,footprintSource:bar.footprintSource}; }
       function qbtSerializeTrade(trade) { return Object.assign({}, trade, { entryTime: trade.entryTime instanceof Date ? trade.entryTime.toISOString() : trade.entryTime, exitTime: trade.exitTime instanceof Date ? trade.exitTime.toISOString() : trade.exitTime }); }
       async function qbtSaveDatasetWithName(name) {
-        var dataset = { id:"qbt-data-"+Date.now()+"-"+Math.random().toString(36).slice(2,7), name:name, savedAt:new Date().toISOString(), replayIndex:qbtIndex, replayVisibleTicks:qbtReplayVisibleTicks, riskAmount:qbtRiskAmount, riskInstrument:qbtRiskInstrument, symbol:(document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value) || "BACKTEST", qty:(document.getElementById("qbtQty") && Number(document.getElementById("qbtQty").value)) || 1, openTrade:qbtOpen ? qbtSerializeTrade(qbtOpen) : null, trades:qbtTrades.map(qbtSerializeTrade), bars:qbtBars.map(qbtSerializeBar) };
-        qbtDatasets.push(dataset);
-        await localforage.setItem(QBT_DATA_KEY,qbtDatasets);
-        qbtLoadedDatasetId = dataset.id;
-        qbtRenderDatasets();
-        qbtSetStatus("Backtest opgeslagen op bar " + (qbtIndex + 1) + ".");
+        try {
+          var isReplay = Boolean(qbtBars && qbtBars.length);
+          var barsToSave = isReplay ? qbtBars : qbtSourceBars;
+          if (!barsToSave || !barsToSave.length) {
+            qbtSetStatus("Geen chartdata beschikbaar om op te slaan.", true);
+            return;
+          }
+          var dataset = {
+            id: "qbt-data-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+            name: name,
+            savedAt: new Date().toISOString(),
+            replayIndex: isReplay ? qbtIndex : null,
+            replayVisibleTicks: isReplay ? qbtReplayVisibleTicks : null,
+            riskAmount: qbtRiskAmount,
+            riskInstrument: qbtRiskInstrument,
+            symbol: (document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value) || "BACKTEST",
+            qty: (document.getElementById("qbtQty") && Number(document.getElementById("qbtQty").value)) || 1,
+            openTrade: isReplay && qbtOpen ? qbtSerializeTrade(qbtOpen) : null,
+            trades: isReplay && Array.isArray(qbtTrades) ? qbtTrades.map(qbtSerializeTrade) : [],
+            deltaSource: (qbtSourceBars && qbtSourceBars.deltaSource) || (qbtBars && qbtBars.deltaSource) || "missing",
+            bars: barsToSave.map(qbtSerializeBar)
+          };
+          qbtDatasets.push(dataset);
+          await localforage.setItem(QBT_DATA_KEY, qbtDatasets);
+          qbtLoadedDatasetId = dataset.id;
+          qbtRenderDatasets();
+          qbtSetStatus("Backtest dataset opgeslagen (" + (isReplay ? ("op bar " + (qbtIndex + 1)) : (barsToSave.length.toLocaleString("nl-BE") + " bars")) + ").");
+        } catch (error) {
+          console.error("Fout bij opslaan van dataset:", error);
+          qbtSetStatus("Dataset kon niet worden opgeslagen: " + (error && error.message ? error.message : String(error)), true);
+        }
       }
-      function qbtSaveDataset() { if (!qbtBars.length) return qbtSetStatus("Laad eerst chartdata.", true); var suggestedName = (document.getElementById("qbtSymbol").value || "Backtest data") + " " + new Date().toLocaleDateString("nl-BE"); openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName); }
+      function qbtSaveDataset() {
+        var hasData = (qbtBars && qbtBars.length > 0) || (qbtSourceBars && qbtSourceBars.length > 0);
+        if (!hasData) return qbtSetStatus("Laad eerst chartdata.", true);
+        var baseName = (qbtLoadedFileName ? qbtLoadedFileName.replace(/\.csv$/i, "") : (document.getElementById("qbtSymbol") && document.getElementById("qbtSymbol").value)) || "Backtest data";
+        var suggestedName = baseName + " " + new Date().toLocaleDateString("nl-BE");
+        openBacktestDatasetNameModal("Chartdata opslaan", suggestedName, qbtSaveDatasetWithName);
+      }
       async function qbtLoadDatasets() { try { qbtDatasets = await localforage.getItem(QBT_DATA_KEY) || []; qbtRenderDatasets(); } catch (error) { qbtSetStatus("Opgeslagen datasets konden niet worden geladen.", true); } }
       function qbtRenderDatasets() {
         var select = document.getElementById("qbtDataset"); if (!select) return;
-        select.innerHTML = '<option value="">Opgeslagen backtests…</option>' + qbtDatasets.map(function (set) { var suffix = set.replayIndex != null ? " · bar " + (Number(set.replayIndex) + 1) : ""; return '<option value="' + set.id + '">' + String(set.name).replace(/&/g,"&amp;").replace(/</g,"&lt;") + suffix + '</option>'; }).join("");
+        select.innerHTML = '<option value="">Opgeslagen backtests…</option>' + qbtDatasets.map(function (set) {
+          var suffix = set.replayIndex != null ? " · bar " + (Number(set.replayIndex) + 1) : (" · " + (set.bars ? set.bars.length.toLocaleString("nl-BE") : 0) + " bars");
+          return '<option value="' + set.id + '">' + String(set.name).replace(/&/g, "&amp;").replace(/</g, "&lt;") + suffix + '</option>';
+        }).join("");
         select.value = qbtDatasets.some(function (set) { return set.id === qbtLoadedDatasetId; }) ? qbtLoadedDatasetId : "";
         var removeButton = document.getElementById("qbtDeleteDatasetButton"); if (removeButton) removeButton.disabled = !select.value;
       }
@@ -28131,7 +28166,8 @@
         var set = qbtDatasets.find(function (item) { return item.id === id; });
         if (!set) return;
         qbtLoadedDatasetId = id;
-        qbtSourceBars = (set.bars || []).map(function (bar) { return Object.assign({},bar,{timestamp:new Date(bar.timestamp)}); });
+        qbtLoadedFileName = set.name || "";
+        qbtSourceBars = (set.bars || []).map(function (bar) { return Object.assign({}, bar, { timestamp: new Date(bar.timestamp) }); });
         qbtSourceBars.deltaSource = set.deltaSource || "missing";
         qbtReplayAggregationCache = null;
         var isReplaySave = set.replayIndex != null;
@@ -28149,7 +28185,11 @@
         qbtSetRangeInputs();
         qbtRender();
         qbtRenderDatasets();
-        if (isReplaySave && qbtBars.length) qbtOpenWorkspace(qbtOpen || qbtTrades[qbtTrades.length - 1]);
+        if (isReplaySave && qbtBars.length) {
+          qbtOpenWorkspace(qbtOpen || qbtTrades[qbtTrades.length - 1]);
+        } else {
+          qbtSetStatus('Dataset "' + set.name + '" geladen (' + qbtSourceBars.length.toLocaleString("nl-BE") + ' bars).');
+        }
       }
       document.addEventListener("DOMContentLoaded", function () { qbtLoadDatasets(); window.addEventListener("resize", qbtResize); });
     </script>
