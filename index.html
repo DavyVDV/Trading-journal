@@ -12096,14 +12096,12 @@
           silentTradeSaveTimer = null;
           var refreshExcursions = silentTradeSaveRefreshExcursions;
           silentTradeSaveRefreshExcursions = false;
-          runWhenPageIsIdle(function () {
-            saveData({ skipUpdate: true });
-            if (refreshExcursions) {
-              renderTable({ skipAnimation: true });
-              calculateStats();
-            }
-          }, 1200);
-        }, 180);
+          saveData({ skipUpdate: true });
+          if (refreshExcursions) {
+            renderTable({ skipAnimation: true });
+            calculateStats();
+          }
+        }, 400);
       }
 
       function handleScreenshotDrag(event, isOver) {
@@ -12254,9 +12252,9 @@
           saveData({ skipUpdate: true });
         }
         if (chartToRemove) {
-          runWhenPageIsIdle(function () {
+          try {
             chartToRemove.remove();
-          }, 1200);
+          } catch (err) {}
         }
       }
 
@@ -12537,9 +12535,25 @@
         if (!trade) return;
 
         var notesEl = document.getElementById("editNotes");
-        if (notesEl) {
-          trade.notes = notesEl.value;
+        var newNotes = notesEl ? notesEl.value : "";
+        var oldNotes = trade.notes || "";
+        var oldTags = trade.tags || [];
+        var isDirty = (newNotes !== oldNotes);
+        if (!isDirty) {
+          if (oldTags.length !== currentEditTags.length) {
+            isDirty = true;
+          } else {
+            for (var i = 0; i < oldTags.length; i++) {
+              if (oldTags[i] !== currentEditTags[i]) {
+                isDirty = true;
+                break;
+              }
+            }
+          }
         }
+        if (!isDirty) return;
+
+        trade.notes = newNotes;
         trade.tags = currentEditTags.slice();
         updateTradeTagsInRenderedTable(trade);
         refreshOpenDayTradesModal();
@@ -13030,8 +13044,7 @@
       function calculateTradeMfeMae(trade) {
         if (!trade || trade.rrRemoved || !(trade.time instanceof Date) || isNaN(trade.time)) return null;
         var source = trade.chartData && trade.chartData.length ? trade.chartData : globalChartData;
-        var chartData = prepareJournalChartDataForTrade(source, trade);
-        if (!chartData || !chartData.length) return null;
+        if (!source || !source.length) return null;
 
         function hasRrNumber(value) {
           return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
@@ -13050,34 +13063,40 @@
           var exitDistance = Math.abs(exitPrice - entryPrice);
           if (exitDistance > 0.05) defaultRDistance = exitDistance;
         }
-        var step = getJournalTradeTickSize(trade, chartData);
-        var stepText = String(step);
-        var decimals = stepText.indexOf(".") >= 0 ? stepText.split(".")[1].length : 0;
-        var stopPrice = hasRrNumber(trade.sl)
-          ? Number(trade.sl)
-          : Number((Math.round((isLong ? entryPrice - defaultRDistance : entryPrice + defaultRDistance) / step) * step).toFixed(Math.max(decimals, 2)));
-        var targetPrice = hasRrNumber(trade.tp)
-          ? Number(trade.tp)
-          : Number((Math.round((isLong ? entryPrice + defaultRDistance : entryPrice - defaultRDistance) / step) * step).toFixed(Math.max(decimals, 2)));
+        var targetPrice = hasRrNumber(trade.tp) ? Number(trade.tp) : null;
+        var stopPrice = hasRrNumber(trade.sl) ? Number(trade.sl) : null;
         var requestedEntryTime = hasRrNumber(trade.rrStartTime)
           ? Number(trade.rrStartTime)
           : toChartTimestampFromLocalDate(trade.time);
-        if (![targetPrice, stopPrice, requestedEntryTime].every(Number.isFinite)) return null;
 
-        var sourceLast = source && source.length ? source[source.length - 1] : null;
+        var sourceLast = source[source.length - 1];
         var cacheSignature = [
           entryPrice,
           targetPrice,
           stopPrice,
           requestedEntryTime,
           isLong ? "long" : "short",
-          source ? source.length : 0,
+          source.length,
           sourceLast ? sourceLast.time : "",
         ].join("|");
         var cachedExcursion = tradeExcursionCache.get(trade);
         if (cachedExcursion && cachedExcursion.source === source && cachedExcursion.signature === cacheSignature) {
           return cachedExcursion.value;
         }
+
+        var chartData = prepareJournalChartDataForTrade(source, trade);
+        if (!chartData || !chartData.length) return null;
+
+        var step = getJournalTradeTickSize(trade, chartData);
+        var stepText = String(step);
+        var decimals = stepText.indexOf(".") >= 0 ? stepText.split(".")[1].length : 0;
+        if (stopPrice === null) {
+          stopPrice = Number((Math.round((isLong ? entryPrice - defaultRDistance : entryPrice + defaultRDistance) / step) * step).toFixed(Math.max(decimals, 2)));
+        }
+        if (targetPrice === null) {
+          targetPrice = Number((Math.round((isLong ? entryPrice + defaultRDistance : entryPrice - defaultRDistance) / step) * step).toFixed(Math.max(decimals, 2)));
+        }
+        if (![targetPrice, stopPrice, requestedEntryTime].every(Number.isFinite)) return null;
 
         var risk = Math.abs(entryPrice - stopPrice);
         if (!Number.isFinite(risk) || risk <= 0) return null;
