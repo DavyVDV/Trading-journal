@@ -2501,6 +2501,8 @@
         cursor: pointer;
         display: block;
         margin: 0;
+        appearance: none;
+        -webkit-appearance: none;
       }
       #qbtPopupSpeed::-webkit-slider-runnable-track {
         height: 3px;
@@ -27594,11 +27596,15 @@
       }
       function qbtShowSpeedLabel() {
         var control = document.getElementById("qbtSpeedControl");
+        var label = document.getElementById("qbtPopupSpeedLabel");
         if (control) control.classList.add("active");
+        if (label) label.style.display = "block";
       }
       function qbtHideSpeedLabel() {
         var control = document.getElementById("qbtSpeedControl");
+        var label = document.getElementById("qbtPopupSpeedLabel");
         if (control) control.classList.remove("active");
+        if (label) label.style.display = "none";
       }
       function qbtUpdatePlaybackSpeed(showLabel) {
         var speed = Math.max(1, Math.min(20, Number(document.getElementById("qbtPopupSpeed").value) || 10));
