@@ -2499,6 +2499,8 @@
         background: transparent !important;
         accent-color: #2563eb;
         cursor: pointer;
+        display: block;
+        margin: 0;
       }
       #qbtPopupSpeed::-webkit-slider-runnable-track {
         height: 3px;
@@ -2514,6 +2516,7 @@
         background: #2563eb;
         appearance: none;
         -webkit-appearance: none;
+        vertical-align: middle;
       }
       #qbtPopupSpeed::-moz-range-track {
         height: 3px;
@@ -2526,6 +2529,7 @@
         border: 0;
         border-radius: 50%;
         background: #2563eb;
+        vertical-align: middle;
       }
       .qbt-speed-control {
         position: relative;
@@ -6144,13 +6148,13 @@
                   </div>
                   <div id="qbtPopupControls" class="hidden items-center gap-1 shrink-0">
                     <button id="qbtPopupSave" type="button" class="bt-tool" onclick="qbtSaveDataset()" title="Huidige backtest opslaan" aria-label="Huidige backtest opslaan"><i class="fas fa-floppy-disk"></i></button>
-                    <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
-                    <button id="qbtPopupFollow" type="button" class="bt-tool active" onclick="qbtToggleFollow()" title="Nieuwe candles volgen" aria-label="Nieuwe candles volgen" aria-pressed="true"><i class="fas fa-location-arrow"></i></button>
-                    <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
                     <span id="qbtSpeedControl" class="qbt-speed-control">
                       <span id="qbtPopupSpeedLabel" aria-hidden="true">10x</span>
                       <input id="qbtPopupSpeed" type="range" min="1" max="20" step="1" value="10" oninput="qbtUpdatePlaybackSpeed(true)" onchange="qbtUpdatePlaybackSpeed(false)" onpointerdown="qbtShowSpeedLabel()" onfocus="qbtShowSpeedLabel()" onblur="qbtHideSpeedLabel()" title="Replay snelheid: 10x" aria-label="Replay snelheid" />
                     </span>
+                    <button id="qbtPopupPlay" type="button" class="bt-tool" onclick="qbtTogglePlayback()" title="Afspelen" aria-label="Afspelen"><i class="fas fa-play"></i></button>
+                    <button id="qbtPopupFollow" type="button" class="bt-tool active" onclick="qbtToggleFollow()" title="Nieuwe candles volgen" aria-label="Nieuwe candles volgen" aria-pressed="true"><i class="fas fa-location-arrow"></i></button>
+                    <button type="button" class="bt-tool" onclick="qbtStep(1)" title="Volgende bar" aria-label="Volgende bar"><i class="fas fa-forward-step"></i></button>
                   </div>
                 </div>
                 <div class="flex flex-row flex-1 w-full h-full min-h-0 relative overflow-hidden">
