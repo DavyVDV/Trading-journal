@@ -27620,7 +27620,12 @@
         var slider = document.getElementById("qbtPopupSpeedSlider");
         var select = document.getElementById("qbtPopupSpeed");
         var options = ["0.25", "0.5", "1", "2", "4", "6", "10", "20"];
-        if (slider && select) select.value = options[Math.max(0, Math.min(options.length - 1, Number(slider.value) || 0))];
+        var selectedIndex = slider ? Math.max(0, Math.min(options.length - 1, Number(slider.value) || 0)) : 2;
+        if (slider) slider.setAttribute("aria-valuetext", options[selectedIndex] + "x");
+        if (select) select.value = options[selectedIndex];
+        var label = document.getElementById("qbtPopupSpeedLabel");
+        if (label) label.textContent = options[selectedIndex] + "x";
+        if (showLabel) qbtShowSpeedLabel();
         qbtUpdatePlaybackSpeed(showLabel);
       }
       function qbtUpdatePlaybackSpeed(showLabel) {
