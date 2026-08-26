@@ -1926,14 +1926,16 @@
         font-family: "Inter", sans-serif;
         font-size: 10px;
       }
-      #tradeModalDetails .trade-tag-create {
+      #tradeModalDetails .trade-tag-create,
+      #bulkEditDetails .trade-tag-create {
         display: flex;
         gap: 7px;
         padding-top: 10px;
         margin-top: 2px;
         border-top: 1px solid var(--line);
       }
-      #tradeModalDetails .trade-tag-create input {
+      #tradeModalDetails .trade-tag-create input,
+      #bulkEditDetails .trade-tag-create input {
         min-height: 32px;
         background: var(--surface-2) !important;
         border-color: var(--line) !important;
@@ -1941,7 +1943,8 @@
         font-family: "Inter", sans-serif;
         font-size: 11px;
       }
-      #tradeModalDetails .trade-tag-create button {
+      #tradeModalDetails .trade-tag-create button,
+      #bulkEditDetails .trade-tag-create button {
         min-height: 32px;
         padding: 0 11px;
         background: var(--accent-soft) !important;
@@ -1952,12 +1955,14 @@
         font-size: 10px;
         font-weight: 700;
       }
-      #tradeModalDetails .trade-tag-library {
+      #tradeModalDetails .trade-tag-library,
+      #bulkEditDetails .trade-tag-library {
         padding-top: 12px;
         margin-top: 12px;
         border-top: 1px solid var(--line);
       }
-      #tradeModalDetails .trade-tag-library-label {
+      #tradeModalDetails .trade-tag-library-label,
+      #bulkEditDetails .trade-tag-library-label {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
@@ -1968,12 +1973,14 @@
         font-size: 10px;
         font-weight: 700;
       }
-      #tradeModalDetails .trade-tag-library-label span:last-child {
+      #tradeModalDetails .trade-tag-library-label span:last-child,
+      #bulkEditDetails .trade-tag-library-label span:last-child {
         color: var(--text-3);
         font-size: 9px;
         font-weight: 500;
       }
-      #modalTagGroupTabs {
+      #modalTagGroupTabs,
+      #bulkTagGroupTabs {
         display: flex;
         flex-wrap: wrap;
         gap: 5px;
@@ -2005,7 +2012,8 @@
         background: var(--surface-1);
         box-shadow: 0 0 0 1px var(--accent-soft);
       }
-      #modalAvailableTags {
+      #modalAvailableTags,
+      #bulkAvailableTags {
         display: flex;
         flex-direction: column;
         flex-wrap: nowrap !important;
@@ -5632,15 +5640,21 @@
       class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4 hidden"
     >
       <div
-        class="bg-terminal-card border-2 border-zinc-500 shadow-[0_0_30px_rgba(0,0,0,0.8)] w-full max-w-md flex flex-col rounded-sm font-mono text-xs"
+        class="bg-terminal-card border-2 border-zinc-500 shadow-[0_0_30px_rgba(0,0,0,0.8)] w-full max-w-md flex flex-col rounded-sm font-mono text-xs max-h-[90vh]"
       >
         <div
           class="flex justify-between items-center p-4 border-b border-terminal bg-slate-900"
         >
-          <span
-            class="text-[11px] font-bold tracking-widest text-slate-200 uppercase"
-            >BEWERK GESELECTEERD</span
-          >
+          <div class="flex items-center gap-2">
+            <span
+              class="text-[11px] font-bold tracking-widest text-slate-200 uppercase"
+              >BEWERK GESELECTEERD</span
+            >
+            <span
+              id="bulkEditCountBadge"
+              class="bg-blue-500/20 text-blue-400 border border-blue-500/40 rounded px-1.5 py-0.5 text-[10px] font-bold"
+            ></span>
+          </div>
           <button
             onclick="closeBulkEditModal()"
             class="text-slate-200 hover:text-slate-200 text-base leading-none"
@@ -5648,26 +5662,40 @@
             &times;
           </button>
         </div>
-        <div class="p-5 space-y-4">
+        <div class="p-5 overflow-y-auto flex-1 min-h-0 flex flex-col gap-4" id="bulkEditDetails">
           <div>
             <label
-              class="block text-[10px] text-slate-200 uppercase tracking-wider mb-1"
-              >Voeg Bestaande Tag(s) Toe</label
+              class="block text-[10px] uppercase font-bold text-zinc-300 tracking-wider mb-1.5"
+              >Tags toevoegen aan geselecteerde trades</label
             >
-                        <div id="bulkTagGroupTabs" class="flex flex-wrap gap-1 mb-1.5"></div>
-            <div id="bulkExistingTagsPicker" class="flex flex-wrap gap-1.5"></div>
-          </div>
-          <div>
-            <label
-              class="block text-[10px] text-slate-200 uppercase tracking-wider mb-1"
-              >Of Maak Nieuwe Tag</label
-            >
-            <input
-              type="text"
-              id="bulkTagInput"
-              placeholder="NIEUWE TAG"
-              class="w-full bg-terminal-input border border-terminal rounded-sm p-1.5 text-zinc-200 focus:outline-none uppercase"
-            />
+            <div
+              id="bulkActiveTags"
+              class="flex flex-wrap gap-1 mb-2 min-h-[22px]"
+            ></div>
+            <div class="trade-tag-create">
+              <input
+                type="text"
+                id="bulkTagInput"
+                placeholder="Nieuwe tag toevoegen..."
+                onkeydown="if(event.key==='Enter'){event.preventDefault();createBulkNewTag();}"
+                class="bg-terminal-input border border-terminal rounded-sm px-2 py-1 text-zinc-200 focus:outline-none flex-1 uppercase text-xs"
+              />
+              <button
+                type="button"
+                onclick="createBulkNewTag()"
+                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-terminal px-3 rounded-sm text-[11px]"
+              >
+                <i class="fas fa-plus mr-1"></i>Toevoegen
+              </button>
+            </div>
+            <div class="trade-tag-library">
+              <div class="trade-tag-library-label">
+                <span>Beschikbare tags</span>
+                <span>Kies een groep om sneller te vinden</span>
+              </div>
+              <div id="bulkTagGroupTabs" aria-label="Taggroep kiezen"></div>
+              <div id="bulkAvailableTags"></div>
+            </div>
           </div>
         </div>
         <div
@@ -6323,10 +6351,10 @@
 
     <div
       id="dayTradesModal"
-      class="fixed inset-0 bg-black/30 backdrop-blur-sm flex flex-col items-center justify-center z-[100] px-4 hidden"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[100] p-3 hidden"
     >
       <div
-        class="bg-terminal-card border-2 border-zinc-500 shadow-[0_0_30px_rgba(0,0,0,0.8)] w-full max-w-7xl flex flex-col rounded-sm font-mono text-xs overflow-hidden h-[85vh]"
+        class="bg-terminal-card border-2 border-zinc-500 shadow-[0_0_30px_rgba(0,0,0,0.8)] w-[96vw] max-w-[96vw] h-[92vh] max-h-none flex flex-col rounded-sm font-mono text-xs overflow-hidden"
       >
         <div
           class="flex justify-between items-center p-4 border-b border-terminal bg-zinc-900"
@@ -11645,78 +11673,149 @@
       var bulkTagGroupFilter = null;
 
       function promptEditSelectedTrades() {
-        document.getElementById("bulkTagInput").value = "";
+        var input = document.getElementById("bulkTagInput");
+        if (input) input.value = "";
+        var badge = document.getElementById("bulkEditCountBadge");
+        if (badge) {
+          badge.textContent = selectedTrades.length + " trade" + (selectedTrades.length === 1 ? "" : "s");
+        }
         bulkSelectedTags = [];
-        bulkTagGroupFilter = null;
+        bulkTagGroupFilter = tagGroups.length ? tagGroups[0].id : "__ungrouped__";
         renderBulkTagsPicker();
         document.getElementById("bulkEditModal").classList.remove("hidden");
       }
 
       function renderBulkTagsPicker() {
-        var tabsContainer = document.getElementById("bulkTagGroupTabs");
-        if (tabsContainer) {
-          tabsContainer.innerHTML = "";
+        var containerActive = document.getElementById("bulkActiveTags");
+        if (containerActive) {
+          containerActive.innerHTML = "";
+          sortJournalTradeTags(bulkSelectedTags).forEach(function (t) {
+            var pill = document.createElement("span");
+            pill.className =
+              "active-tag px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 select-none border";
+            applyTagColor(pill, t);
+            var activeTextColor = getActiveTagTextColor(t);
+            pill.style.setProperty("--tag-text", activeTextColor, "important");
+            pill.style.setProperty("color", activeTextColor, "important");
+            pill.appendChild(
+              document.createTextNode(String(t).replace(/_/g, " ")),
+            );
+
+            var removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className =
+              "h-5 w-5 -mr-1 inline-flex items-center justify-center text-white/80 hover:text-white hover:bg-black/20 rounded-sm transition-colors";
+            removeButton.style.setProperty("color", activeTextColor, "important");
+            removeButton.setAttribute("aria-label", "Verwijder tag " + t);
+            removeButton.innerHTML =
+              '<i class="fas fa-times text-[9px] pointer-events-none"></i>';
+            removeButton.onclick = function (event) {
+              event.preventDefault();
+              event.stopPropagation();
+              bulkSelectedTags = bulkSelectedTags.filter(function (x) {
+                return x !== t;
+              });
+              renderBulkTagsPicker();
+            };
+            pill.appendChild(removeButton);
+            containerActive.appendChild(pill);
+          });
+        }
+
+        var groupTabsContainer = document.getElementById("bulkTagGroupTabs");
+        if (groupTabsContainer) {
+          groupTabsContainer.innerHTML = "";
+          function appendGroupTab(label, value) {
+            var tab = document.createElement("button");
+            tab.type = "button";
+            tab.className = "trade-tag-group-tab" + (bulkTagGroupFilter === value ? " active" : "");
+            tab.textContent = label;
+            tab.setAttribute("aria-pressed", String(tab.classList.contains("active")));
+            tab.onclick = function () {
+              bulkTagGroupFilter = value;
+              renderBulkTagsPicker();
+            };
+            groupTabsContainer.appendChild(tab);
+          }
+          tagGroups.forEach(function (g) {
+            appendGroupTab(g.name, g.id);
+          });
           if (tagGroups.length) {
-            var allTab = document.createElement("button");
-            allTab.type = "button";
-            allTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (!bulkTagGroupFilter ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-            allTab.textContent = "Alle";
-            allTab.onclick = function () { bulkTagGroupFilter = null; renderBulkTagsPicker(); };
-            tabsContainer.appendChild(allTab);
-            tagGroups.forEach(function (g) {
-              var tab = document.createElement("button");
-              tab.type = "button";
-              tab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (bulkTagGroupFilter === g.id ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-              tab.textContent = g.name;
-              tab.onclick = function () { bulkTagGroupFilter = g.id; renderBulkTagsPicker(); };
-              tabsContainer.appendChild(tab);
-            });
             var allGroupedTags = getGroupedTagNames();
             var hasUngrouped = globalTags.some(function (t) { return allGroupedTags.indexOf(t) === -1; });
             if (hasUngrouped) {
-              var unTab = document.createElement("button");
-              unTab.type = "button";
-              unTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (bulkTagGroupFilter === "__ungrouped__" ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
-              unTab.textContent = "Ongegroepeerd";
-              unTab.onclick = function () { bulkTagGroupFilter = "__ungrouped__"; renderBulkTagsPicker(); };
-              tabsContainer.appendChild(unTab);
+              appendGroupTab("Ongegroepeerd", "__ungrouped__");
             }
           }
         }
-        var container = document.getElementById("bulkExistingTagsPicker");
-        if (!container) return;
-        container.innerHTML = "";
-        if (!globalTags.length) {
-          container.innerHTML = '<span class="text-zinc-600 italic text-[10px]">Nog geen tags aangemaakt.</span>';
-          return;
+
+        var containerAvailable = document.getElementById("bulkAvailableTags");
+        if (containerAvailable) {
+          containerAvailable.innerHTML = "";
+          var visibleTags = globalTags;
+          if (bulkTagGroupFilter === "__ungrouped__") {
+            var allGroupedTags = getGroupedTagNames();
+            visibleTags = globalTags.filter(function (t) { return allGroupedTags.indexOf(t) === -1; });
+          } else if (bulkTagGroupFilter) {
+            var activeGroup = tagGroups.find(function (g) { return g.id === bulkTagGroupFilter; });
+            visibleTags = activeGroup ? activeGroup.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; }) : globalTags;
+          }
+          function appendTagSection(title, tags) {
+            var available = tags.filter(function (t) { return bulkSelectedTags.indexOf(t) < 0; });
+            if (!available.length) return;
+            var section = document.createElement("div");
+            section.className = "trade-tag-group-section";
+            var heading = document.createElement("div");
+            heading.className = "trade-tag-group-heading";
+            heading.innerHTML = "<span>" + esc(title) + "</span><span>" + available.length + " beschikbaar</span>";
+            var options = document.createElement("div");
+            options.className = "trade-tag-group-options";
+            available.forEach(function (t) {
+              var btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "trade-tag-option border px-2 py-0.5 rounded-sm text-[10px] uppercase transition-[filter] hover:brightness-110";
+              applyTagColor(btn, t);
+              btn.textContent = formatTagLabel(t);
+              btn.onclick = function () {
+                if (bulkSelectedTags.indexOf(t) === -1) {
+                  bulkSelectedTags.push(t);
+                }
+                renderBulkTagsPicker();
+              };
+              options.appendChild(btn);
+            });
+            section.appendChild(heading);
+            section.appendChild(options);
+            containerAvailable.appendChild(section);
+          }
+
+          if (bulkTagGroupFilter === "__ungrouped__") {
+            appendTagSection("Ongegroepeerd", visibleTags);
+          } else {
+            var selectedGroup = tagGroups.find(function (g) { return g.id === bulkTagGroupFilter; });
+            appendTagSection(selectedGroup ? selectedGroup.name : "Beschikbare tags", visibleTags);
+          }
+          if (!containerAvailable.children.length) {
+            containerAvailable.innerHTML = '<div class="text-[10px] text-slate-400 italic py-3 text-center">Alle tags uit deze groep zijn al geselecteerd.</div>';
+          }
         }
-        var bulkVisibleTags = globalTags;
-        if (bulkTagGroupFilter === "__ungrouped__") {
-          var allGroupedTags = getGroupedTagNames();
-          bulkVisibleTags = globalTags.filter(function (t) { return allGroupedTags.indexOf(t) === -1; });
-        } else if (bulkTagGroupFilter) {
-          var activeGroup = tagGroups.find(function (g) { return g.id === bulkTagGroupFilter; });
-          bulkVisibleTags = activeGroup ? activeGroup.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; }) : globalTags;
+      }
+
+      function createBulkNewTag() {
+        var input = document.getElementById("bulkTagInput");
+        if (!input) return;
+        var val = input.value.trim().toUpperCase().replace(/\s+/g, "_");
+        if (!val) return;
+        if (globalTags.indexOf(val) === -1) {
+          globalTags.push(val);
+          saveGlobalTags();
         }
-        if (!bulkVisibleTags.length) {
-          container.innerHTML = '<span class="text-zinc-600 italic text-[10px]">Geen tags in deze groep.</span>';
-          return;
+        if (bulkSelectedTags.indexOf(val) === -1) {
+          bulkSelectedTags.push(val);
         }
-        bulkVisibleTags.forEach(function (t) {
-          var selected = bulkSelectedTags.indexOf(t) !== -1;
-          var btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "border px-2 py-0.5 rounded-sm text-[10px] uppercase transition-[filter] hover:brightness-110" + (selected ? " ring-2 ring-white" : "");
-          applyTagColor(btn, t);
-          btn.textContent = formatTagLabel(t);
-          btn.onclick = function () {
-            var idx = bulkSelectedTags.indexOf(t);
-            if (idx === -1) bulkSelectedTags.push(t);
-            else bulkSelectedTags.splice(idx, 1);
-            renderBulkTagsPicker();
-          };
-          container.appendChild(btn);
-        });
+        input.value = "";
+        updateUI();
+        renderBulkTagsPicker();
       }
 
       function closeBulkEditModal() {
@@ -11724,13 +11823,16 @@
       }
 
       function applyBulkEdits() {
-        var newTag = document
-          .getElementById("bulkTagInput")
-          .value.trim()
-          .toUpperCase();
+        var newTagInput = document.getElementById("bulkTagInput");
+        var newTag = newTagInput ? newTagInput.value.trim().toUpperCase().replace(/\s+/g, "_") : "";
 
         var tagsToApply = bulkSelectedTags.slice();
         if (newTag && tagsToApply.indexOf(newTag) === -1) tagsToApply.push(newTag);
+
+        if (newTag && globalTags.indexOf(newTag) === -1) {
+          globalTags.push(newTag);
+          saveGlobalTags();
+        }
 
         var count = 0;
         trades.forEach(function (t) {
@@ -11740,15 +11842,11 @@
               tagsToApply.forEach(function (tag) {
                 if (t.tags.indexOf(tag) === -1) t.tags.push(tag);
               });
+              updateTradeTagsInRenderedTable(t);
             }
             count++;
           }
         });
-
-        if (newTag && globalTags.indexOf(newTag) === -1) {
-          globalTags.push(newTag);
-          saveGlobalTags();
-        }
 
         if (count > 0) {
           saveData();
@@ -11998,6 +12096,19 @@
       }
 
       function getModalNavigationTrades() {
+        var dayModal = document.getElementById("dayTradesModal");
+        var isDayModalOpen =
+          (dayModal && !dayModal.classList.contains("hidden")) ||
+          (activeTab === "calendar" && activeDayTradesModalDate !== null);
+
+        if (isDayModalOpen && activeDayTradesModalDate) {
+          return getCalendarDayTrades(
+            activeDayTradesModalDate.year,
+            activeDayTradesModalDate.month,
+            activeDayTradesModalDate.day,
+          );
+        }
+
         var visibleTrades =
           typeof getFilteredTrades === "function" ? getFilteredTrades().slice() : trades.slice();
         var searchInput = document.getElementById("searchInput");
@@ -12412,6 +12523,7 @@
       function closeDayTradesModal() {
         document.getElementById("dayTradesModal").classList.add("hidden");
         document.removeEventListener("keydown", closeDayTradesModalOnEsc);
+        activeDayTradesModalDate = null;
       }
 
       // --- LIGHTBOX ZOOM ----
@@ -16111,11 +16223,10 @@
             trade.rrEntry = Number((activeRrDrag.startEntry + priceDelta).toFixed(Math.max(decimals, 2)));
             trade.tp = Number((activeRrDrag.startTp + priceDelta).toFixed(Math.max(decimals, 2)));
             trade.sl = Number((activeRrDrag.startSl + priceDelta).toFixed(Math.max(decimals, 2)));
-            var moveTimeScale = currentLwChart ? currentLwChart.timeScale() : null;
-            if (moveTimeScale) {
+            if (currentLwChart) {
               var horizontalDelta = e.clientX - activeRrDrag.startClientX;
-              var movedStartTime = moveTimeScale.coordinateToTime(activeRrDrag.startX + horizontalDelta);
-              var movedEndTime = moveTimeScale.coordinateToTime(activeRrDrag.endX + horizontalDelta);
+              var movedStartTime = journalChartCoordinateToTime(activeRrDrag.startX + horizontalDelta, 0);
+              var movedEndTime = journalChartCoordinateToTime(activeRrDrag.endX + horizontalDelta, 0);
               if (movedStartTime !== null) trade.rrStartTime = movedStartTime;
               if (movedEndTime !== null) trade.rrEndTime = movedEndTime;
             }
@@ -16131,17 +16242,14 @@
             var entryTime = trade.time ? toChartTimestampFromLocalDate(trade.time) : null;
             var baseEntry = (trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" && !isNaN(Number(trade.rrEntry))) ? Number(trade.rrEntry) : Number(trade.entry);
             var entryCandleTime = trade.rrStartTime || ((entryTime && baseEntry) ? findBestTradeCandleTime(chartDataToUse, entryTime, baseEntry) : null);
-            var timeScale = currentLwChart ? currentLwChart.timeScale() : null;
-            var startX = (timeScale && entryCandleTime !== null) ? timeScale.timeToCoordinate(entryCandleTime) : null;
+            var startX = entryCandleTime !== null ? journalChartTimeToCoordinate(entryCandleTime, 0) : null;
             if (startX === null || isNaN(startX)) {
               startX = rect.left;
             }
             var newWidth = Math.max(mouseX - startX, 30);
             trade.rrWidthPx = newWidth;
-            if (timeScale) {
-              var newTime = timeScale.coordinateToTime(startX + newWidth);
-              if (newTime) trade.rrEndTime = newTime;
-            }
+            var newTime = journalChartCoordinateToTime(startX + newWidth, 0);
+            if (newTime) trade.rrEndTime = newTime;
             scheduleRiskRewardOverlayRender();
             return;
           }
@@ -17991,6 +18099,101 @@
         return getJournalChartContextForPanel(journalActivePanelIndex);
       }
 
+      function journalChartTimeForLogical(logical, panelIndex) {
+        if (!Number.isFinite(logical)) return null;
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
+        var data = (ctx && ctx.data && ctx.data.length) ? ctx.data : currentJournalChartData;
+        if (!data || !data.length) return null;
+        var timeframeSeconds = 30;
+        if (data.length >= 2) {
+          timeframeSeconds = Math.max(1, (Number(data[data.length - 1].time) - Number(data[0].time)) / (data.length - 1));
+        }
+        if (logical < 0) {
+          return Math.floor(Number(data[0].time) + logical * timeframeSeconds);
+        }
+        var lowerIndex = Math.floor(logical);
+        var fraction = logical - lowerIndex;
+        if (lowerIndex < data.length - 1) {
+          var lowerTime = Number(data[lowerIndex].time);
+          var upperTime = Number(data[lowerIndex + 1].time);
+          return lowerTime + (upperTime - lowerTime) * fraction;
+        }
+        var lastIndex = data.length - 1;
+        var lastTime = Number(data[lastIndex].time);
+        return Math.floor(lastTime + (logical - lastIndex) * timeframeSeconds);
+      }
+
+      function journalChartLogicalForTime(time, panelIndex) {
+        if (!Number.isFinite(Number(time))) return null;
+        var target = Number(time);
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
+        var data = (ctx && ctx.data && ctx.data.length) ? ctx.data : currentJournalChartData;
+        if (!data || !data.length) return null;
+        var firstTime = Number(data[0].time);
+        var lastTime = Number(data[data.length - 1].time);
+        var timeframeSeconds = 30;
+        if (data.length >= 2) {
+          timeframeSeconds = Math.max(1, (lastTime - firstTime) / (data.length - 1));
+        }
+        if (target < firstTime) {
+          return (target - firstTime) / timeframeSeconds;
+        }
+        if (target > lastTime) {
+          return (data.length - 1) + (target - lastTime) / timeframeSeconds;
+        }
+        var low = 0, high = data.length - 1;
+        while (low <= high) {
+          var mid = (low + high) >> 1;
+          var t = Number(data[mid].time);
+          if (t === target) return mid;
+          if (t < target) low = mid + 1;
+          else high = mid - 1;
+        }
+        var lower = Math.max(0, high);
+        var upper = Math.min(data.length - 1, low);
+        if (lower === upper) return lower;
+        var t0 = Number(data[lower].time), t1 = Number(data[upper].time);
+        if (t1 === t0) return lower;
+        return lower + (target - t0) / (t1 - t0);
+      }
+
+      function journalChartTimeToCoordinate(time, panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
+        if (!ctx || !ctx.chart || !Number.isFinite(Number(time))) return null;
+        var targetTime = Number(time);
+        var timeScale = ctx.chart.timeScale();
+        if (!timeScale) return null;
+        var coord = timeScale.timeToCoordinate(targetTime);
+        if (coord != null && !isNaN(coord)) return coord;
+        var logical = journalChartLogicalForTime(targetTime, idx);
+        if (Number.isFinite(logical) && typeof timeScale.logicalToCoordinate === "function") {
+          var logCoord = timeScale.logicalToCoordinate(logical);
+          if (logCoord != null && !isNaN(logCoord)) return logCoord;
+        }
+        return null;
+      }
+
+      function journalChartCoordinateToTime(x, panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
+        if (!ctx || !ctx.chart || !Number.isFinite(Number(x))) return null;
+        var timeScale = ctx.chart.timeScale();
+        if (!timeScale) return null;
+        var time = timeScale.coordinateToTime(Number(x));
+        if (time != null && !isNaN(Number(time))) return Number(time);
+        if (typeof timeScale.coordinateToLogical === "function") {
+          var logical = timeScale.coordinateToLogical(Number(x));
+          if (Number.isFinite(logical)) {
+            var calculatedTime = journalChartTimeForLogical(logical, idx);
+            if (calculatedTime != null && !isNaN(calculatedTime)) return Number(calculatedTime);
+          }
+        }
+        return null;
+      }
+
       function journalChartPoint(event, panelIndex) {
         var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
         var ctx = getJournalChartContextForPanel(idx);
@@ -18000,7 +18203,7 @@
         var bounds = canvas.getBoundingClientRect();
         var x = event.clientX - bounds.left;
         var y = event.clientY - bounds.top;
-        var time = ctx.chart.timeScale().coordinateToTime(x);
+        var time = journalChartCoordinateToTime(x, idx);
         var price = ctx.series.coordinateToPrice(y);
         if (time == null || price == null) return null;
         if (journalChartMagnet || event.ctrlKey) {
@@ -18207,9 +18410,10 @@
       }
 
       function journalChartCoordinates(point, panelIndex) {
-        var ctx = getJournalChartContextForPanel(panelIndex);
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
         if (!point || !ctx.chart || !ctx.series) return null;
-        var x = ctx.chart.timeScale().timeToCoordinate(Number(point.time));
+        var x = journalChartTimeToCoordinate(Number(point.time), idx);
         var y = ctx.series.priceToCoordinate(Number(point.price));
         return x == null || y == null ? null : { x: x, y: y };
       }
@@ -20947,9 +21151,8 @@
         var endTime = trade.rrEndTime || (exitCandleTime || entryCandleTime + 300);
         var isBreakEven = isNaN(oneR) || (Math.abs(tpPrice - entryPrice) < 0.0001 && Math.abs(slPrice - entryPrice) < 0.0001);
 
-        var timeScale = currentLwChart.timeScale();
-        var startX = timeScale.timeToCoordinate(entryCandleTime);
-        var endX = timeScale.timeToCoordinate(endTime);
+        var startX = journalChartTimeToCoordinate(entryCandleTime, 0);
+        var endX = journalChartTimeToCoordinate(endTime, 0);
         var entryY = currentLwSeries.priceToCoordinate(entryPrice);
         if ([startX, entryY].some(function (v) { return v === null || isNaN(v); })) {
           if (attempt < 8) {
@@ -21239,7 +21442,7 @@
 
         var firstHit = findFirstRiskRewardHit();
         if (firstHit) {
-          var hitX = timeScale.timeToCoordinate(firstHit.time);
+          var hitX = journalChartTimeToCoordinate(firstHit.time, 0);
           var hitY = currentLwSeries.priceToCoordinate(firstHit.price);
           if (hitX !== null && hitY !== null && !isNaN(hitX) && !isNaN(hitY)) {
             var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -25811,6 +26014,29 @@
         return lastTime + (logical - lastIndex) * timeframeSeconds;
       }
 
+      function backtestLogicalForTime(time) {
+        if (!backtestBars.length || !Number.isFinite(Number(time))) return null;
+        var target = Number(time);
+        var firstTime = backtestBars[0].timestamp.getTime() / 1000;
+        var lastTime = backtestBars[backtestBars.length - 1].timestamp.getTime() / 1000;
+        var timeframeSeconds = Number(document.getElementById("btTimeframe").value) || 30;
+        if (target < firstTime) return (target - firstTime) / timeframeSeconds;
+        if (target > lastTime) return (backtestBars.length - 1) + (target - lastTime) / timeframeSeconds;
+        var low = 0, high = backtestBars.length - 1;
+        while (low <= high) {
+          var mid = (low + high) >> 1;
+          var t = backtestBars[mid].timestamp.getTime() / 1000;
+          if (t === target) return mid;
+          if (t < target) low = mid + 1;
+          else high = mid - 1;
+        }
+        var lower = Math.max(0, high), upper = Math.min(backtestBars.length - 1, low);
+        if (lower === upper) return lower;
+        var t0 = backtestBars[lower].timestamp.getTime() / 1000, t1 = backtestBars[upper].timestamp.getTime() / 1000;
+        if (t1 === t0) return lower;
+        return lower + (target - t0) / (t1 - t0);
+      }
+
       function snapBacktestPointToCandle(point) {
         if (!backtestBars.length) return point;
         var low = 0;
@@ -26029,11 +26255,17 @@
 
       function backtestPointToCoordinates(point) {
         if (!point || !backtestReplayChart || !backtestReplaySeries) return null;
-        var x = arguments.length > 1 && arguments[1] && Number.isFinite(point.time)
-          ? backtestReplayChart.timeScale().timeToCoordinate(point.time)
-          : Number.isFinite(point.logical)
-            ? backtestReplayChart.timeScale().logicalToCoordinate(point.logical)
-            : backtestReplayChart.timeScale().timeToCoordinate(point.time);
+        var x = null;
+        if (Number.isFinite(point.logical)) {
+          x = backtestReplayChart.timeScale().logicalToCoordinate(point.logical);
+        }
+        if (x == null && Number.isFinite(point.time)) {
+          x = backtestReplayChart.timeScale().timeToCoordinate(point.time);
+          if (x == null && typeof backtestLogicalForTime === "function") {
+            var logIdx = backtestLogicalForTime(point.time);
+            if (Number.isFinite(logIdx)) x = backtestReplayChart.timeScale().logicalToCoordinate(logIdx);
+          }
+        }
         var y = backtestReplaySeries.priceToCoordinate(point.price);
         return x == null || y == null ? null : { x: x, y: y };
       }
@@ -26373,8 +26605,12 @@
           } else {
             startX = backtestReplayChart.timeScale().logicalToCoordinate(risk.logical);
           }
-        } else {
+        } else if (Number.isFinite(risk.time)) {
           startX = backtestReplayChart.timeScale().timeToCoordinate(risk.time);
+          if (startX == null && typeof backtestLogicalForTime === "function") {
+            var logIdx = backtestLogicalForTime(risk.time);
+            if (Number.isFinite(logIdx)) startX = backtestReplayChart.timeScale().logicalToCoordinate(logIdx);
+          }
         }
         var entryY = backtestReplaySeries.priceToCoordinate(risk.entryPrice);
         var stopY = backtestReplaySeries.priceToCoordinate(risk.stopPrice);
