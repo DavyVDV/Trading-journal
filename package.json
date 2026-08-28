@@ -1,0 +1,13 @@
+{
+  "name": "trading-journal",
+  "version": "1.0.0",
+  "description": "Trading Journal & Backtest Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "mkdir -p dist && cp index.html dist/ 2>/dev/null || true"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
