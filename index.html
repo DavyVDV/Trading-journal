@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quantower Professional Terminal Journal</title>
+    <title>Quantower Trading Journal</title>
+    <meta name="description" content="Quantower Professional Terminal Journal for tracking, analyzing, and backtesting trading performance." />
+    <meta property="og:title" content="Quantower Trading Journal" />
+    <meta property="og:description" content="Quantower Professional Terminal Journal for tracking, analyzing, and backtesting trading performance." />
     <link
       rel="icon"
       type="image/svg+xml"
@@ -1509,6 +1512,11 @@
         position: relative;
         overflow: hidden;
         isolation: isolate;
+      }
+      button.has-ui-ripple.absolute,
+      button.has-ui-ripple.\!absolute,
+      button.has-ui-ripple[class*="absolute"] {
+        position: absolute !important;
       }
       .ui-ripple {
         position: absolute;
@@ -5704,7 +5712,7 @@
           <textarea
             id="calendarNoteModalTextarea"
             rows="5"
-            placeholder="Bv. Ik ben deze week vaak gesweept geweest, vanaf volgende week maak ik mijn stop wijder."
+            placeholder=""
             class="w-full bg-terminal-input border border-terminal rounded-sm px-3 py-2 text-zinc-200 placeholder-zinc-500 focus:outline-none font-mono text-xs resize-none"
           ></textarea>
           <div class="flex items-center gap-2 mt-3">
@@ -7413,6 +7421,18 @@
           // Menus no longer close by clicking outside
         });
 
+        window.addEventListener("beforeunload", function () {
+          flushAllPendingSaves();
+        });
+        window.addEventListener("pagehide", function () {
+          flushAllPendingSaves();
+        });
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden") {
+            flushAllPendingSaves();
+          }
+        });
+
         // Auto switch to calendar if preferred or keep testing dashboard
         // switchTab('dashboard');
       });
@@ -7423,7 +7443,7 @@
 
         document.addEventListener("pointerdown", function (event) {
           var button = event.target.closest && event.target.closest("button");
-          if (!button || button.disabled) return;
+          if (!button || button.disabled || button.closest(".calendar-cell, .week-net-cell")) return;
           button.classList.add("has-ui-ripple");
           var rect = button.getBoundingClientRect();
           var ripple = document.createElement("span");
@@ -9550,10 +9570,29 @@
       var isSavingData = false;
       var pendingSaveData = false;
       var pendingSaveOptions = null;
+      var saveDataDebounceTimer = null;
+
+      function scheduleSaveData(options) {
+        options = options || {};
+        if (options.immediate) {
+          saveData(options);
+          return;
+        }
+        if (saveDataDebounceTimer) clearTimeout(saveDataDebounceTimer);
+        saveDataDebounceTimer = setTimeout(function () {
+          saveDataDebounceTimer = null;
+          saveData(options);
+        }, 250);
+      }
 
       function saveData(options) {
         options = options || {};
         dashboardNeedsRender = true;
+
+        if (saveDataDebounceTimer) {
+          clearTimeout(saveDataDebounceTimer);
+          saveDataDebounceTimer = null;
+        }
 
         if (isSavingData) {
           pendingSaveData = true;
@@ -9562,7 +9601,7 @@
         }
         isSavingData = true;
 
-        runWhenPageIsIdle(function () {
+        var executeSave = function () {
           try {
             var tradesCopy = trades
               .filter(function (t) {
@@ -9598,9 +9637,44 @@
             console.error("Fout bij voorbereiden data opslag:", e);
             isSavingData = false;
           }
-        }, 300);
+        };
+
+        if (options.immediate) {
+          executeSave();
+        } else {
+          setTimeout(executeSave, 40);
+        }
 
         if (!options.skipUpdate) updateUI();
+      }
+
+      function flushAllPendingSaves() {
+        if (typeof pendingTradesToSave !== "undefined") {
+          var tradeIds = Object.keys(pendingTradesToSave);
+          tradeIds.forEach(function (tid) {
+            var tr = pendingTradesToSave[tid];
+            if (tr) {
+              var lean = Object.assign({}, tr);
+              delete lean.screenshots;
+              lean = stripChartDataForSave(lean);
+              localforage.setItem("qt_trade_" + tr.id, lean).catch(function () {});
+            }
+          });
+          pendingTradesToSave = {};
+        }
+        if (typeof singleTradeSaveTimers !== "undefined") {
+          Object.keys(singleTradeSaveTimers).forEach(function (tid) {
+            if (singleTradeSaveTimers[tid]) {
+              clearTimeout(singleTradeSaveTimers[tid]);
+              singleTradeSaveTimers[tid] = null;
+            }
+          });
+        }
+        if (saveDataDebounceTimer) {
+          clearTimeout(saveDataDebounceTimer);
+          saveDataDebounceTimer = null;
+        }
+        saveData({ immediate: true, skipUpdate: true });
       }
 
       // ---- CONFIRM MODAL OVERRIDE ----
@@ -9973,10 +10047,16 @@
             var noteBtn = document.createElement("button");
             noteBtn.type = "button";
             noteBtn.title = hasNote ? "Opmerking bekijken/bewerken" : "Opmerking toevoegen";
-            noteBtn.className = "absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-sm transition-colors " +
+            noteBtn.className = "!absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-sm transition-colors z-10 " +
               (hasNote ? "text-amber-400 hover:text-amber-300" : "text-zinc-600 hover:text-zinc-300");
-            noteBtn.innerHTML = '<i class="fas ' + (hasNote ? "fa-comment-dots" : "fa-comment") + ' text-[11px]"></i>';
+            noteBtn.innerHTML = '<i class="fas ' + (hasNote ? "fa-comment-dots" : "fa-comment") + ' text-[11px] pointer-events-none"></i>';
+            noteBtn.onpointerdown = function (e) { if (e) e.stopPropagation(); };
+            noteBtn.onmousedown = function (e) { if (e) e.stopPropagation(); };
             noteBtn.onclick = function (event) {
+              if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+              }
               openCalendarNoteEditor(event, "day", dayKey, "Opmerking - " + d + "/" + (m + 1) + "/" + y);
             };
             cell.appendChild(noteBtn);
@@ -10023,10 +10103,16 @@
               var noteBtn = document.createElement("button");
               noteBtn.type = "button";
               noteBtn.title = hasNote ? "Weekopmerking bekijken/bewerken" : "Weekopmerking toevoegen";
-              noteBtn.className = "absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-sm transition-colors " +
+              noteBtn.className = "!absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-sm transition-colors z-10 " +
                 (hasNote ? "text-amber-400 hover:text-amber-300" : "text-zinc-500 hover:text-zinc-200");
-              noteBtn.innerHTML = '<i class="fas ' + (hasNote ? "fa-comment-dots" : "fa-comment") + ' text-[11px]"></i>';
+              noteBtn.innerHTML = '<i class="fas ' + (hasNote ? "fa-comment-dots" : "fa-comment") + ' text-[11px] pointer-events-none"></i>';
+              noteBtn.onpointerdown = function (e) { if (e) e.stopPropagation(); };
+              noteBtn.onmousedown = function (e) { if (e) e.stopPropagation(); };
               noteBtn.onclick = function (event) {
+                if (event) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
                 openCalendarNoteEditor(event, "week", weekKey, "Weekopmerking - week van " + weekKey.split("-").reverse().join("/"));
               };
               weekCell.appendChild(noteBtn);
@@ -10163,16 +10249,12 @@
         });
 
         if (editingTradeId) {
-          // Een bestaande trade bewerken is geen structurele wijziging (geen
-          // trade toegevoegd/verwijderd) - alleen dat ene record hoeft dus
-          // opgeslagen te worden, niet de volledige (trage) bulk-array.
           var editedTrade = trades.find(function (t) {
             return t.id === editingTradeId;
           });
           if (editedTrade) saveSingleTradeRecord(editedTrade);
-        } else {
-          saveData();
         }
+        saveData({ immediate: true });
         updateUI();
         refreshOpenDayTradesModal();
         closeManualTradeModal();
@@ -10191,7 +10273,7 @@
             });
             removeSingleTradeRecord(id);
             localforage.removeItem("qt_shots_" + id);
-            saveData();
+            saveData({ immediate: true });
             if (activeTab === "analytics") renderAnalyticsView();
           },
         );
@@ -10211,7 +10293,7 @@
             });
             removeSingleTradeRecord(id);
             localforage.removeItem("qt_shots_" + id);
-            saveData();
+            saveData({ immediate: true });
             closeModal();
             if (activeTab === "analytics") renderAnalyticsView();
           },
@@ -12244,7 +12326,7 @@
             trades = trades.filter(function (t) {
               return selectedTrades.indexOf(t.id) === -1;
             });
-            saveData();
+            saveData({ immediate: true });
             selectedTrades = [];
             updateUI();
           },
@@ -12433,6 +12515,7 @@
 
         if (count > 0) {
           selectedTrades = [];
+          saveData({ immediate: true });
           updateUI();
         }
         closeBulkEditModal();
@@ -12861,10 +12944,13 @@
       // wijzigingen (tag toggelen, notitie, chart-tekening) zodat het opslaan
       // niet langer trager wordt naarmate de journal groeit.
       var singleTradeSaveTimers = {};
+      var pendingTradesToSave = {};
+
       function scheduleSingleTradeSave(trade, options) {
         if (!trade || !trade.id || trade.__backtestSession) return;
         options = options || {};
         var tradeId = trade.id;
+        pendingTradesToSave[tradeId] = trade;
         if (singleTradeSaveTimers[tradeId]) clearTimeout(singleTradeSaveTimers[tradeId]);
         var refreshExcursions = !!options.refreshExcursions;
         singleTradeSaveTimers[tradeId] = setTimeout(function () {
@@ -12874,27 +12960,32 @@
             renderTable({ skipAnimation: true });
             calculateStats();
           }
-        }, 600);
+        }, 300);
+        scheduleSaveData({ skipUpdate: true });
       }
 
       function saveSingleTradeRecord(trade) {
         if (!trade || !trade.id || trade.__backtestSession) return;
+        delete pendingTradesToSave[trade.id];
         var lean = Object.assign({}, trade);
         delete lean.screenshots;
         lean = stripChartDataForSave(lean);
         localforage.setItem("qt_trade_" + trade.id, lean).catch(function (e) {
           console.error("Fout bij opslaan van trade record:", e);
         });
+        scheduleSaveData({ skipUpdate: true });
       }
 
       function removeSingleTradeRecord(tradeId) {
         if (!tradeId) return;
+        delete pendingTradesToSave[tradeId];
         if (singleTradeSaveTimers[tradeId]) {
           clearTimeout(singleTradeSaveTimers[tradeId]);
           singleTradeSaveTimers[tradeId] = null;
         }
         localforage.removeItem("qt_trade_" + tradeId);
         chartDataStore.removeItem(tradeId);
+        scheduleSaveData({ skipUpdate: true });
       }
 
       function handleScreenshotDrag(event, isOver) {
@@ -13052,6 +13143,7 @@
             chartToRemove.remove();
           } catch (err) {}
         }
+        flushAllPendingSaves();
       }
 
       function normalizeTradeModalContentOrder() {
@@ -13374,6 +13466,7 @@
       function saveNote() {
         autoCommitTradeEdits();
         closeModal();
+        flushAllPendingSaves();
       }
 
       // ---- INTERSECTIVE MATRIX & POOL PURGE LOGIC ----
@@ -15676,6 +15769,10 @@
           blobParts.push(JSON.stringify(journalDefaultFilterProfile || ""));
           blobParts.push(',"flowcharts":');
           blobParts.push(JSON.stringify(typeof flowcharts !== "undefined" ? flowcharts : []));
+          blobParts.push(',"calendarDayNotes":');
+          blobParts.push(JSON.stringify(typeof calendarDayNotes !== "undefined" ? calendarDayNotes : {}));
+          blobParts.push(',"calendarWeekNotes":');
+          blobParts.push(JSON.stringify(typeof calendarWeekNotes !== "undefined" ? calendarWeekNotes : {}));
           blobParts.push(',"globalChartDataTimeMode":');
           blobParts.push(JSON.stringify(typeof CHART_TIME_MODE !== "undefined" ? CHART_TIME_MODE : "local-wall-clock-v2"));
 
@@ -16124,6 +16221,14 @@
                 if (typeof renderFlowchartView === "function") {
                   renderFlowchartView();
                 }
+              }
+              if (importedData && importedData.calendarDayNotes && typeof importedData.calendarDayNotes === "object") {
+                calendarDayNotes = importedData.calendarDayNotes;
+                saveCalendarDayNotes();
+              }
+              if (importedData && importedData.calendarWeekNotes && typeof importedData.calendarWeekNotes === "object") {
+                calendarWeekNotes = importedData.calendarWeekNotes;
+                saveCalendarWeekNotes();
               }
 
               if (importedData && importedData.globalChartData && Array.isArray(importedData.globalChartData)) {
