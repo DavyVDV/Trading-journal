@@ -9292,12 +9292,59 @@
         document.getElementById("settingsModal").classList.add("hidden");
       }
 
+      var isDataLoaded = false;
+      var isDataLoading = false;
+
       async function loadData() {
+        if (isDataLoading) return;
+        isDataLoading = true;
         try {
-          var s = await localforage.getItem("qt_journal_trades_v3_idb");
-          var gcd = await localforage.getItem("qt_global_chart_data_v1");
-          var chartTimeMode = await localforage.getItem("qt_global_chart_data_time_mode");
-          journalRrState = await localforage.getItem("qt_journal_rr_state_v1") || {};
+          // Parallel fetch: local IndexedDB + server persistent storage
+          var serverData = null;
+          var serverFetchPromise = fetch("/api/journal-data")
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+              if (json && json.success && json.data) return json.data;
+              return null;
+            })
+            .catch(function (err) {
+              console.warn("Server journal data fetch failed (using local store):", err);
+              return null;
+            });
+
+          var idbTradesPromise = localforage
+            .getItem("qt_journal_trades_v3_idb")
+            .catch(function (e) {
+              console.warn("localforage trade load error:", e);
+              return null;
+            });
+
+          var gcdPromise = localforage
+            .getItem("qt_global_chart_data_v1")
+            .catch(function () { return null; });
+
+          var chartTimeModePromise = localforage
+            .getItem("qt_global_chart_data_time_mode")
+            .catch(function () { return null; });
+
+          var rrStatePromise = localforage
+            .getItem("qt_journal_rr_state_v1")
+            .catch(function () { return null; });
+
+          var results = await Promise.all([
+            idbTradesPromise,
+            gcdPromise,
+            chartTimeModePromise,
+            rrStatePromise,
+            serverFetchPromise,
+          ]);
+
+          var s = results[0];
+          var gcd = results[1];
+          var chartTimeMode = results[2];
+          journalRrState = results[3] || {};
+          serverData = results[4];
+
           if (gcd) {
             globalChartData = typeof gcd === "string" ? JSON.parse(gcd) : gcd;
             if (chartTimeMode !== CHART_TIME_MODE) {
@@ -9305,37 +9352,92 @@
               await localforage.setItem("qt_global_chart_data_v1", globalChartData);
               await localforage.setItem("qt_global_chart_data_time_mode", CHART_TIME_MODE);
             }
+          } else if (serverData && Array.isArray(serverData.globalChartData) && serverData.globalChartData.length) {
+            globalChartData = serverData.globalChartData;
           } else {
             globalChartData = [];
           }
+
+          // If local IndexedDB is empty, check legacy localStorage
           if (!s) {
             var oldS = localStorage.getItem("qt_journal_trades_v3");
             if (oldS) {
-              s = JSON.parse(oldS);
-              await localforage.setItem("qt_journal_trades_v3_idb", s);
-              localStorage.removeItem("qt_journal_trades_v3");
+              try {
+                s = JSON.parse(oldS);
+                await localforage.setItem("qt_journal_trades_v3_idb", s);
+                localStorage.removeItem("qt_journal_trades_v3");
+              } catch (e) {}
             }
           }
+
+          // If local is STILL empty but server has data, restore from server!
+          if ((!s || (Array.isArray(s) && s.length === 0)) && serverData && Array.isArray(serverData.trades) && serverData.trades.length > 0) {
+            console.log("Herstel trades vanuit server persistentie (" + serverData.trades.length + " trades)...");
+            s = serverData.trades;
+            await localforage.setItem("qt_journal_trades_v3_idb", s);
+          }
+
+          // If server has data, restore metadata if local settings are empty
+          if (serverData) {
+            if (serverData.calendarDayNotes && (!calendarDayNotes || Object.keys(calendarDayNotes).length === 0)) {
+              calendarDayNotes = serverData.calendarDayNotes;
+              saveCalendarDayNotes();
+            }
+            if (serverData.calendarWeekNotes && (!calendarWeekNotes || Object.keys(calendarWeekNotes).length === 0)) {
+              calendarWeekNotes = serverData.calendarWeekNotes;
+              saveCalendarWeekNotes();
+            }
+            if (Array.isArray(serverData.globalTags) && serverData.globalTags.length && (!globalTags || globalTags.length <= 3)) {
+              globalTags = serverData.globalTags;
+              saveGlobalTags();
+            }
+            if (serverData.globalTagColors && typeof serverData.globalTagColors === "object") {
+              globalTagColors = Object.assign({}, serverData.globalTagColors, globalTagColors || {});
+              saveGlobalTagColors();
+            }
+            if (Array.isArray(serverData.tagGroups) && serverData.tagGroups.length && (!tagGroups || tagGroups.length === 0)) {
+              tagGroups = serverData.tagGroups;
+              saveTagGroups();
+            }
+            if (Array.isArray(serverData.commissionRules) && serverData.commissionRules.length && (!commissionRules || commissionRules.length === 0)) {
+              commissionRules = serverData.commissionRules;
+              saveCommissions();
+            }
+            if (Array.isArray(serverData.customCharts) && serverData.customCharts.length && (!customCharts || customCharts.length === 0)) {
+              customCharts = serverData.customCharts;
+              saveCustomCharts();
+            }
+            if (serverData.analyticsMainChartTitle && !analyticsMainChartTitle) {
+              analyticsMainChartTitle = serverData.analyticsMainChartTitle;
+              saveAnalyticsMainChartTitle();
+            }
+          }
+
           if (s) {
             trades = typeof s === "string" ? JSON.parse(s) : s;
             if (!Array.isArray(trades)) trades = [];
 
-            // Eén enkele doorloop van de volledige opslag (localforage.iterate) i.p.v.
-            // twee aparte IndexedDB-transacties per trade (qt_trade_<id> en
-            // qt_shots_<id>). Bij honderden/duizenden trades was dat de belangrijkste
-            // oorzaak van de trage laadtijd (elke .getItem() is een eigen transactie
-            // met overhead) - één cursor-doorloop is vele malen sneller.
             var individualTradeMap = {};
             var screenshotsMap = {};
             var shotsToMigrate = [];
-            await localforage.iterate(function (value, key) {
-              if (typeof key !== "string") return;
-              if (key.indexOf("qt_trade_") === 0) {
-                individualTradeMap[key.substring(9)] = value;
-              } else if (key.indexOf("qt_shots_") === 0) {
-                screenshotsMap[key.substring(9)] = value;
-              }
-            });
+
+            // If server provided screenshots, seed them into screenshotsMap
+            if (serverData && serverData.screenshots && typeof serverData.screenshots === "object") {
+              Object.assign(screenshotsMap, serverData.screenshots);
+            }
+
+            try {
+              await localforage.iterate(function (value, key) {
+                if (typeof key !== "string") return;
+                if (key.indexOf("qt_trade_") === 0) {
+                  individualTradeMap[key.substring(9)] = value;
+                } else if (key.indexOf("qt_shots_") === 0) {
+                  screenshotsMap[key.substring(9)] = value;
+                }
+              });
+            } catch (iterErr) {
+              console.warn("localforage iterate error (non-fatal):", iterErr);
+            }
 
             trades.forEach(function (t, index) {
               var individual = individualTradeMap[t.id];
@@ -9346,17 +9448,12 @@
               if (Array.isArray(storedShots) && storedShots.length) {
                 t.screenshots = storedShots;
               } else if (Array.isArray(t.screenshots) && t.screenshots.length) {
-                // Oudere trades hadden hun screenshots nog ingebed in de hoofdlijst;
-                // migreer ze eenmalig naar hun eigen opslagsleutel.
                 shotsToMigrate.push(t);
               }
             });
-            // Migratie-writes mogen gerust op de achtergrond doorlopen; de gebruiker
-            // hoeft daar niet op te wachten voordat de UI verschijnt.
+
             shotsToMigrate.forEach(function (t) {
-              localforage.setItem("qt_shots_" + t.id, t.screenshots).catch(function (e) {
-                console.error("Fout bij migreren screenshots voor trade " + t.id + ":", e);
-              });
+              saveScreenshotsForTrade(t);
             });
 
             trades.forEach(function (t) {
@@ -9393,13 +9490,22 @@
                 });
               }
             });
+
+            // If local has trades and server was empty, synchronize to server
+            if (trades.length > 0 && (!serverData || !Array.isArray(serverData.trades) || serverData.trades.length === 0)) {
+              syncAllDataToServer(trades);
+            }
           } else {
             trades = [];
           }
         } catch (e) {
           console.error("Error loading trades:", e);
-          trades = [];
+          if (!Array.isArray(trades)) trades = [];
+        } finally {
+          isDataLoaded = true;
+          isDataLoading = false;
         }
+
         updateUI();
         resetMCStats();
         if (activeTab === "montecarlo" && typeof runMonteCarlo === "function")
@@ -9585,70 +9691,158 @@
         }, 250);
       }
 
+      function prepareServerPayload(tradesPayload) {
+        var baseTrades = tradesPayload;
+        if (!Array.isArray(baseTrades)) {
+          baseTrades = (trades || []).filter(function (t) {
+            return !t.__backtestSession;
+          });
+        }
+        var screenshotsByTrade = {};
+        (trades || []).forEach(function (t) {
+          if (t && t.id && Array.isArray(t.screenshots) && t.screenshots.length) {
+            screenshotsByTrade[t.id] = t.screenshots;
+          }
+        });
+
+        return {
+          trades: baseTrades,
+          screenshots: screenshotsByTrade,
+          globalTags: typeof globalTags !== "undefined" ? globalTags : [],
+          tagGroups: typeof tagGroups !== "undefined" ? tagGroups : [],
+          globalTagColors: typeof globalTagColors !== "undefined" ? globalTagColors : {},
+          commissionRules: typeof commissionRules !== "undefined" ? commissionRules : [],
+          customCharts: typeof customCharts !== "undefined" ? customCharts : [],
+          analyticsMainChartTitle: typeof analyticsMainChartTitle !== "undefined" ? analyticsMainChartTitle : "",
+          analyticsFilterTags: typeof analyticsFilterTags !== "undefined" ? analyticsFilterTags : [],
+          analyticsExcludeTags: typeof analyticsExcludeTags !== "undefined" ? analyticsExcludeTags : [],
+          analyticsFilterLogic: typeof analyticsFilterLogic !== "undefined" ? analyticsFilterLogic : "AND",
+          analyticsGlobalSideFilter: typeof analyticsGlobalSideFilter !== "undefined" ? analyticsGlobalSideFilter : "ALL",
+          journalFilterProfiles: typeof journalFilterProfiles !== "undefined" ? journalFilterProfiles : [],
+          journalDefaultFilterProfile: typeof journalDefaultFilterProfile !== "undefined" ? journalDefaultFilterProfile : "",
+          flowcharts: typeof flowcharts !== "undefined" ? flowcharts : [],
+          calendarDayNotes: typeof calendarDayNotes !== "undefined" ? calendarDayNotes : {},
+          calendarWeekNotes: typeof calendarWeekNotes !== "undefined" ? calendarWeekNotes : {},
+          lastSaved: Date.now(),
+        };
+      }
+
+      async function syncAllDataToServer(tradesPayload) {
+        try {
+          var payload = prepareServerPayload(tradesPayload);
+          var res = await fetch("/api/journal-data", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          return await res.json();
+        } catch (err) {
+          console.warn("Synchronisatie met serveropslag mislukt:", err);
+          return null;
+        }
+      }
+
+      function sendKeepaliveBeacon() {
+        if (!isDataLoaded || !Array.isArray(trades) || trades.length === 0) return;
+        try {
+          var payload = prepareServerPayload();
+          var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon("/api/journal-data", blob);
+          } else {
+            fetch("/api/journal-data", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+              keepalive: true,
+            }).catch(function () {});
+          }
+        } catch (e) {
+          console.error("sendKeepaliveBeacon fout:", e);
+        }
+      }
+
       function saveData(options) {
         options = options || {};
         dashboardNeedsRender = true;
+
+        if (!isDataLoaded && !options.allowPreloadSave) {
+          console.warn("saveData overgeslagen: gegevens zijn nog niet geladen uit opslag.");
+          return Promise.resolve();
+        }
+
+        if (trades.length === 0 && !options.allowEmptySave) {
+          console.warn("saveData overgeslagen: trades array is leeg zonder expliciete allowEmptySave vlag.");
+          return Promise.resolve();
+        }
 
         if (saveDataDebounceTimer) {
           clearTimeout(saveDataDebounceTimer);
           saveDataDebounceTimer = null;
         }
 
-        if (isSavingData) {
-          pendingSaveData = true;
-          pendingSaveOptions = options;
-          return;
-        }
-        isSavingData = true;
-
-        var executeSave = function () {
-          try {
-            var tradesCopy = trades
-              .filter(function (t) {
-                return !t.__backtestSession;
-              })
-              .map(function (t) {
-                var needsScreenshotStrip = t.screenshots && t.screenshots.length;
-                var needsChartDataStrip = t.chartData && t.chartData.length;
-                if (!needsScreenshotStrip && !needsChartDataStrip) return t;
-                var lean = Object.assign({}, t);
-                if (needsScreenshotStrip) delete lean.screenshots;
-                if (needsChartDataStrip) {
-                  saveTradeChartData(t);
-                  delete lean.chartData;
-                }
-                return lean;
-              });
-            localforage
-              .setItem("qt_journal_trades_v3_idb", tradesCopy)
-              .catch(function (e) {
-                console.error("Fout bij het opslaan van gegevens (IndexedDB):", e);
-              })
-              .finally(function () {
-                isSavingData = false;
-                if (pendingSaveData) {
-                  var nextOpts = pendingSaveOptions;
-                  pendingSaveData = false;
-                  pendingSaveOptions = null;
-                  saveData(nextOpts);
-                }
-              });
-          } catch (e) {
-            console.error("Fout bij voorbereiden data opslag:", e);
-            isSavingData = false;
+        return new Promise(function (resolve) {
+          if (isSavingData) {
+            pendingSaveData = true;
+            pendingSaveOptions = options;
+            resolve();
+            return;
           }
-        };
+          isSavingData = true;
 
-        if (options.immediate) {
-          executeSave();
-        } else {
-          setTimeout(executeSave, 40);
-        }
+          var executeSave = async function () {
+            try {
+              var tradesCopy = trades
+                .filter(function (t) {
+                  return !t.__backtestSession;
+                })
+                .map(function (t) {
+                  var needsScreenshotStrip = t.screenshots && t.screenshots.length;
+                  var needsChartDataStrip = t.chartData && t.chartData.length;
+                  if (!needsScreenshotStrip && !needsChartDataStrip) return t;
+                  var lean = Object.assign({}, t);
+                  if (needsScreenshotStrip) {
+                    saveScreenshotsForTrade(t);
+                    delete lean.screenshots;
+                  }
+                  if (needsChartDataStrip) {
+                    saveTradeChartData(t);
+                    delete lean.chartData;
+                  }
+                  return lean;
+                });
 
-        if (!options.skipUpdate) updateUI();
+              await localforage.setItem("qt_journal_trades_v3_idb", tradesCopy);
+              await syncAllDataToServer(tradesCopy);
+            } catch (e) {
+              console.error("Fout bij het opslaan van gegevens:", e);
+            } finally {
+              isSavingData = false;
+              if (pendingSaveData) {
+                var nextOpts = pendingSaveOptions;
+                pendingSaveData = false;
+                pendingSaveOptions = null;
+                saveData(nextOpts);
+              }
+              resolve();
+            }
+          };
+
+          if (options.immediate) {
+            executeSave();
+          } else {
+            setTimeout(executeSave, 40);
+          }
+
+          if (!options.skipUpdate) updateUI();
+        });
       }
 
       function flushAllPendingSaves() {
+        if (!isDataLoaded) {
+          console.warn("flushAllPendingSaves overgeslagen: data is nog niet geladen.");
+          return;
+        }
         if (typeof pendingTradesToSave !== "undefined") {
           var tradeIds = Object.keys(pendingTradesToSave);
           tradeIds.forEach(function (tid) {
@@ -9675,6 +9869,7 @@
           saveDataDebounceTimer = null;
         }
         saveData({ immediate: true, skipUpdate: true });
+        sendKeepaliveBeacon();
       }
 
       // ---- CONFIRM MODAL OVERRIDE ----
@@ -9709,7 +9904,7 @@
         });
 
       function clearAllData() {
-        showConfirm("Wipe complete local database (including flowcharts)?", function () {
+        showConfirm("Wipe complete local database (including flowcharts)?", async function () {
           var tradeIdsToPurge = trades.map(function (t) { return t.id; });
           trades = [];
           journalRrState = {};
@@ -9726,7 +9921,10 @@
           selectedTrades = [];
           if (typeof flowcharts !== "undefined") flowcharts = [];
           if (typeof currentFlowchartId !== "undefined") currentFlowchartId = null;
-          saveData();
+          try {
+            await fetch("/api/journal-data/reset", { method: "POST" });
+          } catch (e) {}
+          await saveData({ allowEmptySave: true, immediate: true });
           if (typeof saveFlowcharts === "function") saveFlowcharts();
           if (activeTab === "flowchart" && typeof renderFlowchartView === "function") {
             renderFlowchartView();
@@ -16290,7 +16488,19 @@
                 tagFilter = { tags: [], excludeTags: [] };
               }
 
-              saveData();
+              // Sla alle screenshots in de geïmporteerde trades direct op
+              if (Array.isArray(trades)) {
+                trades.forEach(function (tr) {
+                  if (tr && tr.id && Array.isArray(tr.screenshots) && tr.screenshots.length) {
+                    saveScreenshotsForTrade(tr);
+                  }
+                });
+              }
+
+              isDataLoaded = true;
+              await saveData({ immediate: true, allowEmptySave: true });
+              await syncAllDataToServer();
+
               if (typeof renderAccounts === "function") renderAccounts();
               if (typeof renderFilterDropdowns === "function") renderFilterDropdowns();
               if (typeof renderGlobalTagManager === "function") renderGlobalTagManager();
